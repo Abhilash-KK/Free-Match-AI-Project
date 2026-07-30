@@ -1,5 +1,16 @@
 # Dependencies
 **/node_modules/
+backend/venv/
+venv/
+
+# Python / Django
+*.pyc
+__pycache__/
+**/__pycache__/
+*.sqlite3
+backend/db.sqlite3
+.env
+*.env
 
 # Production builds
 **/build/

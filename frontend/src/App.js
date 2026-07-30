@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import BackendStatusBadge from './components/BackendStatusBadge';
 
 function App() {
   const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'register'
@@ -41,13 +42,31 @@ function App() {
     }
   }, [userSession]);
 
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state && event.state.view) {
+        setCurrentView(event.state.view);
+      } else {
+        setCurrentView('landing');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleNavigate = (view) => {
+    if (view !== currentView) {
+      window.history.pushState({ view }, '', view === 'landing' ? '/' : `/${view}`);
+    }
     setCurrentView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSignOut = () => {
     setUserSession(null);
+    if (currentView !== 'landing') {
+      window.history.pushState({ view: 'landing' }, '', '/');
+    }
     setCurrentView('landing');
   };
 
@@ -61,6 +80,7 @@ function App() {
           theme={theme}
           toggleTheme={toggleTheme}
         />
+        <BackendStatusBadge />
       </div>
     );
   }
@@ -84,6 +104,7 @@ function App() {
           toggleTheme={toggleTheme}
         />
       )}
+      <BackendStatusBadge />
     </div>
   );
 }

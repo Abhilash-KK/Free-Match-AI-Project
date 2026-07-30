@@ -118,12 +118,17 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
         </div>
       </header>
 
+      {/* 3D Backside Environment */}
+      <div className="bg-3d-grid-clean"></div>
+      <div className="tech-node-1 hidden lg:block"></div>
+      <div className="tech-node-2 hidden lg:block"></div>
+
       {/* HERO SECTION */}
-      <section className="pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto text-center flex flex-col items-center relative z-10">
+      <section className="pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto text-center flex flex-col items-center relative z-10 hero-3d-card">
         <div className={`inline-flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 shadow-xs ${
           isDark 
             ? 'bg-blue-950/70 border border-blue-500/40 text-blue-300 shadow-[0_0_20px_rgba(13,91,225,0.25)]' 
-            : 'bg-blue-50 border border-blue-200 text-blue-700'
+            : 'bg-blue-50 border border-blue-200 text-blue-700 shadow-xs'
         }`}>
           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
           <span>Phase 2: AI NLP Skill Matching & GitHub Progress Tracker</span>
@@ -132,8 +137,12 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
         <h1 className={`text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] max-w-4xl ${
           isDark ? 'text-white' : 'text-slate-900'
         }`}>
-          FreeMatch AI <br />
-          <span className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-500 bg-clip-text text-transparent">
+          <span className="title-3d-text transition-all duration-300">FreeMatch AI</span> <br />
+          <span className={`mt-2 block bg-clip-text text-transparent ${
+            isDark 
+              ? 'bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 drop-shadow-[0_4px_15px_rgba(59,130,246,0.3)]' 
+              : 'bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 drop-shadow-[0_2px_10px_rgba(30,58,138,0.15)]'
+          }`}>
             AI Skill Matching & Progress Tracking.
           </span>
         </h1>
@@ -385,7 +394,11 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
                 <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Eliminates manual candidate vetting by autonomously matching job descriptions with suitable freelancer profiles using deep semantic NLP text analysis (spaCy & Hugging Face Transformers).
                 </p>
-                <div className="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl text-xs text-blue-300 font-mono mb-6">
+                <div className={`p-3.5 rounded-xl border text-xs leading-relaxed mb-6 ${
+                  isDark 
+                    ? 'bg-blue-950/40 border-blue-800/50 text-blue-300 font-mono' 
+                    : 'bg-blue-50/90 border-blue-200 text-blue-950 font-semibold'
+                }`}>
                   • Extracts core skills from job posts.<br />
                   • Generates a 0-100% compatibility score.<br />
                   • Recommends top 5 candidates to clients.
@@ -412,7 +425,11 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
                 <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Automates daily updates and monitors milestones to ensure transparent delivery without manual micromanagement.
                 </p>
-                <div className="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl text-xs text-blue-300 font-mono mb-6">
+                <div className={`p-3.5 rounded-xl border text-xs leading-relaxed mb-6 ${
+                  isDark 
+                    ? 'bg-blue-950/40 border-blue-800/50 text-blue-300 font-mono' 
+                    : 'bg-blue-50/90 border-blue-200 text-blue-950 font-semibold'
+                }`}>
                   • Automated daily check-ins for task statuses & blockers.<br />
                   • Integrates GitHub REST API to verify active development.<br />
                   • NLP summarizes developer logs into plain-English weekly client reports.
@@ -437,13 +454,13 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
                   <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>System Architecture & Modules</h3>
                 </div>
                 <div className="space-y-3 text-xs mb-6">
-                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800 font-semibold'}`}>
                     1. Core Marketplace: Role-Based Access Control (Client, Freelancer, Admin) & task boards.
                   </div>
-                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800 font-semibold'}`}>
                     2. AI Skill Matching: NLP semantic scoring & top 5 candidate recommendations.
                   </div>
-                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  <div className={`p-3 rounded-xl border font-medium ${isDark ? 'bg-[#0c162d] border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800 font-semibold'}`}>
                     3. AI Scrum Master: GitHub API commit verification & milestone escrow release.
                   </div>
                 </div>
@@ -469,7 +486,11 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
                 <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Integrated payment gateways (Stripe / Razorpay) handle credit card processing and operational payment distributions via secure milestone holding escrow structures.
                 </p>
-                <div className="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl text-xs text-blue-300 font-mono mb-6">
+                <div className={`p-3.5 rounded-xl border text-xs leading-relaxed mb-6 ${
+                  isDark 
+                    ? 'bg-blue-950/40 border-blue-800/50 text-blue-300 font-mono' 
+                    : 'bg-blue-50/90 border-blue-200 text-blue-950 font-semibold'
+                }`}>
                   • Blocks AI-generated spam proposals.<br />
                   • PyTorch anomaly detection identifies rating manipulation.<br />
                   • Temporarily suspends fraudulent accounts automatically.

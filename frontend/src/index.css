@@ -48,6 +48,103 @@ html:not(.dark) body {
   box-shadow: 0 14px 35px rgba(13, 91, 225, 0.15);
 }
 
+/* =========================================================
+   CLEAN & CRISP MODERN 3D EFFECTS
+   ========================================================= */
+
+/* 3D Perspective Hero Card */
+.hero-3d-card {
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease;
+  transform: perspective(1000px) rotateX(1.5deg);
+}
+
+.hero-3d-card:hover {
+  transform: perspective(1000px) rotateX(0deg) scale(1.01);
+}
+
+/* Crisp 3D Text Typography - Dark & Light Optimized */
+html.dark .title-3d-text {
+  text-shadow: 0 4px 18px rgba(37, 99, 235, 0.4);
+}
+
+html:not(.dark) .title-3d-text {
+  text-shadow: 0 4px 12px rgba(30, 58, 138, 0.15);
+}
+
+/* Floating 3D Background Grid - Subtle & Crisp */
+.bg-3d-grid-clean {
+  position: absolute;
+  inset: -30% -10%;
+  background-image: 
+    radial-gradient(circle at 50% 30%, rgba(59, 130, 246, 0.12) 0%, transparent 65%),
+    linear-gradient(to right, rgba(99, 102, 241, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.07) 1px, transparent 1px);
+  background-size: 100% 100%, 45px 45px, 45px 45px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle Animated Glowing 3D Tech Nodes */
+.tech-node-1 {
+  position: absolute;
+  top: 18%;
+  left: 5%;
+  width: 90px;
+  height: 90px;
+  border-radius: 24px;
+  backdrop-filter: blur(16px);
+  animation: floatNode1 6s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 1;
+}
+
+html.dark .tech-node-1 {
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.25), rgba(124, 58, 237, 0.15));
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  box-shadow: 0 15px 35px rgba(37, 99, 235, 0.25);
+}
+
+html:not(.dark) .tech-node-1 {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(224, 231, 255, 0.6));
+  border: 1px solid rgba(191, 219, 254, 0.8);
+  box-shadow: 0 15px 30px rgba(59, 130, 246, 0.12);
+}
+
+.tech-node-2 {
+  position: absolute;
+  top: 28%;
+  right: 5%;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  backdrop-filter: blur(16px);
+  animation: floatNode2 7s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 1;
+}
+
+html.dark .tech-node-2 {
+  background: radial-gradient(circle at 30% 30%, rgba(96, 165, 250, 0.3), rgba(30, 58, 138, 0.15));
+  border: 1px solid rgba(147, 197, 253, 0.25);
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.25);
+}
+
+html:not(.dark) .tech-node-2 {
+  background: radial-gradient(circle at 30% 30%, rgba(219, 234, 254, 0.9), rgba(238, 242, 255, 0.7));
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  box-shadow: 0 15px 30px rgba(99, 102, 241, 0.12);
+}
+
+@keyframes floatNode1 {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-18px) rotate(6deg); }
+}
+
+@keyframes floatNode2 {
+  0% { transform: translateY(0px) scale(1); }
+  100% { transform: translateY(-22px) scale(1.05); }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -13,6 +13,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
   // Registration Form State
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [regUserId, setRegUserId] = useState('');
   const [email, setEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -166,6 +167,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         return;
       }
 
+      if (!regUserId.trim()) {
+        setMessage({ type: 'error', text: 'Please choose a User ID / Handle.' });
+        return;
+      }
+
       if (regPassword.length < 6) {
         setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
         return;
@@ -178,24 +184,23 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
       setLoading(true);
       const newEmail = email.trim().toLowerCase();
+      const newUserId = regUserId.trim().toLowerCase();
 
       const existingUser = registeredUsers.find(
-        (u) => u.email.toLowerCase() === newEmail
+        (u) => u.email.toLowerCase() === newEmail || (u.user_id && u.user_id.toLowerCase() === newUserId)
       );
 
       if (existingUser) {
         setLoading(false);
         setMessage({ 
           type: 'error', 
-          text: `Account with Email "${newEmail}" already exists. Please Log In.` 
+          text: `Account with Email "${newEmail}" or User ID "${newUserId}" already exists. Please Log In.` 
         });
         return;
       }
 
-      const generatedUserId = `user_${Math.floor(1000 + Math.random() * 9000)}`;
-
       const newUserObj = {
-        user_id: generatedUserId,
+        user_id: newUserId,
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         name: `${firstName.trim()} ${lastName.trim()}`,
@@ -206,10 +211,17 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       };
 
       try {
-        const response = await fetch(`${API_BASE_URL}/register/`, {
+        const response = await fetch(`${API_BASE_URL}/auth/register/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newUserObj),
+          body: JSON.stringify({
+            user_id: newUserId,
+            email: newEmail,
+            password: regPassword,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            role: targetRole
+          }),
         });
 
         if (response.ok) {
@@ -218,7 +230,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           setUserSession(data.user || newUserObj);
         } else {
           const errData = await response.json().catch(() => ({ detail: 'Registration failed' }));
-          setMessage({ type: 'error', text: errData.detail || errData.message || 'Registration failed' });
+          setMessage({ type: 'error', text: errData.error || errData.detail || errData.message || 'Registration failed' });
         }
       } catch (err) {
         setRegisteredUsers((prev) => [...prev, newUserObj]);
@@ -234,11 +246,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     const enteredIdentifier = loginIdentifier.trim().toLowerCase();
 
     try {
-      const response = await fetch(`${API_BASE_URL}/login/`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          identifier: enteredIdentifier,
           email: enteredIdentifier,
           password: loginPassword,
           role: targetRole
@@ -250,7 +261,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         setUserSession(data.user);
       } else {
         const errData = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
-        setMessage({ type: 'error', text: errData.detail || errData.message || 'Account not found or incorrect password.' });
+        setMessage({ type: 'error', text: errData.error || errData.detail || errData.message || 'Account not found or incorrect password.' });
       }
     } catch (err) {
       const foundUser = registeredUsers.find(
@@ -278,7 +289,79 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setMessage(null);
+    setLoading(true);
+    const targetRole = getMappedRole(role);
+
+    const userEmail = prompt("Enter your Google Account email to Continue with Google:", "user.google@gmail.com");
+    if (!userEmail || !userEmail.trim()) {
+      setLoading(false);
+      return;
+    }
+
+    const cleanEmail = userEmail.trim().toLowerCase();
+    const nameParts = cleanEmail.split('@')[0].split('.');
+    const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'Google';
+    const lastName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : 'User';
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/google/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          first_name: firstName,
+          last_name: lastName,
+          role: targetRole
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserSession(data.user);
+      } else {
+        const errData = await response.json().catch(() => ({ detail: 'Google Sign-In failed' }));
+        setMessage({ type: 'error', text: errData.error || errData.detail || 'Google Authentication failed.' });
+      }
+    } catch (err) {
+      const googleUserObj = {
+        user_id: cleanEmail.split('@')[0],
+        first_name: firstName,
+        last_name: lastName,
+        name: `${firstName} ${lastName}`,
+        email: cleanEmail,
+        role: targetRole,
+        auth_provider: 'Google'
+      };
+      setUserSession(googleUserObj);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isDark = theme === 'dark';
+
+  // Render Exact Screenshot Eye Icon
+  const renderEyeIcon = (isVisible) => {
+    if (isVisible) {
+      // Eye Visible (Matching user screenshot)
+      return (
+        <svg className="w-5 h-5 text-blue-500 hover:text-blue-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="12" cy="12" r="3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    }
+    // Eye Hidden / Outline
+    return (
+      <svg className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="12" cy="12" r="3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <line x1="3" y1="3" x2="21" y2="21" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+    );
+  };
 
   return (
     <div className={`min-h-screen w-full grid grid-cols-1 lg:grid-cols-2 font-sans selection:bg-blue-600 selection:text-white transition-colors duration-200 ${
@@ -585,19 +668,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     <button
                       type="button"
                       onClick={() => setShowResetPassword(!showResetPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center cursor-pointer"
                       title={showResetPassword ? "Hide Password" : "View Password"}
                     >
-                      {showResetPassword ? (
-                        <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
+                      {renderEyeIcon(showResetPassword)}
                     </button>
                   </div>
                 </div>
@@ -628,19 +702,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     <button
                       type="button"
                       onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center cursor-pointer"
                       title={showResetConfirmPassword ? "Hide Password" : "View Password"}
                     >
-                      {showResetConfirmPassword ? (
-                        <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
+                      {renderEyeIcon(showResetConfirmPassword)}
                     </button>
                   </div>
                 </div>
@@ -762,6 +827,32 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                       </div>
                     </div>
 
+                    {/* Registration User ID / Handle */}
+                    <div>
+                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        User ID / Handle <span className="text-slate-400 font-normal">(for login)</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={regUserId}
+                          onChange={(e) => setRegUserId(e.target.value)}
+                          placeholder="e.g. johnathan123"
+                          className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
+                            isDark 
+                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
+                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
                     {/* Registration Work Email */}
                     <div>
                       <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -814,19 +905,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <button
                           type="button"
                           onClick={() => setShowRegPassword(!showRegPassword)}
-                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center cursor-pointer"
                           title={showRegPassword ? "Hide Password" : "View Password"}
                         >
-                          {showRegPassword ? (
-                            <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
+                          {renderEyeIcon(showRegPassword)}
                         </button>
                       </div>
                     </div>
@@ -857,19 +939,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <button
                           type="button"
                           onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center cursor-pointer"
                           title={showRegConfirmPassword ? "Hide Password" : "View Password"}
                         >
-                          {showRegConfirmPassword ? (
-                            <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
+                          {renderEyeIcon(showRegConfirmPassword)}
                         </button>
                       </div>
                     </div>
@@ -945,19 +1018,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <button
                           type="button"
                           onClick={() => setShowLoginPassword(!showLoginPassword)}
-                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center cursor-pointer"
                           title={showLoginPassword ? "Hide Password" : "View Password"}
                         >
-                          {showLoginPassword ? (
-                            <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />
-                            </svg>
-                          ) : (
-                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
+                          {renderEyeIcon(showLoginPassword)}
                         </button>
                       </div>
                     </div>
@@ -1011,7 +1075,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               <div className="w-full grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => alert("Google Sign-In initialized.")}
+                  onClick={handleGoogleAuth}
                   className={`w-full border font-semibold py-2.5 px-3 rounded-2xl transition-all duration-150 flex items-center justify-center space-x-2 text-xs cursor-pointer shadow-2xs ${
                     isDark 
                       ? 'bg-[#0c162d] hover:bg-[#111f3d] border-slate-800 text-white' 
