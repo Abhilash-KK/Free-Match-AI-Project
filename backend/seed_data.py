@@ -163,6 +163,25 @@ def seed_database():
         }
     )
 
+    # 7. Seed Sprint Tasks (Kanban Board)
+    from api.models import SprintTask
+    SprintTask.objects.get_or_create(
+        title='Setup PyTorch Model Training Cluster',
+        defaults={'project': p1, 'assignee': alex_user, 'status': 'To Do', 'budget': '$2,500'}
+    )
+    SprintTask.objects.get_or_create(
+        title='Design D3.js Financial Chart Widgets',
+        defaults={'project': p2, 'assignee': sarah_user, 'status': 'In Progress', 'budget': '$1,800'}
+    )
+    SprintTask.objects.get_or_create(
+        title='Restructure REST API Inference Endpoints',
+        defaults={'project': p1, 'assignee': alex_user, 'status': 'Under Review', 'budget': '$4,000'}
+    )
+    SprintTask.objects.get_or_create(
+        title='OWASP Security Audit & Vulnerability Report',
+        defaults={'project': p1, 'assignee': sarah_user, 'status': 'Done', 'budget': '$4,200'}
+    )
+
     print("SUCCESS: Database seeded with full marketplace authentication and sample records!")
 
 if __name__ == '__main__':

@@ -61,11 +61,38 @@ class Project(models.Model):
     duration = models.CharField(max_length=50, default='3 Weeks')
     skills_required = models.CharField(max_length=200, default='React, Python')
     description = models.TextField()
+    abstract = models.TextField(blank=True, default='', help_text="Executive abstract or technical implementation spec for freelancers")
+    attached_file_name = models.CharField(max_length=255, blank=True, default='')
+    attached_file_url = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+
+class SprintTask(models.Model):
+    STAGE_CHOICES = (
+        ('To Do', 'To Do (0%)'),
+        ('In Progress', 'In Progress (30%)'),
+        ('Under Review', 'Under Review (60%)'),
+        ('Done', 'Done (100%)'),
+    )
+    title = models.CharField(max_length=250)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sprint_tasks', null=True, blank=True)
+    assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_sprint_tasks', null=True, blank=True)
+    status = models.CharField(max_length=30, choices=STAGE_CHOICES, default='To Do')
+    budget = models.CharField(max_length=50, default='$2,500')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_progress_percentage(self):
+        if self.status == 'Done': return 100
+        if self.status == 'Under Review': return 60
+        if self.status == 'In Progress': return 30
+        return 0
+
+    def __str__(self):
+        return f"Sprint Task: {self.title} [{self.status}]"
 
 class Proposal(models.Model):
     STATUS_CHOICES = (
@@ -91,7 +118,7 @@ class Contract(models.Model):
         ('Cancelled', 'Cancelled'),
     )
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    proposal = models.ForeignKey(Proposal, on_delete=models.CASCADE)
+    proposal = models.ForeignKey(Proposal, on_delete=models.CASCADE, null=True, blank=True)
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contracts_as_client')
     freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contracts_as_freelancer')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=5000.00)
@@ -118,15 +145,19 @@ class Payment(models.Model):
         return f"Payment ${self.amount} for {self.milestone_title}"
 
 class Review(models.Model):
-    contract = models.ForeignKey(Contract, on_delete=models.CASCADE)
+    contract = models.ForeignKey(Contract, on_delete=models.CASCADE, null=True, blank=True)
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_written')
     reviewee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_received')
+    project_title = models.CharField(max_length=200, blank=True, default='')
     rating = models.IntegerField(default=5)
+    communication_rating = models.IntegerField(default=5)
+    code_quality_rating = models.IntegerField(default=5)
+    deadline_adherence_rating = models.IntegerField(default=5)
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Review ({self.rating}★) by {self.reviewer.username}"
+        return f"Review ({self.rating}★) by {self.reviewer.username} -> {self.reviewee.username}"
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
