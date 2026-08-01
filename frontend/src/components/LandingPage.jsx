@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import TiltCard from './TiltCard';
 
 const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
   const [activeModal, setActiveModal] = useState(null); // 'matching' | 'talent' | 'how-it-works' | 'security' | null
@@ -24,6 +25,11 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
       <div className={`absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none ${
         isDark ? 'bg-blue-700/10' : 'bg-blue-300/20'
       }`}></div>
+
+      {/* 3D Floating Nodes Environment */}
+      <div className="bg-3d-grid-clean"></div>
+      <div className="tech-node-1 hidden lg:block"></div>
+      <div className="tech-node-2 hidden lg:block"></div>
 
       {/* Top Header Navbar */}
       <header className={`sticky top-0 z-40 w-full backdrop-blur-xl border-b px-6 sm:px-12 py-4 flex items-center justify-between transition-colors duration-200 ${
@@ -54,7 +60,7 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
             onClick={() => setActiveModal('matching')}
             className="hover:text-blue-500 transition-colors cursor-pointer"
           >
-            AI Skill Matching
+            AI Match Engine
           </button>
           <button 
             onClick={() => setActiveModal('talent')}
@@ -118,11 +124,6 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
         </div>
       </header>
 
-      {/* 3D Backside Environment */}
-      <div className="bg-3d-grid-clean"></div>
-      <div className="tech-node-1 hidden lg:block"></div>
-      <div className="tech-node-2 hidden lg:block"></div>
-
       {/* HERO SECTION */}
       <section className="pt-20 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto text-center flex flex-col items-center relative z-10 hero-3d-card">
         <div className={`inline-flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 shadow-xs ${
@@ -138,10 +139,8 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
           isDark ? 'text-white' : 'text-slate-900'
         }`}>
           <span className="title-3d-text transition-all duration-300">FreeMatch AI</span> <br />
-          <span className={`mt-2 block bg-clip-text text-transparent ${
-            isDark 
-              ? 'bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 drop-shadow-[0_4px_15px_rgba(59,130,246,0.3)]' 
-              : 'bg-gradient-to-r from-blue-700 via-indigo-600 to-blue-800 drop-shadow-[0_2px_10px_rgba(30,58,138,0.15)]'
+          <span className={`bg-clip-text text-transparent bg-gradient-to-r ${
+            isDark ? 'from-blue-400 via-indigo-300 to-purple-400' : 'from-blue-600 via-indigo-600 to-blue-800'
           }`}>
             AI Skill Matching & Progress Tracking.
           </span>
@@ -173,59 +172,65 @@ const LandingPage = ({ onNavigate, theme = 'dark', toggleTheme }) => {
         </div>
       </section>
 
-      {/* 3 Core Value Cards (Aligned with Project Specs) */}
+      {/* 3 Core Value Cards (Wrapped in 3D TiltCard) */}
       <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto w-full relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1 */}
-          <div className={`rounded-3xl p-7 border shadow-lg card-hover backdrop-blur-xl flex flex-col items-start transition-all ${
-            isDark 
-              ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-600/50' 
-              : 'bg-white border-slate-200 hover:border-blue-300'
-          }`}>
-            <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs">
-              🧠
+          <TiltCard className="h-full">
+            <div className={`h-full rounded-3xl p-7 border shadow-xl backdrop-blur-xl flex flex-col items-start transition-all ${
+              isDark 
+                ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-500/60 shadow-[0_10px_30px_rgba(13,91,225,0.15)]' 
+                : 'bg-white border-slate-200 hover:border-blue-300 shadow-lg'
+            }`}>
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs text-xl">
+                🧠
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                AI Skill-Matching Engine (NLP)
+              </h3>
+              <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Deep semantic NLP analysis (spaCy/Transformers) extracting skills from job posts and generating 0-100% compatibility scores to recommend top 5 matches.
+              </p>
             </div>
-            <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              AI Skill-Matching Engine (NLP)
-            </h3>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Deep semantic NLP analysis (spaCy/Transformers) extracting skills from job posts and generating 0-100% compatibility scores to recommend top 5 matches.
-            </p>
-          </div>
+          </TiltCard>
 
           {/* Card 2 */}
-          <div className={`rounded-3xl p-7 border shadow-lg card-hover backdrop-blur-xl flex flex-col items-start transition-all ${
-            isDark 
-              ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-600/50' 
-              : 'bg-white border-slate-200 hover:border-blue-300'
-          }`}>
-            <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs">
-              📊
+          <TiltCard className="h-full">
+            <div className={`h-full rounded-3xl p-7 border shadow-xl backdrop-blur-xl flex flex-col items-start transition-all ${
+              isDark 
+                ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-500/60 shadow-[0_10px_30px_rgba(13,91,225,0.15)]' 
+                : 'bg-white border-slate-200 hover:border-blue-300 shadow-lg'
+            }`}>
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs text-xl">
+                📊
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                AI Scrum Master & Progress Tracker
+              </h3>
+              <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Automated daily check-ins & GitHub REST API integration cross-referencing code updates against task sprint boards for plain-English weekly status reports.
+              </p>
             </div>
-            <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              AI Scrum Master & Progress Tracker
-            </h3>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Automated daily check-ins & GitHub REST API integration cross-referencing code updates against task sprint boards for plain-English weekly status reports.
-            </p>
-          </div>
+          </TiltCard>
 
           {/* Card 3 */}
-          <div className={`rounded-3xl p-7 border shadow-lg card-hover backdrop-blur-xl flex flex-col items-start transition-all ${
-            isDark 
-              ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-600/50' 
-              : 'bg-white border-slate-200 hover:border-blue-300'
-          }`}>
-            <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs">
-              💳
+          <TiltCard className="h-full">
+            <div className={`h-full rounded-3xl p-7 border shadow-xl backdrop-blur-xl flex flex-col items-start transition-all ${
+              isDark 
+                ? 'bg-[#060e22]/90 border-slate-800/80 hover:border-blue-500/60 shadow-[0_10px_30px_rgba(13,91,225,0.15)]' 
+                : 'bg-white border-slate-200 hover:border-blue-300 shadow-lg'
+            }`}>
+              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 text-blue-500 flex items-center justify-center mb-5 border border-blue-500/30 shadow-xs text-xl">
+                💳
+              </div>
+              <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Milestone Escrow & Fraud Shield
+              </h3>
+              <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Stripe & Razorpay payment gateway integration with milestone holding escrow structures and PyTorch anomaly detection blocking spam proposals & fake reviews.
+              </p>
             </div>
-            <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Milestone Escrow & Fraud Shield
-            </h3>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Stripe & Razorpay payment gateway integration with milestone holding escrow structures and PyTorch anomaly detection blocking spam proposals & fake reviews.
-            </p>
-          </div>
+          </TiltCard>
         </div>
       </section>
 

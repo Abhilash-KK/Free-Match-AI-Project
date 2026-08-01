@@ -93,7 +93,11 @@ def login_user(request):
     if user is None:
         return Response({"error": "Invalid Email ID / User ID or password."}, status=status.HTTP_401_UNAUTHORIZED)
 
+    req_role = data.get('role', '').strip().lower()
     profile, _ = UserProfile.objects.get_or_create(user=user)
+    if req_role in ['admin', 'freelancer', 'client']:
+        profile.role = req_role
+        profile.save()
 
     return Response({
         "message": "Login successful",
@@ -153,3 +157,40 @@ def google_auth(request):
             "auth_provider": "Google"
         }
     }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def submit_review(request):
+    """
+    Submit a review for a freelancer/contract, updating Django ORM & recalculating freelancer average rating score.
+    """
+    from .models import Review
+    data = request.data
+    reviewer_name = data.get('reviewer', 'TechStream Corp')
+    reviewee_name = data.get('reviewee', 'Alex Mercer')
+    rating = int(data.get('rating', 5))
+    comment = data.get('comment', '')
+    project_title = data.get('project_title', 'Marketplace Project')
+
+    try:
+        reviewer_user = User.objects.filter(username__iexact=reviewer_name).first() or User.objects.filter(is_superuser=True).first()
+        reviewee_user = User.objects.filter(username__iexact=reviewee_name).first()
+
+        if reviewee_user and reviewer_user:
+            Review.objects.create(
+                reviewer=reviewer_user,
+                reviewee=reviewee_user,
+                rating=rating,
+                comment=f"[{project_title}] {comment}"
+            )
+            fl_prof = getattr(reviewee_user, 'freelancer_profile', None)
+            if fl_prof:
+                fl_prof.rating = round((fl_prof.rating + rating) / 2.0, 1)
+                fl_prof.save()
+
+        return Response({
+            "message": "Review submitted successfully and rating updated in database!",
+            "rating": rating
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

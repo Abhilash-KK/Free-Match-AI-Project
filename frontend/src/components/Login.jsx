@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TiltCard from './TiltCard';
 
 const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login', theme = 'dark', toggleTheme }) => {
   // Mode state: 'login' | 'register' | 'forgot-password'
@@ -258,7 +259,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
       if (response.ok) {
         const data = await response.json();
-        setUserSession(data.user);
+        setUserSession({
+          ...data.user,
+          role: targetRole || data.user.role
+        });
       } else {
         const errData = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
         setMessage({ type: 'error', text: errData.error || errData.detail || errData.message || 'Account not found or incorrect password.' });
@@ -405,12 +409,13 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
         {/* Center Glassmorphic Smart Match Graphic Showcase */}
         <div className="relative z-10 my-auto py-4 w-full max-w-lg mx-auto">
-          {/* Glass Card Box with Multi-Depth Glow */}
-          <div className={`relative rounded-3xl p-6 sm:p-8 shadow-[0_0_50px_rgba(13,91,225,0.3)] overflow-hidden backdrop-blur-2xl transition-all duration-300 border ${
-            isDark 
-              ? 'bg-[#060e22]/90 border-blue-500/40' 
-              : 'bg-[#0a1e45]/95 border-blue-400/40'
-          }`}>
+          <TiltCard maxTilt={10}>
+            {/* Glass Card Box with Multi-Depth Glow */}
+            <div className={`relative rounded-3xl p-6 sm:p-8 shadow-[0_0_50px_rgba(13,91,225,0.35)] overflow-hidden backdrop-blur-2xl transition-all duration-300 border ${
+              isDark 
+                ? 'bg-[#060e22]/90 border-blue-500/40' 
+                : 'bg-[#0a1e45]/95 border-blue-400/40'
+            }`}>
             
             {/* Top Live Stats Badge (Left) */}
             <div className="absolute top-5 left-5 z-20 flex items-center space-x-2 bg-[#091533]/90 border border-slate-700/80 px-3 py-1 rounded-full text-[10px] text-slate-300 font-medium">
@@ -516,6 +521,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
             </div>
 
           </div>
+          </TiltCard>
         </div>
 
         {/* Bottom Footer Tracking Line */}

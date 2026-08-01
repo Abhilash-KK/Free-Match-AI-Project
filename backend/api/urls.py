@@ -7,4 +7,5 @@ urlpatterns = [
     path('auth/register/', views.register_user, name='register_user'),
     path('auth/login/', views.login_user, name='login_user'),
     path('auth/google/', views.google_auth, name='google_auth'),
+    path('reviews/submit/', views.submit_review, name='submit_review'),
 ]
