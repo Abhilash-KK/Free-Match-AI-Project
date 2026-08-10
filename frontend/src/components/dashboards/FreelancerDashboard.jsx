@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 
-const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }) => {
-  const isDark = theme === 'dark';
+const FreelancerDashboard = ({ userSession, onSignOut }) => {
+  const isDark = false;
   const [activeTab, setActiveTab] = useState('workspace'); // 'workspace' | 'jobs' | 'proposals' | 'tasks' | 'earnings' | 'profile' | 'settings'
   const [selectedJob, setSelectedJob] = useState(null);
   const [showBidModal, setShowBidModal] = useState(false);
@@ -71,7 +71,22 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
     ];
   });
 
-  // Re-sync jobs & proposals from LocalStorage whenever component mounts or window gains focus
+  // Shared Reviews State (Synced with Client Reviews Submission & Django API)
+  const [reviews, setReviews] = useState(() => {
+    const saved = localStorage.getItem('freematch_shared_reviews');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return [
+      { id: 'r1', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Lana Kim', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Lana completed the penetration audit ahead of schedule with zero security flaws left unpatched.', date: 'Aug 01, 2026' },
+      { id: 'r2', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Alex Mercer', projectTitle: 'AI Pipeline Optimization', rating: 5, comm: 5, code: 5, deadline: 4, comment: 'Exceptional PyTorch ML optimization. Delivered 4x speedup in API model inference.', date: 'Aug 03, 2026' }
+    ];
+  });
+
+  // Re-sync jobs, proposals & submitted reviews from LocalStorage & Django REST API
   React.useEffect(() => {
     const syncData = () => {
       const savedJobs = localStorage.getItem('freematch_shared_projects');
@@ -88,6 +103,30 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
           if (Array.isArray(parsedProps) && parsedProps.length > 0) setProposals(parsedProps);
         } catch (e) {}
       }
+      const savedReviews = localStorage.getItem('freematch_shared_reviews');
+      if (savedReviews) {
+        try {
+          const parsedRevs = JSON.parse(savedReviews);
+          if (Array.isArray(parsedRevs) && parsedRevs.length > 0) setReviews(parsedRevs);
+        } catch (e) {}
+      }
+      // Fetch from Django API
+      fetch('http://localhost:8000/api/reviews/')
+        .then(res => res.json())
+        .then(apiData => {
+          if (Array.isArray(apiData) && apiData.length > 0) {
+            setReviews(prev => {
+              const combined = [...prev];
+              apiData.forEach(item => {
+                if (!combined.some(c => c.id === item.id || (c.reviewer === item.reviewer && c.comment === item.comment))) {
+                  combined.unshift(item);
+                }
+              });
+              return combined;
+            });
+          }
+        })
+        .catch(() => {});
     };
     syncData();
     window.addEventListener('storage', syncData);
@@ -164,12 +203,28 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
   };
 
   return (
-    <div className={`min-h-screen flex font-sans ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'}`}>
+    <div className={`min-h-screen flex font-sans relative overflow-hidden transition-colors duration-200 ${
+      isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'
+    }`}>
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
       
+      {/* Background Glowing Orbs */}
+      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 ${
+        isDark ? 'bg-blue-600/10' : 'bg-blue-400/15'
+      }`}></div>
+      <div className={`absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none z-0 ${
+        isDark ? 'bg-blue-700/10' : 'bg-blue-300/20'
+      }`}></div>
+      <div className={`absolute bottom-10 left-10 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none z-0 ${
+        isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/15'
+      }`}></div>
+
+      {/* 3D Floating Grid Environment */}
+      <div className="bg-3d-grid-clean"></div>
+
       {/* FREELANCER PRODUCTIVITY SIDEBAR */}
-      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors ${
-        isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-2xs'
+      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors relative z-20 backdrop-blur-xl ${
+        isDark ? 'bg-[#060e22]/90 border-slate-800/80' : 'bg-white/90 border-slate-200/90 shadow-xs'
       }`}>
         <div>
           {/* Logo */}
@@ -188,7 +243,7 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
               { id: 'workspace', label: 'My Work & Productivity', icon: '📊' },
               { id: 'jobs', label: 'Browse Jobs Feed', icon: '🔍' },
               { id: 'proposals', label: 'My Submitted Bids', icon: '✈️', badge: proposals.length },
-              { id: 'tasks', label: 'Personal Task Kanban', icon: '📌' },
+              { id: 'tasks', label: 'Sprint Task Board', icon: '📌' },
               { id: 'earnings', label: 'Earnings & Wallet', icon: '💰' },
               { id: 'profile', label: 'Profile & Skills Portfolio', icon: '👤' }
             ].map(item => (
@@ -242,13 +297,7 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
           </div>
 
           <div className="flex items-center space-x-4">
-            {toggleTheme && (
-              <button onClick={toggleTheme} className={`p-2.5 rounded-xl border ${isDark ? 'bg-[#081024] border-slate-800 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                {isDark ? '☀️' : '🌙'}
-              </button>
-            )}
-
-            <div className="flex items-center space-x-3 pl-3 border-l border-slate-700/50">
+            <div className="flex items-center space-x-3 border-slate-700/50">
               <div className="text-right">
                 <p className="text-xs font-bold">{userSession?.name || 'Alex Rivera'}</p>
                 <p className="text-[10px] text-slate-400 font-semibold uppercase">SENIOR UX DESIGNER</p>
@@ -386,7 +435,7 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
                           onClick={() => handleViewSprintTask(pr)}
                           className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer flex items-center space-x-2"
                         >
-                          <span>📌 View Sprint Task on Kanban Board</span>
+                          <span>📌 View Sprint Task Board</span>
                           <span>→</span>
                         </button>
                       ) : (
@@ -399,6 +448,142 @@ const FreelancerDashboard = ({ userSession, onSignOut, theme = 'dark', toggleThe
             </div>
           </div>
         )}
+
+        {/* TAB: FREELANCER PROFILE & VERIFIED CLIENT REVIEWS */}
+        {activeTab === 'profile' && (() => {
+          const currentFlName = userSession?.name || 'Alex Mercer';
+          const myReviews = reviews.filter(r => {
+            const revName = (r.reviewee || '').toLowerCase();
+            const curName = currentFlName.toLowerCase();
+            const firstWord = curName.split(' ')[0];
+            return revName.includes(curName) || revName.includes(firstWord) || curName.includes(revName);
+          });
+          const avgScore = myReviews.length > 0 
+            ? (myReviews.reduce((acc, r) => acc + Number(r.rating || 5), 0) / myReviews.length).toFixed(1)
+            : '4.9';
+
+          return (
+            <div className="p-8 space-y-8">
+              {/* Profile Overview Header Card */}
+              <div className={`p-8 rounded-3xl border space-y-6 relative overflow-hidden ${
+                isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="flex items-center space-x-5">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-xl ring-4 ring-blue-500/20">
+                      {currentFlName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-3">
+                        <h2 className="text-2xl font-extrabold tracking-tight">{currentFlName}</h2>
+                        <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold rounded-full flex items-center space-x-1">
+                          <span>✓</span><span>Verified Freelancer Pro</span>
+                        </span>
+                      </div>
+                      <p className="text-sm text-blue-400 font-bold mt-1">Senior React, PyTorch & Django Architect</p>
+                      <p className="text-xs text-slate-400 mt-1">San Francisco, CA • $75.00 / hr • 100% Job Success Rate</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Overall Rating</p>
+                      <p className="text-xl font-black text-amber-400 mt-0.5">★ {avgScore} / 5.0</p>
+                      <p className="text-[9px] text-slate-500 font-bold">{myReviews.length} Verified Reviews</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl border text-center ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Lifetime Earnings</p>
+                      <p className="text-xl font-black text-emerald-400 mt-0.5">$28,900</p>
+                      <p className="text-[9px] text-slate-500 font-bold">24 Completed Contracts</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills Chips */}
+                <div className="space-y-2 pt-4 border-t border-slate-800/40">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top Technical Skills & Stack</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'D3.js', 'REST API Architecture', 'OWASP Security'].map((s, i) => (
+                      <span key={i} className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold rounded-xl">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bio Summary */}
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Professional Bio & Executive Summary</p>
+                  <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications. Proven track record delivering 100% on-time milestone completions for global enterprise clients.
+                  </p>
+                </div>
+              </div>
+
+              {/* CLIENT REVIEWS & PERFORMANCE FEEDBACK HISTORY */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-extrabold tracking-tight">Verified Client Reviews & Performance Feedback ({myReviews.length})</h3>
+                    <p className="text-xs text-slate-400">Authentic ratings submitted by verified project clients upon milestone release.</p>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-600/20 text-blue-400 border border-blue-500/30 text-xs font-bold rounded-xl">
+                    Synced with PostgreSQL DB
+                  </span>
+                </div>
+
+                {myReviews.length === 0 ? (
+                  <div className={`p-8 text-center rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-600'}`}>
+                    <p className="text-base font-bold">No Client Reviews Yet</p>
+                    <p className="text-xs mt-1">Submit proposals and complete milestones to earn client reviews!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {myReviews.map(rv => (
+                      <div key={rv.id} className={`p-6 rounded-3xl border space-y-4 transition-all hover:border-blue-500/40 ${
+                        isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                      }`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 font-extrabold text-sm flex items-center justify-center">
+                              {rv.reviewer ? rv.reviewer.charAt(0) : 'C'}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-sm text-blue-400">{rv.reviewer}</h4>
+                              <p className="text-xs text-slate-400 font-medium">Project: <span className="font-bold text-slate-200">{rv.projectTitle}</span></p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <span className="text-amber-400 text-sm">{'★'.repeat(rv.rating || 5)}</span>
+                            <span className="text-xs font-extrabold text-amber-400">{rv.rating}/5 Stars</span>
+                            <span className="text-[10px] text-slate-500 font-semibold ml-2">({rv.date || 'Recently'})</span>
+                          </div>
+                        </div>
+
+                        {/* Granular Criteria Scores */}
+                        <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl border text-xs font-semibold ${
+                          isDark ? 'bg-[#040919] border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-800'
+                        }`}>
+                          <div>💬 Communication: <span className="text-amber-400 font-bold">{rv.comm || rv.rating || 5}/5 ★</span></div>
+                          <div>💻 Code Quality: <span className="text-amber-400 font-bold">{rv.code || rv.rating || 5}/5 ★</span></div>
+                          <div>⏱️ Deadline Adherence: <span className="text-amber-400 font-bold">{rv.deadline || rv.rating || 5}/5 ★</span></div>
+                        </div>
+
+                        {/* Detailed Review Comment */}
+                        <p className={`text-xs italic p-4 rounded-2xl border leading-relaxed font-medium ${
+                          isDark ? 'bg-blue-950/20 border-blue-500/20 text-slate-200' : 'bg-blue-50/60 border-blue-200 text-slate-900'
+                        }`}>
+                          "{rv.comment}"
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* WORKSPACE OVERVIEW TAB */}
         {activeTab === 'workspace' && (

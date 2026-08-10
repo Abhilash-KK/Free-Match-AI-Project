@@ -8,7 +8,7 @@ const DEFAULT_TASKS = [
   { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '$4,200', project: 'Cybersecurity Audit & Shield' }
 ];
 
-const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark = true }) => {
+const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark = false }) => {
   const [toast, setToast] = useState(null);
 
   // Sync Kanban tasks across LocalStorage
@@ -98,7 +98,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-3">
-            <h2 className="text-2xl font-bold tracking-tight">Project Progress Kanban Board</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Sprint Progress Task Board</h2>
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
               role === 'client' 
                 ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
@@ -149,9 +149,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
           <div className="space-y-3">
             {displayTasks.filter(t => t.status === 'To Do').map(t => (
               <div key={t.id} className={`p-4 rounded-2xl border ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <p className="font-bold text-xs mb-1">{t.title}</p>
-                <p className="text-[10px] text-slate-400 mb-3">
-                  Assignee: <span className="font-semibold text-slate-200">{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
+                <p className={`font-bold text-xs mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.title}</p>
+                <p className={`text-[10px] mb-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Assignee: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
                 </p>
                 {role === 'freelancer' ? (
                   <button 
@@ -161,7 +161,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
                     Start Task (30%) →
                   </button>
                 ) : (
-                  <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 text-[10px] font-bold text-slate-400 text-center">
+                  <div className={`p-2 rounded-xl text-[10px] font-bold text-center ${isDark ? 'bg-slate-800/80 border border-slate-700/60 text-slate-400' : 'bg-slate-200 border border-slate-300 text-slate-700'}`}>
                     ⏳ Pending Freelancer Start (0%)
                   </div>
                 )}
@@ -183,10 +183,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
           </div>
           <div className="space-y-3">
             {displayTasks.filter(t => t.status === 'In Progress').map(t => (
-              <div key={t.id} className={`p-4 rounded-2xl border border-blue-500/30 ${isDark ? 'bg-blue-950/20' : 'bg-blue-50/50'}`}>
-                <p className="font-bold text-xs mb-1">{t.title}</p>
-                <p className="text-[10px] text-blue-400 mb-3">
-                  Assignee: <span className="font-semibold text-white">{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
+              <div key={t.id} className={`p-4 rounded-2xl border border-blue-500/30 ${isDark ? 'bg-blue-950/20' : 'bg-blue-50/70'}`}>
+                <p className={`font-bold text-xs mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.title}</p>
+                <p className={`text-[10px] mb-3 ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                  Assignee: <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
                 </p>
                 {role === 'freelancer' ? (
                   <button 
@@ -196,7 +196,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
                     Submit for Review (60%) →
                   </button>
                 ) : (
-                  <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] font-bold text-blue-300 text-center animate-pulse">
+                  <div className={`p-2 rounded-xl text-[10px] font-bold text-center animate-pulse ${isDark ? 'bg-blue-500/10 border border-blue-500/20 text-blue-300' : 'bg-blue-100 border border-blue-300 text-blue-800'}`}>
                     ⚡ Work in Progress (30%)
                   </div>
                 )}
@@ -218,10 +218,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
           </div>
           <div className="space-y-3">
             {displayTasks.filter(t => t.status === 'Under Review').map(t => (
-              <div key={t.id} className={`p-4 rounded-2xl border border-amber-500/30 ${isDark ? 'bg-amber-950/20' : 'bg-amber-50/50'}`}>
-                <p className="font-bold text-xs mb-1">{t.title}</p>
-                <p className="text-[10px] text-amber-400 mb-3">
-                  Assignee: <span className="font-semibold text-white">{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
+              <div key={t.id} className={`p-4 rounded-2xl border border-amber-500/30 ${isDark ? 'bg-amber-950/20' : 'bg-amber-50/70'}`}>
+                <p className={`font-bold text-xs mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.title}</p>
+                <p className={`text-[10px] mb-3 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                  Assignee: <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.assignee}</span> {t.budget ? `• ${t.budget}` : ''}
                 </p>
                 {role === 'freelancer' ? (
                   <button 
@@ -231,7 +231,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', isDark 
                     ✔ Finalize & Mark Done (100%) →
                   </button>
                 ) : (
-                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-300 text-center animate-pulse">
+                  <div className={`p-2 rounded-xl text-[10px] font-bold text-center animate-pulse ${isDark ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' : 'bg-amber-100 border border-amber-300 text-amber-800'}`}>
                     ⏳ Under Review (60%) — Awaiting Freelancer Completion
                   </div>
                 )}

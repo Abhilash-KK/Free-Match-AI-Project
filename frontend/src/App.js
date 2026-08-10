@@ -7,23 +7,13 @@ import BackendStatusBadge from './components/BackendStatusBadge';
 function App() {
   const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'register'
   
-  // Theme state: 'dark' (default) or 'light'
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('freematch_theme') || 'dark';
-  });
+  // Theme fixed to clean light mode
+  const theme = 'light';
 
   useEffect(() => {
-    localStorage.setItem('freematch_theme', theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+    localStorage.setItem('freematch_theme', 'light');
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   // Persisted Active User Session
   const [userSession, setUserSession] = useState(() => {
@@ -73,12 +63,11 @@ function App() {
   // If user is logged in, show role-tailored Dashboard
   if (userSession) {
     return (
-      <div className={`App min-h-screen ${theme}`}>
+      <div className="App min-h-screen light bg-[#f8fafc]">
         <Dashboard 
           userSession={userSession} 
           onSignOut={handleSignOut} 
-          theme={theme}
-          toggleTheme={toggleTheme}
+          theme="light"
         />
         <BackendStatusBadge />
       </div>
@@ -87,12 +76,11 @@ function App() {
 
   // Otherwise route between Landing Page and Authentication (Login/Register)
   return (
-    <div className={`App min-h-screen ${theme}`}>
+    <div className="App min-h-screen light bg-[#f8fafc]">
       {currentView === 'landing' ? (
         <LandingPage 
           onNavigate={handleNavigate} 
-          theme={theme}
-          toggleTheme={toggleTheme}
+          theme="light"
         />
       ) : (
         <Login
@@ -100,8 +88,7 @@ function App() {
           setUserSession={setUserSession}
           onNavigate={handleNavigate}
           initialMode={currentView}
-          theme={theme}
-          toggleTheme={toggleTheme}
+          theme="light"
         />
       )}
       <BackendStatusBadge />

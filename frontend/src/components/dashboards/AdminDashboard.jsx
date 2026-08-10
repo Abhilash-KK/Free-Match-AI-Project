@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Toast from '../Toast';
 
-const AdminDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }) => {
-  const isDark = theme === 'dark';
+const AdminDashboard = ({ userSession, onSignOut }) => {
+  const isDark = false;
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings'
   const [toast, setToast] = useState(null); // { message, type }
 
@@ -17,14 +17,14 @@ const AdminDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme })
   // Sample System Data
   const [verifications, setVerifications] = useState([
     { id: 'v1', name: 'Sarah Chen', role: 'Senior UI/UX Architect', skills: 'Figma, React, Tailwind', docs: 'Passport_TaxID.pdf', date: 'Oct 29, 2023', status: 'Pending Verification' },
-    { id: 'v2', name: 'Lana Kim', role: 'Cybersecurity Specialist', skills: 'PenTesting, Python, OWASP', docs: 'SecurityCert_GovID.pdf', date: 'Oct 28, 2023', status: 'Pending Verification' }
+    { id: 'v2', name: 'Lana Kim', role: 'Cybersecurity Specialist', skills: 'PenTesting, Python, OWASP', docs: 'SecurityCert_GovID.pdf', date: 'Aug 03, 2026', status: 'Pending Verification' }
   ]);
 
   const [users, setUsers] = useState([
-    { id: 'u1', name: 'Alex Mercer', role: 'Freelancer', email: 'alex.m@system.net', status: 'Active', verified: true, joined: 'Oct 24, 2023' },
-    { id: 'u2', name: 'TechStream Corp', role: 'Client', email: 'contact@techstream.io', status: 'Active', verified: true, joined: 'Oct 20, 2023' },
-    { id: 'u3', name: 'Sarah Chen', role: 'Freelancer', email: 's.chen@cloudstack.io', status: 'Pending', verified: false, joined: 'Oct 29, 2023' },
-    { id: 'u4', name: 'David Wright', role: 'Freelancer', email: 'dwright@uxmasters.com', status: 'Suspended', verified: false, joined: 'Oct 15, 2023' }
+    { id: 'u1', name: 'Alex Mercer', role: 'Freelancer', email: 'alex.m@system.net', status: 'Active', verified: true, joined: 'Aug 01, 2026' },
+    { id: 'u2', name: 'TechStream Corp', role: 'Client', email: 'contact@techstream.io', status: 'Active', verified: true, joined: 'Aug 01, 2026' },
+    { id: 'u3', name: 'Sarah Chen', role: 'Freelancer', email: 's.chen@cloudstack.io', status: 'Pending', verified: false, joined: 'Aug 04, 2026' },
+    { id: 'u4', name: 'David Wright', role: 'Freelancer', email: 'dwright@uxmasters.com', status: 'Suspended', verified: false, joined: 'Jul 25, 2026' }
   ]);
 
   const [categories, setCategories] = useState([
@@ -173,12 +173,6 @@ const AdminDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme })
             >
               + Skill Tag
             </button>
-
-            {toggleTheme && (
-              <button onClick={toggleTheme} className={`p-2 rounded-xl border ${isDark ? 'bg-[#081024] border-slate-800 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                {isDark ? '☀️' : '🌙'}
-              </button>
-            )}
 
             <div className="flex items-center space-x-3 pl-3 border-l border-slate-700/50">
               <div className="text-right">

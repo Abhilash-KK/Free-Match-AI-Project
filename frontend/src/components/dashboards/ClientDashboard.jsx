@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 
-const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }) => {
-  const isDark = theme === 'dark';
+const ClientDashboard = ({ userSession, onSignOut }) => {
+  const isDark = false;
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showPostProjectModal, setShowPostProjectModal] = useState(false);
   const [toast, setToast] = useState(null); // { message, type }
@@ -42,19 +42,60 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
   };
 
   const DEFAULT_PROJECTS = [
-    { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '$12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Oct 20, 2023', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
-    { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '$6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Oct 22, 2023', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
-    { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '$4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Oct 15, 2023', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
-    { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '$8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Oct 28, 2023', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
+    { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '$12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Aug 01, 2026', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
+    { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '$6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Aug 02, 2026', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
+    { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '$4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Jul 28, 2026', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
+    { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '$8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Aug 03, 2026', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
     { id: 'cp5', title: 'AI Customer Support Chatbot', client: 'TechStream Corp', category: 'Data Science & AI', budget: '$9,500', duration: '3 Weeks', skills: 'Python, LLM, LangChain, React', status: 'Open for Bids', postedDate: 'Just Now', progress: 0, applicants: 6, description: 'RAG-powered customer support assistant with automated document ingestion and vector search.' },
-    { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '$14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Oct 29, 2023', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
+    { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '$14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Aug 04, 2026', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
   ];
 
   // Sync Client Projects with LocalStorage
   const [clientProjects, setClientProjects] = useState(() => {
+    const saved = localStorage.getItem('freematch_shared_projects');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const updated = parsed.map(p => {
+            if (!p.postedDate || p.postedDate.includes('2023')) {
+              if (p.id === 'cp1') return { ...p, postedDate: 'Aug 01, 2026' };
+              if (p.id === 'cp2') return { ...p, postedDate: 'Aug 02, 2026' };
+              if (p.id === 'cp3') return { ...p, postedDate: 'Jul 28, 2026' };
+              if (p.id === 'cp4') return { ...p, postedDate: 'Aug 03, 2026' };
+              if (p.id === 'cp5') return { ...p, postedDate: 'Just Now' };
+              if (p.id === 'cp6') return { ...p, postedDate: 'Aug 04, 2026' };
+              return { ...p, postedDate: 'Aug 03, 2026' };
+            }
+            return p;
+          });
+          localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+          return updated;
+        }
+      } catch (e) {}
+    }
     localStorage.setItem('freematch_shared_projects', JSON.stringify(DEFAULT_PROJECTS));
     return DEFAULT_PROJECTS;
   });
+
+  // Fetch projects live from Django REST Framework PostgreSQL database
+  useEffect(() => {
+    fetch('http://localhost:8000/api/projects/')
+      .then(res => res.json())
+      .then(dbProjects => {
+        if (Array.isArray(dbProjects) && dbProjects.length > 0) {
+          setClientProjects(prev => {
+            const dbIds = new Set(dbProjects.map(p => p.id));
+            const merged = [...dbProjects, ...prev.filter(p => !dbIds.has(p.id))];
+            localStorage.setItem('freematch_shared_projects', JSON.stringify(merged));
+            return merged;
+          });
+        }
+      })
+      .catch(err => console.warn('PostgreSQL fetch notice:', err));
+  }, []);
+
+  const validProjectTitles = new Set(clientProjects.map(p => (p.title || '').toLowerCase()));
 
   // 2. APPLICATIONS STATE
   const [proposals, setProposals] = useState(() => {
@@ -72,14 +113,16 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
     ];
   });
 
-  // 3. DYNAMIC HIRED FREELANCERS ROSTER (Includes defaults + accepted proposals like Haines Jp)
+  const validProposals = proposals.filter(p => validProjectTitles.has((p.projectTitle || p.project || '').toLowerCase()));
+
+  // 3. DYNAMIC HIRED FREELANCERS ROSTER (Includes defaults + accepted proposals)
   const defaultHired = [
     { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '$75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
     { id: 'hf2', name: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist', project: 'FinTech Dashboard v2', rate: '$85/hr', status: 'Active', hiredDate: 'Oct 23, 2023' },
     { id: 'hf3', name: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', project: 'Cybersecurity Audit & Shield', rate: '$90/hr', status: 'Completed', hiredDate: 'Oct 15, 2023' }
   ];
 
-  const acceptedProposalsList = proposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
+  const acceptedProposalsList = validProposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
   const dynamicHiredFromProps = acceptedProposalsList.map((p, idx) => {
     const name = p.freelancer || p.freelancerName || 'Haines Jp';
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'HJ';
@@ -95,14 +138,23 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
     };
   });
 
-  const hiredFreelancers = [...defaultHired];
+  const rawHired = [...defaultHired];
   dynamicHiredFromProps.forEach(dh => {
-    if (!hiredFreelancers.some(hf => hf.name.toLowerCase() === dh.name.toLowerCase() && hf.project.toLowerCase() === dh.project.toLowerCase())) {
-      hiredFreelancers.push(dh);
+    if (!rawHired.some(hf => hf.name.toLowerCase() === dh.name.toLowerCase() && hf.project.toLowerCase() === dh.project.toLowerCase())) {
+      rawHired.push(dh);
     }
   });
+  const hiredFreelancers = rawHired.filter(hf => validProjectTitles.has((hf.project || '').toLowerCase()));
 
-  // 4. DYNAMIC CONTRACTS STATE
+  // 4. DYNAMIC CONTRACTS STATE & REMOVAL TRACKER
+  const [removedContractIds, setRemovedContractIds] = useState(() => {
+    const saved = localStorage.getItem('freematch_deleted_contracts');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
+
   const defaultContracts = [
     { id: 'CTR-9024', freelancer: 'Alex Mercer', project: 'AI Pipeline Optimization', amount: '$11,500', escrow: '$11,500', startDate: 'Oct 21, 2023', status: 'Active' },
     { id: 'CTR-8812', freelancer: 'Sarah Chen', project: 'FinTech Dashboard v2', amount: '$6,200', escrow: '$6,200', startDate: 'Oct 23, 2023', status: 'Active' },
@@ -119,12 +171,36 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
     status: 'Active'
   }));
 
-  const contracts = [...defaultContracts];
+  const rawContracts = [...defaultContracts];
   dynamicContracts.forEach(dc => {
-    if (!contracts.some(c => c.freelancer.toLowerCase() === dc.freelancer.toLowerCase() && c.project.toLowerCase() === dc.project.toLowerCase())) {
-      contracts.push(dc);
+    if (!rawContracts.some(c => c.freelancer.toLowerCase() === dc.freelancer.toLowerCase() && c.project.toLowerCase() === dc.project.toLowerCase())) {
+      rawContracts.push(dc);
     }
   });
+
+  // Filter out contracts for deleted projects AND manually removed contracts
+  const contracts = rawContracts.filter(c => 
+    validProjectTitles.has((c.project || '').toLowerCase()) && !removedContractIds.includes(c.id)
+  );
+
+  const handleDeleteContract = (contractId) => {
+    const updated = [...removedContractIds, contractId];
+    setRemovedContractIds(updated);
+    localStorage.setItem('freematch_deleted_contracts', JSON.stringify(updated));
+    setToast({ message: `Contract ${contractId} removed from agreements.`, type: 'info' });
+  };
+
+  const handleDeleteProject = (projId, projTitle) => {
+    const updatedProjects = clientProjects.filter(p => p.id !== projId && p.title !== projTitle);
+    setClientProjects(updatedProjects);
+    localStorage.setItem('freematch_shared_projects', JSON.stringify(updatedProjects));
+
+    const updatedProps = proposals.filter(pr => pr.projectId !== projId && (pr.projectTitle || pr.project) !== projTitle);
+    setProposals(updatedProps);
+    localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProps));
+
+    setToast({ message: `Project "${projTitle || 'Selected Project'}" and related contracts removed.`, type: 'info' });
+  };
 
   // 5. KANBAN TASKS STATE (4 Columns: To-Do, In Progress, Under Review, Done)
   const [tasks, setTasks] = useState(() => {
@@ -151,9 +227,9 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
 
   // 7. PAYMENTS & ESCROW STATE
   const [payments] = useState([
-    { id: 'INV-3041', date: 'Oct 25, 2023', project: 'AI Pipeline Optimization', milestone: 'Milestone 1: Model Setup', amount: '$4,000', type: 'Milestone Release', status: 'Paid' },
-    { id: 'INV-3042', date: 'Oct 28, 2023', project: 'FinTech Dashboard v2', milestone: 'Milestone 1: Wireframes', amount: '$2,500', type: 'Escrow Lock', status: 'Pending' },
-    { id: 'INV-3043', date: 'Oct 18, 2023', project: 'Cybersecurity Audit & Shield', milestone: 'Final Deliverable', amount: '$4,200', type: 'Milestone Release', status: 'Paid' }
+    { id: 'INV-3041', date: 'Aug 01, 2026', project: 'AI Pipeline Optimization', milestone: 'Milestone 1: Model Setup', amount: '$4,000', type: 'Milestone Release', status: 'Paid' },
+    { id: 'INV-3042', date: 'Aug 03, 2026', project: 'FinTech Dashboard v2', milestone: 'Milestone 1: Wireframes', amount: '$2,500', type: 'Escrow Lock', status: 'Pending' },
+    { id: 'INV-3043', date: 'Jul 28, 2026', project: 'Cybersecurity Audit & Shield', milestone: 'Final Deliverable', amount: '$4,200', type: 'Milestone Release', status: 'Paid' }
   ]);
 
   // 8. DYNAMIC REVIEWS STATE & CANDIDATES
@@ -183,11 +259,13 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
       } catch (e) {}
     }
     return [
-      { id: 'r1', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Lana Kim', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Lana completed the penetration audit ahead of schedule with zero security flaws left unpatched.', date: 'Oct 19, 2023' },
-      { id: 'r2', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Alex Mercer', projectTitle: 'AI Pipeline Optimization', rating: 5, comm: 5, code: 5, deadline: 4, comment: 'Exceptional PyTorch ML optimization. Delivered 4x speedup in API model inference.', date: 'Oct 26, 2023' },
-      { id: 'r3', type: 'received', reviewer: 'Lana Kim', reviewee: 'TechStream Corp', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Great enterprise client to work with! Clear requirements and instantaneous escrow release.', date: 'Oct 20, 2023' }
+      { id: 'r1', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Lana Kim', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Lana completed the penetration audit ahead of schedule with zero security flaws left unpatched.', date: 'Aug 01, 2026' },
+      { id: 'r2', type: 'given', reviewer: 'TechStream Corp', reviewee: 'Alex Mercer', projectTitle: 'AI Pipeline Optimization', rating: 5, comm: 5, code: 5, deadline: 4, comment: 'Exceptional PyTorch ML optimization. Delivered 4x speedup in API model inference.', date: 'Aug 03, 2026' },
+      { id: 'r3', type: 'received', reviewer: 'Lana Kim', reviewee: 'TechStream Corp', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Great enterprise client to work with! Clear requirements and instantaneous escrow release.', date: 'Aug 02, 2026' }
     ];
   });
+
+  const [selectedProfileFreelancer, setSelectedProfileFreelancer] = useState(null);
 
   const handleAddReview = async (e) => {
     e.preventDefault();
@@ -211,16 +289,20 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
     const updated = [newRev, ...reviews];
     setReviews(updated);
     localStorage.setItem('freematch_shared_reviews', JSON.stringify(updated));
+    window.dispatchEvent(new Event('storage'));
 
     // Try posting to Python Django backend REST API
     try {
       await fetch('http://localhost:8000/api/reviews/submit/', {
         method: 'POST',
-        headers: { 'Content-Content': 'application/json', 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reviewer: newRev.reviewer,
           reviewee: newRev.reviewee,
           rating: avgRating,
+          comm: commRating,
+          code: codeRating,
+          deadline: deadlineRating,
           comment: commentInput,
           project_title: selectedCandidate.projectTitle
         })
@@ -229,9 +311,55 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
 
     setCommentInput('');
     setToast({ 
-      message: `Review for ${selectedCandidate.freelancer} submitted! Rating updated in database and AI match score boosted.`, 
+      message: `Review for ${selectedCandidate.freelancer} submitted! Rating updated in database and displayed on freelancer profile.`, 
       type: 'success' 
     });
+  };
+
+  // 9. CLIENT PROFILE & SETTINGS STATE
+  const [clientProfile, setClientProfile] = useState(() => {
+    const saved = localStorage.getItem('freematch_client_profile');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      displayName: 'Abhilash K K',
+      companyName: 'TechStream Corp',
+      industry: 'Software Technology',
+      website: 'https://techstream.io',
+      location: 'San Francisco, CA (UTC-7)',
+      joinedDate: 'Joined October 2023',
+      description: 'TechStream Corp is an enterprise software solution provider specializing in PyTorch AI model training pipelines, high-frequency financial charts, and cloud microservices automation.',
+      paymentVerified: true,
+      paymentMethod: 'Visa ending in **** 4242',
+      escrowLocked: '$6,500',
+      totalSpent: '$42,500',
+      projectsPosted: 6,
+      activeHires: 3
+    };
+  });
+
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState(clientProfile.displayName);
+  const [editCompanyName, setEditCompanyName] = useState(clientProfile.companyName);
+  const [editIndustry, setEditIndustry] = useState(clientProfile.industry);
+  const [editWebsite, setEditWebsite] = useState(clientProfile.website);
+  const [editDescription, setEditDescription] = useState(clientProfile.description);
+
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    const updated = {
+      ...clientProfile,
+      displayName: editDisplayName,
+      companyName: editCompanyName,
+      industry: editIndustry,
+      website: editWebsite,
+      description: editDescription
+    };
+    setClientProfile(updated);
+    localStorage.setItem('freematch_client_profile', JSON.stringify(updated));
+    setShowEditProfileModal(false);
+    setToast({ message: 'Client profile and settings updated successfully!', type: 'success' });
   };
 
 
@@ -281,16 +409,17 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
   };
 
   // Handlers
-  const handlePostProject = (e) => {
+  const handlePostProject = async (e) => {
     e.preventDefault();
     if (!projectTitle.trim()) return;
 
+    const formattedBudget = `$${parseInt(budget || 0).toLocaleString()}`;
     const newProj = {
       id: `proj_${Date.now()}`,
       title: projectTitle,
       client: userSession?.name || 'TechStream Corp',
       category: category,
-      budget: `$${parseInt(budget || 0).toLocaleString()}`,
+      budget: formattedBudget,
       duration: duration,
       skills: skillsReq,
       status: 'Open for Bids',
@@ -306,13 +435,33 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
     setClientProjects(updated);
     localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
 
+    // Persist project directly into Django PostgreSQL database
+    try {
+      await fetch('http://localhost:8000/api/projects/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: projectTitle,
+          client: userSession?.name || 'TechStream Corp',
+          category: category,
+          budget: formattedBudget,
+          duration: duration,
+          skills: Array.isArray(skillsReq) ? skillsReq.join(', ') : skillsReq,
+          description: description,
+          abstract: projectAbstract
+        })
+      });
+    } catch (err) {
+      console.warn('Backend sync warning:', err);
+    }
+
     // Reset Form
     setProjectTitle('');
     setDescription('');
     setProjectAbstract('');
     setAttachedFile(null);
     setShowPostProjectModal(false);
-    setToast({ message: `Project "${formatTitle(newProj.title)}" posted with attachments!`, type: 'success' });
+    setToast({ message: `Project "${formatTitle(newProj.title)}" posted & stored in database!`, type: 'success' });
   };
 
   const handleAcceptProposal = (propId) => {
@@ -380,12 +529,28 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
   });
 
   return (
-    <div className={`min-h-screen flex font-sans ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'}`}>
+    <div className={`min-h-screen flex font-sans relative overflow-hidden transition-colors duration-200 ${
+      isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'
+    }`}>
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
       
+      {/* Background Glowing Orbs */}
+      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 ${
+        isDark ? 'bg-blue-600/10' : 'bg-blue-400/15'
+      }`}></div>
+      <div className={`absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none z-0 ${
+        isDark ? 'bg-blue-700/10' : 'bg-blue-300/20'
+      }`}></div>
+      <div className={`absolute bottom-10 left-10 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none z-0 ${
+        isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/15'
+      }`}></div>
+
+      {/* 3D Floating Grid Environment */}
+      <div className="bg-3d-grid-clean"></div>
+
       {/* 13 SIDEBAR NAVIGATION ITEMS */}
-      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors ${
-        isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-2xs'
+      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors relative z-20 backdrop-blur-xl ${
+        isDark ? 'bg-[#060e22]/90 border-slate-800/80' : 'bg-white/90 border-slate-200/90 shadow-xs'
       }`}>
         <div>
           <div className="flex items-center space-x-3 mb-8">
@@ -406,7 +571,7 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
               { id: 'applications', label: 'Project Applications', icon: '📩', badge: proposals.length },
               { id: 'freelancers', label: 'Hired Freelancers', icon: '👥' },
               { id: 'contracts', label: 'Contracts', icon: '📜' },
-              { id: 'kanban', label: 'Project Progress (Kanban)', icon: '📌' },
+              { id: 'kanban', label: 'Sprint Task Board', icon: '📌' },
               { id: 'messages', label: 'Messages', icon: '💬' },
               { id: 'payments', label: 'Payments & Escrow', icon: '💰' },
               { id: 'reviews', label: 'Reviews', icon: '⭐' },
@@ -437,7 +602,11 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
         </div>
 
         <div className="pt-6 border-t border-slate-800/40 space-y-1 text-xs font-semibold">
-          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl ${activeTab === 'settings' ? 'bg-blue-600 text-white' : 'text-slate-300'}`}>
+          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition-all ${
+            activeTab === 'settings' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100'
+          }`}>
             <span>⚙️</span><span>Settings</span>
           </button>
           <button onClick={onSignOut} className="w-full flex items-center space-x-3 px-3.5 py-2.5 text-rose-500 hover:bg-rose-500/10 rounded-xl cursor-pointer">
@@ -465,12 +634,7 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
           </div>
 
           <div className="flex items-center space-x-4">
-            {toggleTheme && (
-              <button onClick={toggleTheme} className={`p-2.5 rounded-xl border ${isDark ? 'bg-[#081024] border-slate-800 text-amber-400' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-                {isDark ? '☀️' : '🌙'}
-              </button>
-            )}
-            <button onClick={() => setActiveTab('notifications')} className={`p-2.5 rounded-xl border relative ${isDark ? 'bg-[#081024] border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
+            <button onClick={() => setActiveTab('notifications')} className="p-2.5 rounded-xl border relative bg-slate-100 border-slate-200 text-slate-700">
               🔔
             </button>
 
@@ -572,7 +736,7 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                       }`}>
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
-                            <h4 className="font-bold text-sm text-slate-100 truncate">{formatTitle(p.title)}</h4>
+                            <h4 className={`font-bold text-sm truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{formatTitle(p.title)}</h4>
                             
                             {/* Dynamic State Pill */}
                             {isHiring && (
@@ -592,11 +756,11 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                             )}
                           </div>
 
-                          <p className="text-xs text-slate-400">
+                          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             Category: <span className="text-blue-400 font-semibold">{p.category}</span> • Required Skills: {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}
                           </p>
-                          <p className="text-[11px] text-slate-500">
-                            Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className="font-bold text-slate-300">{p.applicants}</span>
+                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{p.applicants}</span>
                           </p>
 
                           {/* Dynamic Progress Bar */}
@@ -673,7 +837,7 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                   <div key={p.id} className={`p-6 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
                     <div className="space-y-1.5 flex-1 min-w-0">
                       <div className="flex items-center space-x-3 flex-wrap gap-y-1">
-                        <h4 className="font-bold text-base tracking-tight text-slate-100">{formatTitle(p.title)}</h4>
+                        <h4 className={`font-bold text-base tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{formatTitle(p.title)}</h4>
                         
                         {/* Status Badges */}
                         {isHiring && (
@@ -693,8 +857,8 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                         )}
                       </div>
 
-                      <p className="text-xs text-slate-400">Category: <span className="text-blue-400 font-semibold">{p.category}</span> • Required Skills: {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}</p>
-                      <p className="text-[11px] text-slate-500">Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className="text-slate-300 font-bold">{p.applicants || 4}</span></p>
+                      <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Category: <span className="text-blue-400 font-semibold">{p.category}</span> • Required Skills: {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}</p>
+                      <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{p.applicants || 4}</span></p>
 
                       {/* Progress Bar */}
                       <div className="w-full max-w-md bg-slate-800/80 rounded-full h-1.5 mt-2 overflow-hidden">
@@ -809,46 +973,50 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
           <div className="p-8 space-y-6">
             <div>
               <h2 className="text-2xl font-bold">Hired Freelancers Roster ({hiredFreelancers.length})</h2>
-              <p className="text-xs text-slate-400">Freelancers assigned to active project contracts or past completed deliverables.</p>
+              <p className="text-xs text-slate-400">Active contracts, performance tracking, and direct communication.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {hiredFreelancers.map(hf => (
                 <div key={hf.id} className={`p-6 rounded-3xl border flex flex-col justify-between space-y-4 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white font-bold flex items-center justify-center text-sm shadow-md">
-                      {hf.avatar}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-base flex items-center justify-center shadow-md">
+                        {hf.avatar}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-base">{hf.name}</h4>
+                        <p className="text-xs text-blue-400 font-semibold">{hf.title}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-base">{hf.name}</h4>
-                      <p className="text-xs text-slate-400">{hf.title}</p>
-                      <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        hf.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                      }`}>
-                        {hf.status} Contract
-                      </span>
+                    <div className="text-xs space-y-1 text-slate-400 pt-2 border-t border-slate-800/40">
+                      <p>Active Project: <span className="text-slate-200 font-bold">{hf.project}</span></p>
+                      <p>Hourly Rate: <span className="text-emerald-400 font-bold">{hf.rate}</span></p>
+                      <p>Hired Date: <span className="text-slate-300">{hf.hiredDate}</span></p>
                     </div>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-400 border-t border-b border-slate-800/60 py-3">
-                    <p>Assigned: <span className="text-slate-200 font-semibold">{hf.project}</span></p>
-                    <p>Agreed Rate: <span className="text-blue-400 font-bold">{hf.rate}</span></p>
-                    <p>Hired: <span className="text-slate-400">{hf.hiredDate}</span></p>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col space-y-2 pt-2">
                     <button 
-                      onClick={() => { setSelectedChat(hf.name); setActiveTab('messages'); }} 
-                      className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer text-center"
+                      onClick={() => setSelectedProfileFreelancer(hf)} 
+                      className="w-full py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1"
                     >
-                      Message
+                      <span>👤 View Profile & Reviews</span>
                     </button>
-                    <button 
-                      onClick={() => setActiveTab('contracts')} 
-                      className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold cursor-pointer text-center"
-                    >
-                      View Contract
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => { setSelectedChat(hf.name); setActiveTab('messages'); }} 
+                        className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                      >
+                        💬 Message
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('kanban')} 
+                        className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                      >
+                        📌 View Sprint
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -881,8 +1049,8 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                     <p className="text-[11px] text-slate-400">Escrow Funded Balance: <span className="text-emerald-400 font-bold">{c.escrow}</span></p>
                   </div>
 
-                  <div className="flex items-center space-x-4 shrink-0">
-                    <div className="text-right">
+                  <div className="flex items-center space-x-3 shrink-0">
+                    <div className="text-right mr-2">
                       <span className="font-extrabold text-blue-500 text-base block">{c.amount}</span>
                       <span className="text-[10px] text-slate-400 block">Total Agreed</span>
                     </div>
@@ -892,6 +1060,13 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                       className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold cursor-pointer"
                     >
                       📄 Download Contract PDF
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteContract(c.id)}
+                      className="px-3 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                      title="Remove contract agreement"
+                    >
+                      🗑️ Remove
                     </button>
                   </div>
                 </div>
@@ -999,7 +1174,7 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
 
               <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
                 <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">CONNECTED GATEWAY</p>
-                <p className="text-xl font-bold text-white mt-2">Stripe & Razorpay</p>
+                <p className={`text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Stripe & Razorpay</p>
                 <p className="text-xs text-slate-400 mt-2">Auto-escrow verification active</p>
               </div>
             </div>
@@ -1028,8 +1203,8 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
                           <p className="font-bold">{py.project}</p>
                           <p className="text-[10px] text-slate-400">{py.milestone}</p>
                         </td>
-                        <td className="py-3 text-slate-300 font-semibold">{py.type}</td>
-                        <td className="py-3 font-extrabold text-white">{py.amount}</td>
+                        <td className={`py-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{py.type}</td>
+                        <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{py.amount}</td>
                         <td className="py-3">
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                             py.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
@@ -1285,8 +1460,313 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
             </div>
           </div>
         )}
+        {/* TAB 12: CLIENT PROFILE & SETTINGS */}
+        {activeTab === 'settings' && (
+          <div className="p-8 space-y-6 max-w-6xl mx-auto w-full">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Client Profile & Settings</h2>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Manage your enterprise public profile, company details, connected billing methods, and marketplace trust metrics.
+              </p>
+            </div>
+
+            {/* 1. PROFILE HEADER CARD (TOP) */}
+            <div className={`p-6 sm:p-8 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl ${
+              isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <div className="relative">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-2xl sm:text-3xl flex items-center justify-center shadow-lg border-2 border-blue-400/30">
+                    TC
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 border-2 border-[#060e22] rounded-full flex items-center justify-center text-white text-xs font-bold" title="Online & Active">
+                    ✓
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className={`text-2xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {clientProfile.displayName}
+                    </h3>
+                    <span className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-xs font-bold flex items-center space-x-1">
+                      <span>🏷️</span>
+                      <span>Enterprise Client</span>
+                    </span>
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-xs font-bold flex items-center space-x-1">
+                      <span>✓</span>
+                      <span>Payment Verified (Stripe)</span>
+                    </span>
+                  </div>
+
+                  <p className={`text-xs flex items-center space-x-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span>📍 {clientProfile.location}</span>
+                    <span>•</span>
+                    <span className="text-blue-400 font-semibold">{clientProfile.joinedDate}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEditDisplayName(clientProfile.displayName);
+                  setEditCompanyName(clientProfile.companyName);
+                  setEditIndustry(clientProfile.industry);
+                  setEditWebsite(clientProfile.website);
+                  setEditDescription(clientProfile.description);
+                  setShowEditProfileModal(true);
+                }}
+                className="w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs shadow-md transition-all cursor-pointer active:scale-95 flex items-center justify-center space-x-2 shrink-0"
+              >
+                <span>✏️</span>
+                <span>Edit Profile</span>
+              </button>
+            </div>
+
+            {/* HIRING STATISTICS CARD */}
+            <div className={`p-6 sm:p-8 rounded-3xl border space-y-6 ${
+              isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center space-x-3 border-b border-slate-800/60 pb-4">
+                <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/30 text-lg">
+                  📈
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">Hiring Statistics</h3>
+                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Verified platform activity metrics and trust indicators.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* Stat 1 */}
+                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">TOTAL SPENT</span>
+                  <span className="text-3xl font-extrabold text-emerald-400 mt-1 block">{clientProfile.totalSpent}</span>
+                  <span className="text-xs text-slate-400 mt-1 block">Verified escrow payouts</span>
+                </div>
+
+                {/* Stat 2 */}
+                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">PROJECTS POSTED</span>
+                  <span className="text-3xl font-extrabold text-blue-400 mt-1 block">{clientProjects.length || clientProfile.projectsPosted}</span>
+                  <span className="text-xs text-slate-400 mt-1 block">100% hire rate on posted jobs</span>
+                </div>
+
+                {/* Stat 3 */}
+                <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">ACTIVE HIRES</span>
+                  <span className="text-3xl font-extrabold text-amber-400 mt-1 block">{hiredFreelancers.length || clientProfile.activeHires}</span>
+                  <span className="text-xs text-slate-400 mt-1 block">Currently assigned freelancers</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. BILLING & ESCROW SETTINGS CARD */}
+            <div className={`p-6 sm:p-8 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${
+              isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/30 text-lg">
+                    💳
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base">Billing & Escrow Settings</h3>
+                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Connected escrow payment gateways & funding balance.</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-6 pt-2">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CURRENT ESCROW BALANCE</span>
+                    <span className="text-lg font-extrabold text-amber-400">{clientProfile.escrowLocked}</span>
+                    <span className="text-[10px] text-slate-400 block">Locked in active milestone hold</span>
+                  </div>
+
+                  <div className="border-l border-slate-800 pl-6">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">CONNECTED METHOD</span>
+                    <span className="text-sm font-bold text-white flex items-center space-x-2">
+                      <span>💳</span>
+                      <span>{clientProfile.paymentMethod}</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-semibold block">Default Payment Method</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setToast({ message: 'Billing & Invoice Management portal opened.', type: 'info' })}
+                className="w-full md:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl text-xs font-bold transition-all cursor-pointer shrink-0"
+              >
+                Manage Billing & Invoices
+              </button>
+            </div>
+
+            {/* 5. RECENT REVIEWS RECEIVED CARD */}
+            <div className={`p-6 sm:p-8 rounded-3xl border space-y-6 ${
+              isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between border-b border-slate-800/60 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30 text-lg">
+                    ⭐
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base">Recent Reviews Received</h3>
+                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Ratings left by freelancers to build client reputation on FreeMatch AI.</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-xs font-extrabold">
+                  5.0 ★ Client Score
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className={`p-5 rounded-2xl border space-y-3 ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        LK
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs">Lana Kim</h4>
+                        <p className="text-[10px] text-blue-400 font-semibold">Cybersecurity Audit Specialist</p>
+                      </div>
+                    </div>
+                    <span className="text-amber-400 text-xs font-bold">★★★★★ 5.0</span>
+                  </div>
+                  <p className={`text-xs italic p-3 rounded-xl border font-medium ${isDark ? 'bg-[#040919] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                    "Great enterprise client to work with! Clear requirements and instantaneous escrow release upon milestone verification."
+                  </p>
+                  <span className="text-[10px] text-slate-400 block">Oct 20, 2023 • Verified Milestone Release</span>
+                </div>
+
+                <div className={`p-5 rounded-2xl border space-y-3 ${isDark ? 'bg-[#081024] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                        AM
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs">Alex Mercer</h4>
+                        <p className="text-[10px] text-blue-400 font-semibold">Senior PyTorch Architect</p>
+                      </div>
+                    </div>
+                    <span className="text-amber-400 text-xs font-bold">★★★★★ 5.0</span>
+                  </div>
+                  <p className={`text-xs italic p-3 rounded-xl border font-medium ${isDark ? 'bg-[#040919] border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'}`}>
+                    "Clear sprint roadmap and fast feedback loops. Pleasure working with Abhilash K K on PyTorch model optimization."
+                  </p>
+                  <span className="text-[10px] text-slate-400 block">Oct 26, 2023 • Verified Milestone Release</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        )}
 
       </main>
+
+      {/* EDIT PROFILE MODAL */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`p-6 sm:p-8 rounded-3xl max-w-lg w-full border shadow-2xl ${
+            isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-xl font-bold">Edit Client Profile</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Update public company profile and display credentials.</p>
+              </div>
+              <button onClick={() => setShowEditProfileModal(false)} className="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Display Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editDisplayName}
+                  onChange={(e) => setEditDisplayName(e.target.value)}
+                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Company Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editCompanyName}
+                  onChange={(e) => setEditCompanyName(e.target.value)}
+                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Industry</label>
+                  <input
+                    type="text"
+                    required
+                    value={editIndustry}
+                    onChange={(e) => setEditIndustry(e.target.value)}
+                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Website</label>
+                  <input
+                    type="text"
+                    required
+                    value={editWebsite}
+                    onChange={(e) => setEditWebsite(e.target.value)}
+                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Company Description / About Us</label>
+                <textarea
+                  rows="4"
+                  required
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                >
+                  Save Profile Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 2: POST PROJECT STEP-BY-STEP MODAL */}
       {showPostProjectModal && (
@@ -1497,6 +1977,89 @@ const ClientDashboard = ({ userSession, onSignOut, theme = 'dark', toggleTheme }
           </div>
         </div>
       )}
+
+      {/* FREELANCER PUBLIC PROFILE & REVIEWS MODAL */}
+      {selectedProfileFreelancer && (() => {
+        const flName = selectedProfileFreelancer.name || selectedProfileFreelancer.freelancer || selectedProfileFreelancer.freelancerName || 'Alex Mercer';
+        const flReviews = reviews.filter(r => {
+          const revName = (r.reviewee || '').toLowerCase();
+          const curName = flName.toLowerCase();
+          const firstWord = curName.split(' ')[0];
+          return revName.includes(curName) || revName.includes(firstWord) || curName.includes(revName);
+        });
+        const avgScore = flReviews.length > 0
+          ? (flReviews.reduce((acc, r) => acc + Number(r.rating || 5), 0) / flReviews.length).toFixed(1)
+          : (selectedProfileFreelancer.rating || '4.9');
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className={`p-6 sm:p-8 rounded-3xl max-w-2xl w-full border shadow-2xl max-h-[90vh] overflow-y-auto space-y-6 ${
+              isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
+              <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-lg flex items-center justify-center shadow-lg">
+                    {selectedProfileFreelancer.avatar || flName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="text-xl font-bold">{flName}</h3>
+                      <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold rounded-full">✓ Verified Pro</span>
+                    </div>
+                    <p className="text-xs text-blue-400 font-semibold mt-0.5">{selectedProfileFreelancer.title || 'Senior Full Stack & AI Specialist'}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{selectedProfileFreelancer.rate || '$75/hr'} • Active Contract: {selectedProfileFreelancer.project || 'AI Pipeline Optimization'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedProfileFreelancer(null)} className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer">✕</button>
+              </div>
+
+              {/* Stats Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className={`p-3.5 rounded-2xl border text-center ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Overall Rating</p>
+                  <p className="text-lg font-extrabold text-amber-400 mt-0.5">★ {avgScore} / 5.0</p>
+                </div>
+                <div className={`p-3.5 rounded-2xl border text-center ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Verified Reviews</p>
+                  <p className="text-lg font-extrabold text-blue-400 mt-0.5">{flReviews.length} Reviews</p>
+                </div>
+                <div className={`p-3.5 rounded-2xl border text-center col-span-2 sm:col-span-1 ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Job Success</p>
+                  <p className="text-lg font-extrabold text-emerald-400 mt-0.5">100% Score</p>
+                </div>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-4">
+                <h4 className="font-extrabold text-sm border-b border-slate-800/40 pb-2">Submitted Client Reviews ({flReviews.length})</h4>
+                {flReviews.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No reviews submitted for {flName} yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {flReviews.map(rv => (
+                      <div key={rv.id} className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-blue-400">{rv.reviewer} <span className="text-slate-400 font-normal">(Project: {rv.projectTitle})</span></span>
+                          <span className="text-amber-400 font-bold">{'★'.repeat(rv.rating || 5)} ({rv.rating}/5)</span>
+                        </div>
+                        <p className="text-xs italic text-slate-300 font-medium">"{rv.comment}"</p>
+                        <div className="text-[10px] text-slate-500 flex justify-between">
+                          <span>Date: {rv.date}</span>
+                          <span>💬 Comm: {rv.comm || 5}★ • 💻 Quality: {rv.code || 5}★ • ⏱️ Deadline: {rv.deadline || 5}★</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-slate-800">
+                <button onClick={() => setSelectedProfileFreelancer(null)} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs cursor-pointer">Close Profile</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

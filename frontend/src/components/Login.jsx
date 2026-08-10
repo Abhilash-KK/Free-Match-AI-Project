@@ -19,6 +19,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
+  const [activePolicyModal, setActivePolicyModal] = useState(null); // 'privacy' | 'terms' | 'security' | null
 
   // Sign In Password State
   const [loginPassword, setLoginPassword] = useState('');
@@ -47,12 +48,12 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     {
       title: "AI Scrum Master & GitHub Progress Tracker",
       subtitle: "Automated daily check-ins & GitHub REST API code contribution verification.",
-      src: "/blockchain_trust_hero.jpg"
+      src: "/ai_matching_hero.jpg"
     },
     {
       title: "Milestone Escrow & Fraud Shield",
       subtitle: "Stripe/Razorpay payment protection & PyTorch anomaly detection.",
-      src: "/verified_talent_hero.jpg"
+      src: "/ai_matching_hero.jpg"
     }
   ];
 
@@ -344,7 +345,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     }
   };
 
-  const isDark = theme === 'dark';
+  const isDark = false;
 
   // Render Exact Screenshot Eye Icon
   const renderEyeIcon = (isVisible) => {
@@ -442,34 +443,14 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <span className="inline-block px-3 py-0.5 text-[10px] font-extrabold tracking-widest text-blue-400 uppercase bg-blue-950/80 border border-blue-800/80 rounded-full mb-1.5">
                   Phase 2: Intelligent Automation
                 </span>
-                <h4 className="text-lg font-bold text-white tracking-tight">Core System Modules</h4>
+                <h4 className="text-lg font-bold text-white tracking-tight">Core System Architecture</h4>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   Natural Language Processing & GitHub REST API integration for transparent execution.
                 </p>
               </div>
 
-              {/* 4 Feature Module Badges */}
-              <div className="grid grid-cols-4 gap-2 w-full mb-4 text-center">
-                <div className="bg-[#081533]/80 hover:bg-[#0c1e45] border border-blue-500/20 rounded-xl p-2 flex flex-col items-center transition-all cursor-pointer group shadow-xs">
-                  <span className="text-[10px] font-bold text-white">🧠 NLP Engine</span>
-                  <span className="text-[8px] text-slate-400 mt-0.5 leading-tight">0-100% Score</span>
-                </div>
-                <div className="bg-[#081533]/80 hover:bg-[#0c1e45] border border-blue-500/20 rounded-xl p-2 flex flex-col items-center transition-all cursor-pointer group shadow-xs">
-                  <span className="text-[10px] font-bold text-white">📊 AI Scrum</span>
-                  <span className="text-[8px] text-slate-400 mt-0.5 leading-tight">GitHub Tracker</span>
-                </div>
-                <div className="bg-[#081533]/80 hover:bg-[#0c1e45] border border-blue-500/20 rounded-xl p-2 flex flex-col items-center transition-all cursor-pointer group shadow-xs">
-                  <span className="text-[10px] font-bold text-white">💳 Escrow</span>
-                  <span className="text-[8px] text-slate-400 mt-0.5 leading-tight">Stripe / Razorpay</span>
-                </div>
-                <div className="bg-[#081533]/80 hover:bg-[#0c1e45] border border-blue-500/20 rounded-xl p-2 flex flex-col items-center transition-all cursor-pointer group shadow-xs">
-                  <span className="text-[10px] font-bold text-white">🛡 Fraud Shield</span>
-                  <span className="text-[8px] text-slate-400 mt-0.5 leading-tight">PyTorch Anomaly</span>
-                </div>
-              </div>
-
               {/* High-Resolution AI Showcase Image Slider Container */}
-              <div className="relative w-full h-52 sm:h-56 rounded-2xl overflow-hidden border border-blue-500/40 my-2 shadow-[0_0_30px_rgba(13,91,225,0.3)] group">
+              <div className="relative w-full h-56 sm:h-60 rounded-2xl overflow-hidden border border-blue-500/40 my-2 shadow-[0_0_30px_rgba(13,91,225,0.3)] group">
                 <img
                   src={showcaseImages[activeImageIndex].src}
                   alt={showcaseImages[activeImageIndex].title}
@@ -555,35 +536,9 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           </div>
 
           <div className="flex items-center space-x-3 ml-auto">
-            {/* Theme Toggle Button */}
-            {toggleTheme && (
-              <button
-                onClick={toggleTheme}
-                type="button"
-                title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
-                className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
-                  isDark
-                    ? 'bg-[#081024] hover:bg-[#0c162d] text-amber-400 border-slate-800'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                }`}
-              >
-                {isDark ? (
-                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                )}
-              </button>
-            )}
-
             <button
               onClick={() => onNavigate('landing')}
-              className={`hidden sm:inline-flex items-center space-x-2 text-xs font-semibold transition-colors cursor-pointer ${
-                isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
-              }`}
+              className="hidden sm:inline-flex items-center space-x-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -641,8 +596,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                       placeholder="john@freematch.ai"
                       className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                         isDark 
-                          ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                          : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                          ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                          : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                       }`}
                     />
                   </div>
@@ -667,8 +622,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                       placeholder="••••••••••••"
                       className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                         isDark 
-                          ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                          : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                          ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                          : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                       }`}
                     />
                     <button
@@ -701,8 +656,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                       placeholder="••••••••••••"
                       className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                         isDark 
-                          ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                          : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                          ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                          : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                       }`}
                     />
                     <button
@@ -720,7 +675,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#0d5be1] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-2xl transition-all duration-200 shadow-[0_0_25px_rgba(13,91,225,0.4)] flex items-center justify-center space-x-2 text-sm cursor-pointer active:scale-[0.99] mt-3"
+                  className="w-full bg-[#0d5be1] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-2xl transition-all duration-200 shadow-[0_0_25px_rgba(13,91,225,0.4)] flex items-center justify-center space-x-2 text-sm cursor-pointer active:scale-[0.99] mt-6"
                 >
                   <span>{loading ? 'Updating Password...' : 'Reset Password & Sign In'}</span>
                 </button>
@@ -799,8 +754,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                             placeholder="Johnathan"
                             className={`w-full pl-9 pr-3 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                               isDark 
-                                ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                                : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                                ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                                : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                             }`}
                           />
                         </div>
@@ -825,8 +780,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                             placeholder="Doe"
                             className={`w-full pl-9 pr-3 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                               isDark 
-                                ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                                : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                                ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                                : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                             }`}
                           />
                         </div>
@@ -852,8 +807,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="e.g. johnathan123"
                           className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                       </div>
@@ -878,8 +833,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="john@freematch.ai"
                           className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                       </div>
@@ -904,8 +859,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="••••••••••••"
                           className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                         <button
@@ -938,8 +893,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="••••••••••••"
                           className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                         <button
@@ -976,8 +931,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="john@freematch.ai or user1"
                           className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                       </div>
@@ -1017,8 +972,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           placeholder="••••••••••••"
                           className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
-                              ? 'bg-[#081024] text-white border-slate-800 placeholder-slate-500' 
-                              : 'bg-white text-slate-900 border-slate-200 placeholder-slate-400'
+                              ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
+                              : 'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400'
                           }`}
                         />
                         <button
@@ -1048,7 +1003,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                       }`}
                     />
                     <label htmlFor="terms-checkbox" className={`text-xs leading-snug cursor-pointer select-none ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      I agree to the <a href="#terms" className="text-blue-500 hover:underline font-semibold">Terms of Service</a> and <a href="#privacy" className="text-blue-500 hover:underline font-semibold">Privacy Policy</a> regarding my professional data processing.
+                      I agree to the <button type="button" onClick={() => setActivePolicyModal('terms')} className="text-blue-500 hover:underline font-semibold cursor-pointer">Terms of Service</button> and <button type="button" onClick={() => setActivePolicyModal('privacy')} className="text-blue-500 hover:underline font-semibold cursor-pointer">Privacy Policy</button> regarding my professional data processing.
                     </label>
                   </div>
                 )}
@@ -1057,7 +1012,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#0d5be1] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-2xl transition-all duration-200 shadow-[0_0_25px_rgba(13,91,225,0.4)] flex items-center justify-center space-x-2 text-sm cursor-pointer active:scale-[0.99] mt-3"
+                  className="w-full bg-[#0d5be1] hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-2xl transition-all duration-200 shadow-[0_0_25px_rgba(13,91,225,0.4)] flex items-center justify-center space-x-2 text-sm cursor-pointer active:scale-[0.99] mt-6"
                 >
                   <span>{loading ? 'Processing...' : mode === 'register' ? 'Initialize Profile' : 'Sign In'}</span>
                   {!loading && (
@@ -1148,11 +1103,126 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         <div className={`w-full flex items-center justify-center space-x-6 text-[11px] font-medium pt-6 border-t mt-auto ${
           isDark ? 'border-slate-900 text-slate-500' : 'border-slate-200 text-slate-400'
         }`}>
-          <a href="#privacy" className="hover:text-blue-500 transition-colors">Privacy Policy</a>
-          <a href="#terms" className="hover:text-blue-500 transition-colors">Terms of Service</a>
-          <a href="#security" className="hover:text-blue-500 transition-colors">Security Overview</a>
+          <button type="button" onClick={() => setActivePolicyModal('privacy')} className="hover:text-blue-500 transition-colors cursor-pointer">Privacy Policy</button>
+          <button type="button" onClick={() => setActivePolicyModal('terms')} className="hover:text-blue-500 transition-colors cursor-pointer">Terms of Service</button>
+          <button type="button" onClick={() => setActivePolicyModal('security')} className="hover:text-blue-500 transition-colors cursor-pointer">Security Overview</button>
         </div>
       </div>
+
+      {/* Policy Modal Overlay */}
+      {activePolicyModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className={`rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative border animate-in fade-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <button
+              onClick={() => setActivePolicyModal(null)}
+              className={`absolute top-5 right-5 p-1.5 rounded-xl transition-colors cursor-pointer ${
+                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {activePolicyModal === 'privacy' && (
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2.5 bg-blue-600/20 text-blue-500 border border-blue-500/30 rounded-2xl">
+                    🔒
+                  </div>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Privacy Policy</h3>
+                </div>
+                <p className={`text-xs sm:text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  GigMatrix ("FreeMatch AI") is committed to protecting your personal and professional data. This Privacy Policy governs data collection, NLP analysis, and milestone tracking.
+                </p>
+                <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-2.5 mb-6 max-h-60 overflow-y-auto ${
+                  isDark 
+                    ? 'bg-blue-950/30 border-blue-800/50 text-slate-300' 
+                    : 'bg-blue-50/80 border-blue-200 text-slate-700'
+                }`}>
+                  <p><strong>1. Data Collection:</strong> We collect account details (email, role, name), GitHub repository links, and skill parameters strictly to power AI skill matching and sprint milestone verification.</p>
+                  <p><strong>2. NLP Model Analysis:</strong> Text submitted in job descriptions and developer profiles is processed via spaCy and Transformer embeddings. Data is never sold to third parties or used for external AI training.</p>
+                  <p><strong>3. Financial Data & Escrow:</strong> Payment credentials are processed directly via PCI-DSS compliant Stripe and Razorpay SDKs. FreeMatch AI never stores raw credit card details.</p>
+                  <p><strong>4. User Rights (GDPR / CCPA):</strong> Users reserve full rights to request complete data export or account deletion by emailing <span className="text-blue-500 font-semibold">kkabhilash30@gmail.com</span>.</p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setActivePolicyModal(null)}
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    Close Privacy Policy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activePolicyModal === 'terms' && (
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2.5 bg-blue-600/20 text-blue-500 border border-blue-500/30 rounded-2xl">
+                    📜
+                  </div>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Terms of Service</h3>
+                </div>
+                <p className={`text-xs sm:text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  By registering or using the FreeMatch AI platform operated by GigMatrix, you agree to comply with the following operational terms.
+                </p>
+                <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-2.5 mb-6 max-h-60 overflow-y-auto ${
+                  isDark 
+                    ? 'bg-blue-950/30 border-blue-800/50 text-slate-300' 
+                    : 'bg-blue-50/80 border-blue-200 text-slate-700'
+                }`}>
+                  <p><strong>1. Marketplace Obligations:</strong> Clients agree to post clear job specifications and fund agreed milestone escrows. Freelancers agree to provide authentic skill portfolios and maintain active development logs.</p>
+                  <p><strong>2. AI Scrum Master Tracking:</strong> Freelancers consent to automated GitHub commit verification for sprint progress tracking. Verified commits release milestone funds into escrow holding.</p>
+                  <p><strong>3. Anti-Fraud & PyTorch Monitoring:</strong> Rating manipulation, spam proposals, or fake milestone submissions will result in immediate account suspension by our automated fraud detection system.</p>
+                  <p><strong>4. Intellectual Property:</strong> Ownership of code and assets transfers fully to the Client upon final milestone payout clearance.</p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setActivePolicyModal(null)}
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    Accept & Close
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activePolicyModal === 'security' && (
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="p-2.5 bg-blue-600/20 text-blue-500 border border-blue-500/30 rounded-2xl">
+                    🛡
+                  </div>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Security Overview</h3>
+                </div>
+                <p className={`text-sm mb-4 leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  FreeMatch AI incorporates enterprise-grade SSL/TLS 256-bit encryption, tokenized OAuth 2.0 authentication, and PyTorch-based fraud detection to safeguard platform communications.
+                </p>
+                <div className={`p-3.5 rounded-xl border text-xs leading-relaxed mb-6 ${
+                  isDark 
+                    ? 'bg-blue-950/40 border-blue-800/50 text-blue-300 font-mono' 
+                    : 'bg-blue-50/90 border-blue-200 text-blue-950 font-semibold'
+                }`}>
+                  • 256-bit SSL/TLS end-to-end data encryption.<br />
+                  • Stripe & Razorpay PCI-DSS compliant payment gateways.<br />
+                  • Automated PyTorch anomaly detection for ratings & milestone escrow.
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setActivePolicyModal(null)}
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    Close Security Overview
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -168,3 +168,15 @@ class Message(models.Model):
 
     def __str__(self):
         return f"From {self.sender.username} to {self.receiver.username}"
+
+class ContactMessage(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    recipient_email = models.EmailField(default='kkabhilash30@gmail.com')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Contact Msg from {self.name} ({self.email}) -> {self.recipient_email}"
+
