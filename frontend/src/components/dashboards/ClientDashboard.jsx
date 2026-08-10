@@ -605,13 +605,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* Sidebar Vector Graphic Illustration & Settings */}
         <div className="pt-4 space-y-3">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-3.5 rounded-2xl border border-blue-100 flex items-center space-x-3">
-            <svg className="w-10 h-10 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth="1.8" />
-              <path d="M8 21h8M12 17v4" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="12" cy="10" r="2.5" strokeWidth="1.8" />
-            </svg>
-            <div>
+          <div className="rounded-2xl border border-blue-100/80 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50/50 p-2 text-center shadow-2xs">
+            <img 
+              src="/sidebar_desk_illustration.jpg" 
+              alt="Developer Workspace Illustration" 
+              className="w-full h-24 object-cover rounded-xl opacity-90"
+            />
+            <div className="pt-1.5 pb-0.5">
               <p className="text-xs font-extrabold text-slate-900">AI Assistance</p>
               <p className="text-[10px] text-slate-500 font-medium">Smart NLP Auto-Match</p>
             </div>
@@ -670,21 +670,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {activeTab === 'dashboard' && (
           <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
             
-            {/* Header Banner Title */}
-            <div className="flex items-center justify-between">
-              <div>
+            {/* Header Banner Container with Vector Background */}
+            <div className="relative overflow-hidden bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="relative z-10 max-w-xl">
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Client Project & Hiring Hub</h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1 leading-relaxed">
                   Post projects, manage active milestone escrows, and inspect freelancer proposals.
                 </p>
+                <div className="mt-4">
+                  <button 
+                    onClick={() => setShowPostProjectModal(true)}
+                    className="bg-[#2563eb] hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs inline-flex items-center space-x-2 shadow-md cursor-pointer transition-all"
+                  >
+                    <span>+</span>
+                    <span>Post New Project</span>
+                  </button>
+                </div>
               </div>
-              <button 
-                onClick={() => setShowPostProjectModal(true)}
-                className="bg-[#2563eb] hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md cursor-pointer transition-all"
-              >
-                <span>+</span>
-                <span>Post New Project</span>
-              </button>
+
+              {/* Vector Banner Background Graphic */}
+              <div className="relative z-0 md:w-80 h-32 md:h-36 rounded-2xl overflow-hidden shrink-0 opacity-90 border border-slate-100 shadow-2xs">
+                <img 
+                  src="/dashboard_banner_vector.jpg" 
+                  alt="Dashboard Banner Analytics Vector Graphic" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
 
             {/* 4 ESSENTIAL METRIC CARDS (Exact match to screenshot) */}
