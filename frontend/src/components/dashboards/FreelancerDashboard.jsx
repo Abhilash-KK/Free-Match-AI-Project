@@ -279,12 +279,10 @@ const FreelancerDashboard = ({ userSession, onSignOut }) => {
       </aside>
 
       {/* FREELANCER MAIN WORKSPACE */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
         
         {/* Top Bar */}
-        <header className={`sticky top-0 z-30 px-8 py-3 border-b flex items-center justify-between backdrop-blur-xl ${
-          isDark ? 'bg-[#030712]/90 border-slate-800' : 'bg-white/90 border-slate-200 shadow-2xs'
-        }`}>
+        <header className="sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
           <div className="relative w-full max-w-md">
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">🔍</span>
             <input

@@ -548,32 +548,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* 3D Floating Grid Environment */}
       <div className="bg-3d-grid-clean"></div>
 
-      {/* 13 SIDEBAR NAVIGATION ITEMS */}
-      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors relative z-20 backdrop-blur-xl ${
-        isDark ? 'bg-[#060e22]/90 border-slate-800/80' : 'bg-white/90 border-slate-200/90 shadow-xs'
-      }`}>
+      {/* SIDEBAR NAVIGATION */}
+      <aside className="w-64 flex-shrink-0 border-r border-slate-200/80 bg-white flex flex-col justify-between p-6 relative z-20 shadow-xs">
         <div>
+          {/* Logo Header */}
           <div className="flex items-center space-x-3 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-sm shadow-xs">
               FM
             </div>
             <div>
-              <h1 className="font-extrabold text-base tracking-tight text-blue-600">FreeMatch AI</h1>
-              <p className="text-[10px] text-blue-400 font-bold tracking-wider uppercase">CLIENT WORKSPACE</p>
+              <h1 className="font-extrabold text-base tracking-tight text-[#2563eb]">FreeMatch AI</h1>
+              <p className="text-[10px] text-slate-400 font-bold tracking-wider uppercase">CLIENT WORKSPACE</p>
             </div>
           </div>
 
+          {/* Navigation Menu Links */}
           <nav className="space-y-1 text-xs font-semibold">
             {[
-              { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+              { id: 'dashboard', label: 'Dashboard', icon: '❖' },
               { id: 'post', label: 'Post Project', icon: '➕', action: () => setShowPostProjectModal(true) },
-              { id: 'projects', label: 'My Projects', icon: '📋', badge: clientProjects.length },
-              { id: 'applications', label: 'Project Applications', icon: '📩', badge: proposals.length },
+              { id: 'projects', label: 'My Projects', icon: '📜', badge: clientProjects.length },
+              { id: 'applications', label: 'Project Applications', icon: '📥', badge: proposals.length },
               { id: 'freelancers', label: 'Hired Freelancers', icon: '👥' },
-              { id: 'contracts', label: 'Contracts', icon: '📜' },
-              { id: 'kanban', label: 'Sprint Task Board', icon: '📌' },
+              { id: 'contracts', label: 'Contracts', icon: '📋' },
+              { id: 'kanban', label: 'Sprint Task Board', icon: '🚩' },
               { id: 'messages', label: 'Messages', icon: '💬' },
-              { id: 'payments', label: 'Payments & Escrow', icon: '💰' },
+              { id: 'payments', label: 'Payments & Escrow', icon: '🛡️' },
               { id: 'reviews', label: 'Reviews', icon: '⭐' },
               { id: 'notifications', label: 'Notifications', icon: '🔔', badge: notifications.filter(n => n.unread).length }
             ].map(item => (
@@ -583,68 +583,84 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   if (item.action) item.action();
                   else setActiveTab(item.id);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer font-bold ${
                   activeTab === item.id 
-                    ? 'bg-blue-600 text-white shadow-md' 
-                    : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100'
+                    ? 'bg-[#2563eb] text-white shadow-xs' 
+                    : 'text-[#475569] hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 <span className="flex items-center space-x-3">
-                  <span>{item.icon}</span>
+                  <span className="text-base leading-none">{item.icon}</span>
                   <span>{item.label}</span>
                 </span>
                 {item.badge ? (
-                  <span className="bg-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{item.badge}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                    activeTab === item.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
+                  }`}>{item.badge}</span>
                 ) : null}
               </button>
             ))}
           </nav>
         </div>
 
-        <div className="pt-6 border-t border-slate-800/40 space-y-1 text-xs font-semibold">
-          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl transition-all ${
-            activeTab === 'settings' 
-              ? 'bg-blue-600 text-white shadow-md' 
-              : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100'
-          }`}>
-            <span>⚙️</span><span>Settings</span>
-          </button>
-          <button onClick={onSignOut} className="w-full flex items-center space-x-3 px-3.5 py-2.5 text-rose-500 hover:bg-rose-500/10 rounded-xl cursor-pointer">
-            <span>🚪</span><span>Logout</span>
-          </button>
+        {/* Sidebar Vector Graphic Illustration & Settings */}
+        <div className="pt-4 space-y-3">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-3.5 rounded-2xl border border-blue-100 flex items-center space-x-3">
+            <svg className="w-10 h-10 text-blue-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth="1.8" />
+              <path d="M8 21h8M12 17v4" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="12" cy="10" r="2.5" strokeWidth="1.8" />
+            </svg>
+            <div>
+              <p className="text-xs font-extrabold text-slate-900">AI Assistance</p>
+              <p className="text-[10px] text-slate-500 font-medium">Smart NLP Auto-Match</p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 space-y-1 text-xs font-bold">
+            <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all ${
+              activeTab === 'settings' 
+                ? 'bg-[#2563eb] text-white shadow-xs' 
+                : 'text-[#475569] hover:bg-slate-100'
+            }`}>
+              <span>⚙️</span><span>Settings</span>
+            </button>
+            <button onClick={onSignOut} className="w-full flex items-center space-x-3 px-4 py-2.5 text-rose-600 hover:bg-rose-50 rounded-xl cursor-pointer">
+              <span>🚪</span><span>Logout</span>
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
         
-        {/* Top Header */}
-        <header className={`sticky top-0 z-30 px-8 py-4 border-b flex items-center justify-between backdrop-blur-xl ${
-          isDark ? 'bg-[#030712]/90 border-slate-800' : 'bg-white/90 border-slate-200 shadow-2xs'
-        }`}>
+        {/* Top Navigation Header */}
+        <header className="sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
           <div className="relative w-full max-w-md">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">🔍</span>
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-xs">🔍</span>
             <input
               type="text"
               placeholder="Search projects, candidates, or contracts..."
-              className={`w-full pl-10 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                isDark ? 'bg-[#081024] text-white border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-200'
-              }`}
+              className="w-full pl-10 pr-4 py-2.5 bg-[#e2e8f0]/60 border-0 rounded-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex items-center space-x-4">
-            <button onClick={() => setActiveTab('notifications')} className="p-2.5 rounded-xl border relative bg-slate-100 border-slate-200 text-slate-700">
+            <button onClick={() => setActiveTab('notifications')} className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50">
               🔔
+              {notifications.some(n => n.unread) && (
+                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
+              )}
             </button>
 
-            <div className="flex items-center space-x-3 pl-3 border-l border-slate-700/50">
+            <div className="flex items-center space-x-3 pl-3 border-l border-slate-300">
               <div className="text-right">
-                <p className="text-xs font-bold">{userSession?.name || 'TechStream Corp'}</p>
-                <p className="text-[10px] text-blue-400 font-bold uppercase">ENTERPRISE CLIENT</p>
+                <p className="text-xs font-extrabold text-slate-900">{userSession?.name || 'Abhilash Kk'}</p>
+                <p className="text-[10px] text-[#2563eb] font-extrabold tracking-wider uppercase">ENTERPRISE CLIENT</p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
-                TC
+              <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xs shadow-xs">
+                {userSession?.name ? userSession.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'TC'}
               </div>
             </div>
           </div>
@@ -652,69 +668,97 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 1: CLIENT DASHBOARD OVERVIEW */}
         {activeTab === 'dashboard' && (
-          <div className="p-8 space-y-8">
+          <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+            
+            {/* Header Banner Title */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">Client Project & Hiring Hub</h2>
-                <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Client Project & Hiring Hub</h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
                   Post projects, manage active milestone escrows, and inspect freelancer proposals.
                 </p>
               </div>
               <button 
                 onClick={() => setShowPostProjectModal(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 shadow-lg cursor-pointer"
+                className="bg-[#2563eb] hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md cursor-pointer transition-all"
               >
                 <span>+</span>
                 <span>Post New Project</span>
               </button>
             </div>
 
-            {/* SINGLE ROW OF 4 ESSENTIAL METRIC CARDS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className={`p-5 rounded-2xl border border-blue-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">ACTIVE PROJECTS</p>
-                <p className="text-2xl font-extrabold text-blue-500 mt-1">
-                  {clientProjects.filter(p => (p.progress > 0 && p.progress < 100) || p.status === 'Active' || p.status === 'In Progress').length || 4}
-                </p>
-                <p className="text-[11px] text-slate-400 mt-1">Currently in milestone sprint</p>
+            {/* 4 ESSENTIAL METRIC CARDS (Exact match to screenshot) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              
+              {/* Card 1: Active Projects */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                  📂
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
+                    {clientProjects.filter(p => (p.progress > 0 && p.progress < 100) || p.status === 'Active' || p.status === 'In Progress').length || 4}
+                  </p>
+                  <p className="text-xs text-slate-400 font-normal">Currently in milestone sprint</p>
+                </div>
               </div>
 
-              <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">PENDING APPLICATIONS</p>
-                <p className="text-2xl font-extrabold text-indigo-400 mt-1">
-                  {proposals.filter(pr => pr.status !== 'Accepted').length || 27}
-                </p>
-                <p className="text-[11px] text-slate-400 mt-1">Freelancer bids awaiting review</p>
+              {/* Card 2: Pending Applications */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-purple-100/80 text-purple-600 flex items-center justify-center text-xl shrink-0">
+                  📋
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
+                    {proposals.filter(pr => pr.status !== 'Accepted').length || 27}
+                  </p>
+                  <p className="text-xs text-slate-400 font-normal">Freelancer bids awaiting review</p>
+                </div>
               </div>
 
-              <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">TOTAL BUDGET</p>
-                <p className="text-2xl font-extrabold text-emerald-400 mt-1">$42,500</p>
-                <p className="text-[11px] text-slate-400 mt-1">Across all project milestones</p>
+              {/* Card 3: Total Budget */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                  💲
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL BUDGET</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-0.5">$42,500</p>
+                  <p className="text-xs text-slate-400 font-normal">Across all project milestones</p>
+                </div>
               </div>
 
-              <div className={`p-5 rounded-2xl border border-amber-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">PENDING ESCROW</p>
-                <p className="text-2xl font-extrabold text-amber-400 mt-1">$6,500</p>
-                <p className="text-[11px] text-slate-400 mt-1">Locked in active milestone hold</p>
+              {/* Card 4: Pending Escrow */}
+              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                  🔒
+                </div>
+                <div>
+                  <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">PENDING ESCROW</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-0.5">$6,500</p>
+                  <p className="text-xs text-slate-400 font-normal">Locked in active milestone hold</p>
+                </div>
               </div>
+
             </div>
 
-            {/* MY POSTED PROJECTS LIST */}
-            <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-                <h3 className="font-bold text-sm">My Posted Projects</h3>
+            {/* MY POSTED PROJECTS LIST CONTAINER */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+                <h3 className="font-extrabold text-xl text-slate-900">My Posted Projects</h3>
 
-                {/* List Filters */}
-                <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                {/* Filter Pills */}
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   {['All', 'Hiring', 'In Progress', 'Completed'].map(filter => (
                     <button
                       key={filter}
                       onClick={() => setProjectFilter(filter)}
-                      className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                         projectFilter === filter 
-                          ? 'bg-blue-600 text-white font-bold shadow-xs' 
-                          : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          ? 'bg-[#2563eb] text-white shadow-xs' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {filter} {filter === 'All' ? `(${clientProjects.length})` : ''}
@@ -723,6 +767,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
 
+              {/* Project Cards List */}
               <div className="space-y-4">
                 {filteredProjects.map(p => {
                   const isHiring = p.progress === 0 || p.status === 'Open for Bids' || p.status === 'Hiring';
@@ -730,81 +775,80 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   const isInProgress = !isHiring && !isCompleted;
 
                   return (
-                      /* Project Row Item */
-                      <div key={p.id} className={`p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
-                        isDark ? 'bg-[#081024] border-slate-800/80 hover:border-slate-700' : 'bg-slate-50 border-slate-200'
-                      }`}>
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          <div className="flex items-center space-x-3">
-                            <h4 className={`font-bold text-sm truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{formatTitle(p.title)}</h4>
-                            
-                            {/* Dynamic State Pill */}
-                            {isHiring && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                Hiring
-                              </span>
-                            )}
-                            {isInProgress && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                In Progress ({getProjectProgress(p)}%)
-                              </span>
-                            )}
-                            {isCompleted && (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                                Completed
-                              </span>
-                            )}
-                          </div>
-
-                          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            Category: <span className="text-blue-400 font-semibold">{p.category}</span> • Required Skills: {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}
-                          </p>
-                          <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{p.applicants}</span>
-                          </p>
-
-                          {/* Dynamic Progress Bar */}
-                          <div className="w-full max-w-md bg-slate-800/80 rounded-full h-1.5 mt-2 overflow-hidden">
-                            <div 
-                              className={`h-full transition-all duration-500 ${isCompleted ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-amber-500'}`} 
-                              style={{ width: `${getProjectProgress(p)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-4 shrink-0">
-                          <div className="text-right">
-                            <span className="font-extrabold text-blue-500 text-sm block">{p.budget}</span>
-                            <span className="text-[10px] text-slate-400 block">{p.duration}</span>
-                          </div>
-
-                          {/* Dynamic Action Buttons */}
-                          {isHiring ? (
-                            <button 
-                              onClick={() => setActiveTab('applications')} 
-                              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                            >
-                              View Applications
-                            </button>
-                          ) : isCompleted ? (
-                            <button 
-                              onClick={() => setActiveTab('kanban')} 
-                              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all border border-slate-700 cursor-pointer"
-                            >
-                              View Sprint
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => setActiveTab('kanban')} 
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                            >
-                              Track Progress
-                            </button>
+                    <div key={p.id} className="p-6 rounded-2xl border border-slate-200/80 bg-white hover:border-blue-300 transition-all shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center space-x-3">
+                          <h4 className="font-extrabold text-base text-slate-900 truncate">{formatTitle(p.title)}</h4>
+                          
+                          {/* Status Pill */}
+                          {isHiring && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200/80">
+                              Hiring
+                            </span>
+                          )}
+                          {isInProgress && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200/80">
+                              In Progress ({getProjectProgress(p)}%)
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200/80">
+                              Completed
+                            </span>
                           )}
                         </div>
+
+                        <p className="text-xs text-slate-500 font-medium">
+                          Category: <span className="text-[#2563eb] font-bold hover:underline cursor-pointer">{p.category}</span> • Required Skills: {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}
+                        </p>
+                        
+                        <p className="text-xs text-slate-400 mt-1">
+                          Posted: {p.postedDate} • Duration: {p.duration} • Applicants: <span className="font-extrabold text-slate-800">{p.applicants}</span>
+                        </p>
+
+                        {/* Progress Bar Line */}
+                        <div className="w-full max-w-lg bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-500 ${isCompleted ? 'bg-emerald-500' : isInProgress ? 'bg-[#2563eb]' : 'bg-amber-500'}`} 
+                            style={{ width: `${getProjectProgress(p)}%` }}
+                          ></div>
+                        </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Right Budget & Action Button */}
+                      <div className="flex items-center space-x-5 shrink-0">
+                        <div className="text-right">
+                          <span className="font-extrabold text-[#2563eb] text-xl block">{p.budget}</span>
+                          <span className="text-xs text-slate-400 block">{p.duration}</span>
+                        </div>
+
+                        {isHiring ? (
+                          <button 
+                            onClick={() => setActiveTab('applications')} 
+                            className="px-5 py-2.5 bg-[#f59e0b] hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer"
+                          >
+                            View Applications
+                          </button>
+                        ) : isCompleted ? (
+                          <button 
+                            onClick={() => setActiveTab('kanban')} 
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all border border-slate-300 cursor-pointer"
+                          >
+                            View Sprint
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => setActiveTab('kanban')} 
+                            className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all shadow-xs cursor-pointer"
+                          >
+                            Track Progress
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

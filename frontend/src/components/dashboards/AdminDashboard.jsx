@@ -142,12 +142,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       </aside>
 
       {/* MAIN ADMIN WORKSPACE */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
         
         {/* Top Control Bar & System Health Ticker */}
-        <header className={`sticky top-0 z-30 px-8 py-3 border-b flex items-center justify-between backdrop-blur-xl ${
-          isDark ? 'bg-[#030712]/90 border-slate-800' : 'bg-white/90 border-slate-200 shadow-2xs'
-        }`}>
+        <header className="sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
           {/* Health Status Ticker */}
           <div className="flex items-center space-x-3">
             <span className="flex h-2.5 w-2.5 relative">
