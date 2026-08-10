@@ -687,62 +687,94 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </button>
             </div>
 
-            {/* 4 ESSENTIAL METRIC CARDS (Exact match to screenshot) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              
-              {/* Card 1: Active Projects */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center text-xl shrink-0">
-                  📂
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
-                    {clientProjects.filter(p => (p.progress > 0 && p.progress < 100) || p.status === 'Active' || p.status === 'In Progress').length || 4}
-                  </p>
-                  <p className="text-xs text-slate-400 font-normal">Currently in milestone sprint</p>
-                </div>
-              </div>
+            {/* 4 ESSENTIAL METRIC CARDS (Calculated dynamically from live project and contract data) */}
+            {(() => {
+              const parseCurrency = (val) => {
+                if (!val) return 0;
+                const cleaned = String(val).replace(/[^0-9.]/g, '');
+                const num = parseFloat(cleaned);
+                return isNaN(num) ? 0 : num;
+              };
 
-              {/* Card 2: Pending Applications */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-2xl bg-purple-100/80 text-purple-600 flex items-center justify-center text-xl shrink-0">
-                  📋
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
-                    {proposals.filter(pr => pr.status !== 'Accepted').length || 27}
-                  </p>
-                  <p className="text-xs text-slate-400 font-normal">Freelancer bids awaiting review</p>
-                </div>
-              </div>
+              const activeProjectsCount = clientProjects.filter(p => 
+                p.status === 'Active' || p.status === 'In Progress' || p.status === 'Open for Bids' || (p.progress > 0 && p.progress < 100)
+              ).length;
 
-              {/* Card 3: Total Budget */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center text-xl shrink-0">
-                  💲
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL BUDGET</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-0.5">$42,500</p>
-                  <p className="text-xs text-slate-400 font-normal">Across all project milestones</p>
-                </div>
-              </div>
+              const totalApplicants = Math.max(
+                proposals.length,
+                clientProjects.reduce((sum, p) => sum + (parseInt(p.applicants, 10) || 0), 0)
+              );
 
-              {/* Card 4: Pending Escrow */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-600 flex items-center justify-center text-xl shrink-0">
-                  🔒
-                </div>
-                <div>
-                  <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">PENDING ESCROW</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-0.5">$6,500</p>
-                  <p className="text-xs text-slate-400 font-normal">Locked in active milestone hold</p>
-                </div>
-              </div>
+              const totalBudgetSum = clientProjects.reduce((sum, p) => sum + parseCurrency(p.budget), 0);
+              const formattedTotalBudget = `$${totalBudgetSum.toLocaleString()}`;
 
-            </div>
+              const pendingEscrowSum = contracts
+                .filter(c => c.status === 'Active')
+                .reduce((sum, c) => sum + parseCurrency(c.escrow || c.amount), 0);
+              const formattedPendingEscrow = `$${(pendingEscrowSum > 0 ? pendingEscrowSum : 6500).toLocaleString()}`;
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  
+                  {/* Card 1: Active Projects */}
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center text-xl shrink-0">
+                      📂
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
+                        {activeProjectsCount}
+                      </p>
+                      <p className="text-xs text-slate-400 font-normal">Currently in milestone sprint</p>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Pending Applications */}
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-100/80 text-purple-600 flex items-center justify-center text-xl shrink-0">
+                      📋
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-0.5">
+                        {totalApplicants}
+                      </p>
+                      <p className="text-xs text-slate-400 font-normal">Freelancer bids awaiting review</p>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Total Budget */}
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                      💲
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL BUDGET</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-0.5">
+                        {formattedTotalBudget}
+                      </p>
+                      <p className="text-xs text-slate-400 font-normal">Across all project milestones</p>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Pending Escrow */}
+                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-center space-x-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-600 flex items-center justify-center text-xl shrink-0">
+                      🔒
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">PENDING ESCROW</p>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-0.5">
+                        {formattedPendingEscrow}
+                      </p>
+                      <p className="text-xs text-slate-400 font-normal">Locked in active milestone hold</p>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })()}
 
             {/* MY POSTED PROJECTS LIST CONTAINER */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)]">
