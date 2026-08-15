@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Toast from '../Toast';
+import NotificationCenter from '../NotificationCenter';
+import { fetchNotifications } from '../../utils/notificationService';
 
 const AdminDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings' | 'notifications'
   const [toast, setToast] = useState(null); // { message, type }
 
   // Modals & Action States
@@ -47,6 +49,23 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     { id: 'log2', time: '10:35:00 AM', event: 'Escrow Locked', details: '$8,000 locked for AI Pipeline Optimization milestone', type: 'financial' },
     { id: 'log3', time: '09:12:44 AM', event: 'Account Suspended', details: 'User David Wright suspended due to terms violation', type: 'alert' }
   ]);
+
+  // Real-time Notifications State
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const loadLiveNotifs = async () => {
+      const list = await fetchNotifications(userSession?.user_id || userSession?.name || 'admin');
+      setNotifications(list);
+    };
+    loadLiveNotifs();
+
+    const handleNotifEvent = () => loadLiveNotifs();
+    window.addEventListener('freematch_notification_event', handleNotifEvent);
+    return () => window.removeEventListener('freematch_notification_event', handleNotifEvent);
+  }, [userSession]);
+
+  const unreadNotifCount = notifications.filter(n => !n.is_read).length;
 
   // Handlers
   const handleApproveVerification = (id) => {
@@ -107,7 +126,8 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
               { id: 'users', label: 'User Account Moderation', icon: '👥' },
               { id: 'governance', label: 'Skill & Category Governance', icon: '🏷️' },
               { id: 'financials', label: 'Escrow & Revenue Ledger', icon: '💰' },
-              { id: 'audit', label: 'Security & Audit Logs', icon: '📜' }
+              { id: 'audit', label: 'Security & Audit Logs', icon: '📜' },
+              { id: 'notifications', label: 'Notifications', icon: '🔔', badge: unreadNotifCount }
             ].map(item => (
               <button
                 key={item.id}
@@ -158,6 +178,15 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button onClick={() => setActiveTab('notifications')} className="p-2 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50">
+              🔔
+              {unreadNotifCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-blue-600 text-white font-extrabold text-[10px] px-1.5 min-w-[18px] h-4 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </button>
+
             {/* Quick Admin Actions */}
             <button 
               onClick={() => setShowAddCategoryModal(true)}
@@ -177,8 +206,12 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                 <p className="text-xs font-bold">{userSession?.name || 'Admin System'}</p>
                 <p className="text-[10px] text-blue-500 font-extrabold uppercase">SUPER ADMIN</p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-md text-xs">
-                SA
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-md text-xs overflow-hidden">
+                {userSession?.avatar_url ? (
+                  <img src={userSession.avatar_url} alt="Admin" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                ) : (
+                  <span>SA</span>
+                )}
               </div>
             </div>
           </div>
@@ -383,6 +416,13 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* TAB: NOTIFICATIONS CENTER */}
+        {activeTab === 'notifications' && (
+          <div className="p-8">
+            <NotificationCenter userSession={userSession} onNavigateTab={setActiveTab} />
           </div>
         )}
 

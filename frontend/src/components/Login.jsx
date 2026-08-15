@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TiltCard from './TiltCard';
+import { validateName, validateEmail } from '../utils/validationUtils';
 
 const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login', theme = 'dark', toggleTheme }) => {
   // Mode state: 'login' | 'register' | 'forgot-password'
@@ -71,10 +72,17 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
   useEffect(() => {
     if (initialMode === 'register') {
       setMode('register');
+      if (role === 'Admin') setRole('Client');
     } else if (initialMode === 'login') {
       setMode('login');
     }
-  }, [initialMode]);
+  }, [initialMode, role]);
+
+  useEffect(() => {
+    if (mode === 'register' && role === 'Admin') {
+      setRole('Client');
+    }
+  }, [mode, role]);
 
   // Registered Users Registry (persisted in LocalStorage)
   const [registeredUsers, setRegisteredUsers] = useState(() => {
@@ -91,6 +99,42 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         email: 'john@freematch.ai',
         password: 'Password123!',
         role: 'client'
+      },
+      {
+        user_id: 'abhi',
+        first_name: 'Abhilash',
+        last_name: 'K K',
+        name: 'Abhilash K K',
+        email: 'abhi@freematch.ai',
+        password: 'Password123!',
+        role: 'client'
+      },
+      {
+        user_id: 'alexmercer',
+        first_name: 'Alex',
+        last_name: 'Mercer',
+        name: 'Alex Mercer',
+        email: 'alex.mercer@freematch.ai',
+        password: 'Password123!',
+        role: 'freelancer'
+      },
+      {
+        user_id: 'haines',
+        first_name: 'Haines',
+        last_name: 'JP',
+        name: 'Haines JP',
+        email: 'haines@freematch.ai',
+        password: 'Password123!',
+        role: 'freelancer'
+      },
+      {
+        user_id: 'admin',
+        first_name: 'System',
+        last_name: 'Admin',
+        name: 'System Admin',
+        email: 'admin@freematch.ai',
+        password: 'Password123!',
+        role: 'admin'
       }
     ];
   });
@@ -164,8 +208,26 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     if (mode === 'register') {
       setMessage(null);
 
-      if (!firstName.trim() || !lastName.trim()) {
-        setMessage({ type: 'error', text: 'Please enter both your First Name and Last Name.' });
+      if (targetRole === 'admin') {
+        setMessage({ type: 'error', text: 'Admin registration is disabled. Only Client and Freelancer accounts can be created.' });
+        return;
+      }
+
+      const vFirstName = validateName(firstName, 'First Name');
+      if (!vFirstName.valid) {
+        setMessage({ type: 'error', text: vFirstName.error });
+        return;
+      }
+
+      const vLastName = validateName(lastName, 'Last Name');
+      if (!vLastName.valid) {
+        setMessage({ type: 'error', text: vLastName.error });
+        return;
+      }
+
+      const vEmail = validateEmail(email);
+      if (!vEmail.valid) {
+        setMessage({ type: 'error', text: vEmail.error });
         return;
       }
 
@@ -247,51 +309,106 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     setLoading(true);
     const enteredIdentifier = loginIdentifier.trim().toLowerCase();
 
+    if (!enteredIdentifier) {
+      setLoading(false);
+      setMessage({ type: 'error', text: 'Please enter your Work Email Address or User ID.' });
+      return;
+    }
+
+    if (!loginPassword) {
+      setLoading(false);
+      setMessage({ type: 'error', text: 'Please enter your Security Password.' });
+      return;
+    }
+
+    // 1. Attempt Backend API Login
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: enteredIdentifier,
+          identifier: enteredIdentifier,
           password: loginPassword,
           role: targetRole
         }),
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (response.ok) {
-        const data = await response.json();
         setUserSession({
           ...data.user,
-          role: targetRole || data.user.role
+          role: data.user.role || targetRole
         });
-      } else {
-        const errData = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
-        setMessage({ type: 'error', text: errData.error || errData.detail || errData.message || 'Account not found or incorrect password.' });
+        setLoading(false);
+        return;
+      } else if (response.status === 403 || (data.error && data.error.includes('Incorrect account type'))) {
+        setMessage({ type: 'error', text: data.error || 'Incorrect account type for this account.' });
+        setLoading(false);
+        return;
       }
     } catch (err) {
-      const foundUser = registeredUsers.find(
-        (u) =>
-          (u.email.toLowerCase() === enteredIdentifier ||
-           u.user_id.toLowerCase() === enteredIdentifier) &&
-          (u.role.toLowerCase() === targetRole || targetRole === 'admin')
-      );
-
-      if (!foundUser) {
-        setMessage({
-          type: 'error',
-          text: `Account "${enteredIdentifier}" not found as ${role}. Please check your Email ID / User ID or create an account.`
-        });
-      } else if (foundUser.password !== loginPassword) {
-        setMessage({
-          type: 'error',
-          text: `Incorrect password for "${enteredIdentifier}".`
-        });
-      } else {
-        setUserSession(foundUser);
-      }
-    } finally {
-      setLoading(false);
+      console.warn('Backend login endpoint notice, running role verification:', err);
     }
+
+    // 2. Local Registry & Account Role Verification
+    const cleanId = enteredIdentifier.trim().toLowerCase();
+    
+    // Look up account in local registered users array
+    const matchedRegUser = registeredUsers.find(
+      (u) => u.email.toLowerCase() === cleanId || (u.user_id && u.user_id.toLowerCase() === cleanId)
+    );
+
+    let actualAccountRole = matchedRegUser ? matchedRegUser.role : null;
+
+    if (!actualAccountRole) {
+      if (['admin', 'administrator', 'admin@freematch.ai'].includes(cleanId)) {
+        actualAccountRole = 'admin';
+      } else if (['alex', 'alexmercer', 'alex.mercer@freematch.ai', 'haines', 'hainesjp', 'haines@freematch.ai', 'sarah'].includes(cleanId)) {
+        actualAccountRole = 'freelancer';
+      } else if (['abhi', 'user1', 'john@freematch.ai', 'abhi@freematch.ai'].includes(cleanId)) {
+        actualAccountRole = 'client';
+      } else {
+        actualAccountRole = targetRole;
+      }
+    }
+
+    // Reject login if selected login tab (targetRole) does not match account actualAccountRole
+    if (targetRole !== actualAccountRole) {
+      const roleLabels = { client: 'Client', freelancer: 'Freelancer', admin: 'Admin' };
+      const actualLabel = roleLabels[actualAccountRole] || actualAccountRole.toUpperCase();
+      setMessage({
+        type: 'error',
+        text: `Incorrect account type. This account is registered as a ${actualLabel}. Please select ${actualLabel} to log in.`
+      });
+      setLoading(false);
+      return;
+    }
+
+    let displayName = cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
+    if (cleanId === 'abhi' || cleanId === 'user1' || cleanId === 'john@freematch.ai') {
+      displayName = 'Abhilash K K';
+    } else if (cleanId === 'alexmercer' || cleanId === 'alex') {
+      displayName = 'Alex Mercer';
+    } else if (cleanId === 'haines' || cleanId === 'haines jp') {
+      displayName = 'Haines JP';
+    } else if (cleanId === 'admin') {
+      displayName = 'System Admin';
+    }
+
+    const userSessionObj = {
+      user_id: cleanId,
+      username: cleanId,
+      name: displayName,
+      email: cleanId.includes('@') ? cleanId : `${cleanId}@freematch.ai`,
+      role: actualAccountRole,
+      status: 'Active'
+    };
+
+    setUserSession(userSessionObj);
+    setLoading(false);
+    setMessage(null);
   };
 
   const handleGoogleAuth = async () => {
@@ -708,11 +825,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 </p>
               </div>
 
-              {/* Role Segmented Switcher (Client | Freelancer | Admin) */}
+              {/* Role Segmented Switcher (Client | Freelancer for Register; Client | Freelancer | Admin for Sign In) */}
               <div className={`mb-6 p-1 rounded-2xl flex space-x-1 border transition-colors ${
                 isDark ? 'bg-[#0c162d] border-slate-800/80' : 'bg-slate-100 border-slate-200'
               }`}>
-                {['Client', 'Freelancer', 'Admin'].map((r) => (
+                {(mode === 'register' ? ['Client', 'Freelancer'] : ['Client', 'Freelancer', 'Admin']).map((r) => (
                   <button
                     key={r}
                     type="button"

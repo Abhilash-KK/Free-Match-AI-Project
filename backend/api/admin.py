@@ -70,9 +70,17 @@ class ProposalAdmin(admin.ModelAdmin):
 
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
-    list_display = ('project', 'client', 'freelancer', 'total_amount', 'escrow_amount', 'status', 'created_at')
+    list_display = ('contract_id', 'project_name', 'client_name', 'freelancer_name', 'agreed_amount', 'escrow_balance', 'status', 'created_at')
     list_filter = ('status',)
-    search_fields = ('project__title', 'client__username', 'freelancer__username')
+    search_fields = ('contract_id', 'project_name', 'client_name', 'freelancer_name')
+
+from .models import ContractMilestone
+
+@admin.register(ContractMilestone)
+class ContractMilestoneAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'milestone_number', 'title', 'amount', 'due_date', 'status')
+    list_filter = ('status',)
+    search_fields = ('title', 'contract__contract_id', 'contract__project_name')
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
@@ -107,3 +115,26 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ('sender', 'receiver', 'content', 'timestamp', 'is_read')
     list_filter = ('is_read',)
     search_fields = ('sender__username', 'receiver__username', 'content')
+
+from .models import FreelancerPortfolio, FreelancerExperience, FreelancerEducation, FreelancerCertification
+
+@admin.register(FreelancerPortfolio)
+class FreelancerPortfolioAdmin(admin.ModelAdmin):
+    list_display = ('title', 'freelancer', 'status', 'created_at')
+    search_fields = ('title', 'freelancer__username', 'skills')
+
+@admin.register(FreelancerExperience)
+class FreelancerExperienceAdmin(admin.ModelAdmin):
+    list_display = ('role', 'organization', 'freelancer', 'start_date', 'end_date')
+    search_fields = ('role', 'organization', 'freelancer__username')
+
+@admin.register(FreelancerEducation)
+class FreelancerEducationAdmin(admin.ModelAdmin):
+    list_display = ('degree', 'institution', 'freelancer', 'end_year')
+    search_fields = ('degree', 'institution', 'freelancer__username')
+
+@admin.register(FreelancerCertification)
+class FreelancerCertificationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'organization', 'freelancer', 'issue_date')
+    search_fields = ('name', 'organization', 'freelancer__username')
+
