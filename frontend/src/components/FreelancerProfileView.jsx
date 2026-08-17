@@ -64,6 +64,7 @@ export default function FreelancerProfileView({
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [fetchedReviews, setFetchedReviews] = useState([]);
 
   // Active Modals State
   const [activeModal, setActiveModal] = useState(null); // 'edit_profile' | 'edit_skills' | 'portfolio' | 'resume' | 'certification' | 'education' | 'experience' | 'confirm_delete' | 'project_detail'
@@ -76,6 +77,63 @@ export default function FreelancerProfileView({
   // ---------------------------------------------------------------------------
   // 1. FETCH LIVE DATA FROM DJANGO REST BACKEND & LOCAL STORAGE PERSISTENCE
   // ---------------------------------------------------------------------------
+  const loadReviewsData = useCallback(async () => {
+    let combined = Array.isArray(reviews) ? [...reviews] : [];
+
+    // 1. Fetch from backend REST API
+    try {
+      const res = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+      if (res.ok) {
+        const apiData = await res.json();
+        if (Array.isArray(apiData)) {
+          combined = [...combined, ...apiData];
+        }
+      }
+    } catch (e) {}
+
+    // 2. Scan LocalStorage keys for reviews submitted by Clients
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('reviews') || key.includes('freematch'))) {
+          try {
+            const parsed = JSON.parse(localStorage.getItem(key));
+            if (Array.isArray(parsed)) {
+              parsed.forEach(item => {
+                if (item && item.reviewee && (item.comment || item.rating)) {
+                  combined.push(item);
+                }
+              });
+            }
+          } catch (err) {}
+        }
+      }
+    } catch (e) {}
+
+    // Deduplicate by unique key
+    const uniqueMap = new Map();
+    combined.forEach(r => {
+      if (!r) return;
+      const key = r.id || `${r.reviewer}_${r.reviewee}_${r.projectTitle || r.project_title}_${r.comment}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, r);
+      }
+    });
+
+    setFetchedReviews(Array.from(uniqueMap.values()));
+  }, [reviews, authUsername]);
+
+  useEffect(() => {
+    loadReviewsData();
+    const handleSync = () => loadReviewsData();
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('freematch_review_submitted', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('freematch_review_submitted', handleSync);
+    };
+  }, [loadReviewsData]);
+
   const loadProfileData = useCallback(async () => {
     setLoading(true);
     try {
@@ -799,11 +857,23 @@ export default function FreelancerProfileView({
   const availableHours = profile.available_hours || '40 hrs/week';
   const bio = profile.bio || 'Professional Software Engineer specializing in modern full-stack web and AI systems.';
 
-  const filteredReviews = (reviews || []).filter(r => {
-    if (!r) return false;
-    const revName = (r.reviewee || '').toLowerCase();
-    const curName = name.toLowerCase();
-    return revName.includes(curName) || curName.includes(revName);
+  const currentFreelancerName = (profile?.name || initialFreelancerData?.name || authUsername || '').trim();
+  const currentFreelancerUser = (authUsername || userSession?.user_id || '').trim();
+
+  const filteredReviews = (fetchedReviews || []).filter(r => {
+    if (!r || !r.reviewee) return false;
+    const target = String(r.reviewee).toLowerCase().trim().replace(/\s+/g, '');
+    const cleanName = currentFreelancerName.toLowerCase().trim().replace(/\s+/g, '');
+    const cleanUser = currentFreelancerUser.toLowerCase().trim().replace(/\s+/g, '');
+    
+    if (!cleanName && !cleanUser) return false;
+
+    const matchesName = cleanName && (target === cleanName || target.includes(cleanName) || cleanName.includes(target));
+    const matchesUser = cleanUser && (target === cleanUser || target.includes(cleanUser) || cleanUser.includes(target));
+    const firstWord = cleanName.split(' ')[0];
+    const matchesFirstWord = firstWord && firstWord.length > 2 && target.includes(firstWord.toLowerCase());
+
+    return matchesName || matchesUser || matchesFirstWord;
   });
   const hasReviews = filteredReviews.length > 0;
   const avgRating = hasReviews 
@@ -1337,66 +1407,110 @@ export default function FreelancerProfileView({
       </div>
 
       {/* ==================================================
-          SECTION 8: CLIENT REVIEWS
+          SECTION 8: CLIENT REVIEWS & PERFORMANCE FEEDBACK
          ================================================== */}
       <div className={`p-6 sm:p-8 rounded-3xl border space-y-6 ${cardBg}`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-4">
           <div className="flex items-center space-x-3">
-            <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-            <h2 className="text-xl font-extrabold tracking-tight">Verified Client Reviews & Performance Feedback</h2>
+            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+              <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight">Client Reviews & Performance Feedback</h2>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                Verified ratings and project feedback submitted by clients after completed deliverables.
+              </p>
+            </div>
           </div>
           {hasReviews && (
-            <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-black rounded-xl flex items-center space-x-1">
-              <Star className="w-3.5 h-3.5 fill-amber-400 mr-1" />
-              <span>{avgRating} / 5.0 ({filteredReviews.length} Review{filteredReviews.length > 1 ? 's' : ''})</span>
+            <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-black rounded-xl flex items-center space-x-1.5 shrink-0 self-start sm:self-auto">
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span>⭐ {avgRating} / 5.0</span>
             </span>
           )}
         </div>
 
         {!hasReviews ? (
           <div className={`p-8 text-center rounded-2xl border space-y-2 ${subCardBg}`}>
-            <p className="text-base font-extrabold text-slate-300">No verified reviews yet</p>
-            <p className="text-xs text-slate-400">
-              Reviews will be displayed here automatically when clients release project milestones.
+            <div className="w-12 h-12 rounded-2xl bg-slate-800/60 border border-slate-700/50 text-amber-400 flex items-center justify-center mx-auto mb-3">
+              <Star className="w-6 h-6 text-slate-400" />
+            </div>
+            <p className="text-base font-extrabold text-slate-200">No client reviews yet.</p>
+            <p className="text-xs text-slate-400 font-medium">
+              Reviews from completed projects will appear here.
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredReviews.map(rv => (
-              <div key={rv.id} className={`p-6 rounded-2xl border space-y-4 transition-all hover:border-blue-500/40 ${subCardBg}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/40 pb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-600/20 border border-blue-500/30 text-blue-400 font-extrabold text-sm flex items-center justify-center">
-                      {rv.reviewer ? rv.reviewer.charAt(0) : 'C'}
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-blue-400">{rv.reviewer}</h4>
-                      <p className="text-xs text-slate-400 font-medium">Project: <span className="font-bold text-slate-200">{rv.projectTitle || 'Deliverable'}</span></p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center text-amber-400">
-                      {[...Array(rv.rating || 5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400" />
-                      ))}
-                    </div>
-                    <span className="text-xs font-extrabold text-amber-400">{rv.rating}/5 Stars</span>
-                    <span className="text-[10px] text-slate-500 font-semibold ml-2">({rv.date || 'Recently'})</span>
+          <div className="space-y-6">
+            {/* Overall Rating Summary Card */}
+            <div className={`p-6 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+              isDark ? 'bg-gradient-to-r from-amber-950/20 via-amber-900/10 to-[#060e22] border-amber-500/30' : 'bg-gradient-to-r from-amber-50 to-white border-amber-200'
+            }`}>
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-black text-xl shrink-0">
+                  <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-amber-400">Overall Rating</p>
+                  <div className="flex items-baseline space-x-2 mt-0.5">
+                    <span className="text-3xl font-black tracking-tight text-amber-400">⭐ {avgRating}</span>
+                    <span className="text-sm font-extrabold text-slate-400">/ 5.0</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-slate-800/50 bg-black/20 text-xs font-semibold">
-                  <div className="flex items-center space-x-1.5"><MessageCircle className="w-3.5 h-3.5 text-amber-400" /><span>Communication: <span className="text-amber-400 font-bold">{rv.comm || rv.rating || 5}/5 ★</span></span></div>
-                  <div className="flex items-center space-x-1.5"><Code2 className="w-3.5 h-3.5 text-amber-400" /><span>Code Quality: <span className="text-amber-400 font-bold">{rv.code || rv.rating || 5}/5 ★</span></span></div>
-                  <div className="flex items-center space-x-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /><span>Deadline Adherence: <span className="text-amber-400 font-bold">{rv.deadline || rv.rating || 5}/5 ★</span></span></div>
-                </div>
-
-                <p className="text-xs italic p-4 rounded-xl border border-blue-500/20 bg-blue-950/20 text-slate-200 leading-relaxed font-medium">
-                  "{rv.comment}"
-                </p>
               </div>
-            ))}
+              <div className="text-left sm:text-right">
+                <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-extrabold rounded-xl inline-block">
+                  Based on {filteredReviews.length} client review{filteredReviews.length > 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+
+            {/* List of Review Cards */}
+            <div className="space-y-4">
+              {filteredReviews.map((rv, idx) => (
+                <div key={rv.id || idx} className={`p-6 rounded-2xl border space-y-4 transition-all hover:border-amber-500/40 ${subCardBg}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/40 pb-3">
+                    <div className="flex items-center space-x-3">
+                      {rv.reviewerAvatar ? (
+                        <img src={rv.reviewerAvatar} alt={rv.reviewer} className="w-10 h-10 rounded-2xl object-cover border border-amber-500/30" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 font-extrabold text-sm flex items-center justify-center">
+                          {getInitials(rv.reviewer || 'Client')}
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="font-extrabold text-sm text-slate-100">{rv.reviewer || 'Client'}</h4>
+                        <p className="text-xs text-slate-400 font-medium">
+                          Client • <span className="font-bold text-amber-400/90">{rv.projectTitle || rv.project_title || 'Completed Project'}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <div className="flex items-center text-amber-400">
+                        {[...Array(Math.min(5, Math.max(1, Math.round(Number(rv.rating || 5)))))].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        ))}
+                      </div>
+                      <span className="text-xs font-black text-amber-400">⭐ {Number(rv.rating || 5).toFixed(1)} / 5.0</span>
+                      {rv.date && <span className="text-[10px] text-slate-500 font-semibold ml-2">({rv.date})</span>}
+                    </div>
+                  </div>
+
+                  {(rv.comm || rv.code || rv.deadline) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-slate-800/50 bg-black/20 text-xs font-semibold">
+                      {rv.comm && <div className="flex items-center space-x-1.5"><MessageCircle className="w-3.5 h-3.5 text-amber-400" /><span>Communication: <span className="text-amber-400 font-bold">{rv.comm}/5 ★</span></span></div>}
+                      {rv.code && <div className="flex items-center space-x-1.5"><Code2 className="w-3.5 h-3.5 text-amber-400" /><span>Work Quality: <span className="text-amber-400 font-bold">{rv.code}/5 ★</span></span></div>}
+                      {rv.deadline && <div className="flex items-center space-x-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /><span>Deadline Adherence: <span className="text-amber-400 font-bold">{rv.deadline}/5 ★</span></span></div>}
+                    </div>
+                  )}
+
+                  <p className="text-xs italic p-4 rounded-xl border border-amber-500/20 bg-amber-950/10 text-slate-200 leading-relaxed font-medium">
+                    "{rv.comment}"
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

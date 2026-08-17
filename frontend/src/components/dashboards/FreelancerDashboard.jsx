@@ -781,6 +781,28 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             const totalWeighted = (dn * 100) + (ur * 60) + (inp * 30);
             const overallPct = tot > 0 ? Math.round(totalWeighted / tot) : 0;
 
+            let calculatedRatingStr = isDemo ? '4.9 / 5.0' : 'No ratings yet';
+            try {
+              let allRevs = Array.isArray(reviews) ? [...reviews] : [];
+              for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && (k.includes('reviews') || k.includes('freematch'))) {
+                  try {
+                    const parsed = JSON.parse(localStorage.getItem(k));
+                    if (Array.isArray(parsed)) allRevs.push(...parsed);
+                  } catch (e) {}
+                }
+              }
+              const flName = (userSession?.name || userSession?.user_id || '').toLowerCase().trim();
+              if (flName) {
+                const matched = allRevs.filter(r => r && r.reviewee && String(r.reviewee).toLowerCase().includes(flName.split(' ')[0]));
+                if (matched.length > 0) {
+                  const avg = matched.reduce((a, b) => a + Number(b.rating || 5), 0) / matched.length;
+                  calculatedRatingStr = `${avg.toFixed(1)} / 5.0`;
+                }
+              }
+            } catch (e) {}
+
             return {
               assignedProjects: projList,
               totalTasksCount: tot,
@@ -791,7 +813,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               walletBalanceStr: isDemo ? '$3,450' : '$0.00',
               lifetimeEarningsStr: isDemo ? '$28,900' : '$0.00',
               activeContractsStr: isDemo ? '2' : '0',
-              clientRatingStr: isDemo ? '4.9 / 5.0' : 'No ratings yet',
+              clientRatingStr: calculatedRatingStr,
               completedProjectsCount: isDemo ? '24' : '0'
             };
           })();
