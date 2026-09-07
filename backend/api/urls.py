@@ -36,5 +36,8 @@ urlpatterns = [
     path('freelancer-experience/', views.freelancer_experience_api, name='freelancer_experience_api'),
     path('freelancer-education/', views.freelancer_education_api, name='freelancer_education_api'),
     path('freelancer-certifications/', views.freelancer_certifications_api, name='freelancer_certifications_api'),
-    path('freelancer-resume/', views.freelancer_resume_api, name='freelancer_resume_api'),
+    # ACCOUNT DEACTIVATION & REACTIVATION ROUTES
+    path('deactivation-status/', views.deactivation_status_api, name='deactivation_status_api'),
+    path('deactivate-account/', views.deactivate_account_api, name='deactivate_account_api'),
+    path('reactivate-account/', views.reactivate_account_api, name='reactivate_account_api'),
 ]

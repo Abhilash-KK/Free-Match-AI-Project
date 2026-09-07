@@ -97,14 +97,14 @@ export const validateText = (text = '', fieldLabel = 'Description', minLen = 5, 
 };
 
 // 6. MONETARY / RATE VALIDATION (Hourly Rate, Budget, Earnings, Payment Amount)
-export const validateMoney = (amount, fieldLabel = 'Amount', minVal = 0, maxVal = 1000000, required = true) => {
+export const validateMoney = (amount, fieldLabel = 'Amount', minVal = 0, maxVal = 100000000, required = true) => {
   if (amount === undefined || amount === null || amount === '') {
     if (!required) return { valid: true, value: 0 };
     return { valid: false, error: `${fieldLabel} is required.` };
   }
 
   let numStr = String(amount).trim();
-  if (numStr.startsWith('$')) numStr = numStr.slice(1).trim();
+  numStr = numStr.replace(/[$₹]/g, '').replace(/USD|INR/gi, '').trim();
 
   if (/[a-zA-Z]/.test(numStr)) {
     return { valid: false, error: `${fieldLabel} must be a valid numeric amount.` };
@@ -116,14 +116,14 @@ export const validateMoney = (amount, fieldLabel = 'Amount', minVal = 0, maxVal 
   }
 
   if (num < minVal) {
-    return { valid: false, error: `${fieldLabel} cannot be less than $${minVal}.` };
+    return { valid: false, error: `${fieldLabel} cannot be less than ₹${minVal.toLocaleString('en-IN')}.` };
   }
 
   if (num > maxVal) {
-    return { valid: false, error: `${fieldLabel} cannot exceed $${maxVal.toLocaleString()}.` };
+    return { valid: false, error: `${fieldLabel} cannot exceed ₹${maxVal.toLocaleString('en-IN')}.` };
   }
 
-  return { valid: true, value: num, formatted: `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` };
+  return { valid: true, value: num, formatted: `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` };
 };
 
 // 7. NUMERIC TYPE VALIDATION (Years of Experience, Hours Per Week)

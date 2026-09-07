@@ -23,10 +23,10 @@ import {
 } from 'lucide-react';
 
 const DEFAULT_TASKS = [
-  { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', budget: '$2,500', project: 'AI Pipeline Optimization' },
-  { id: 't2', title: 'Design D3.js Financial Chart Widgets', status: 'In Progress', assignee: 'Sarah Chen', budget: '$1,800', project: 'FinTech Dashboard v2' },
-  { id: 't3', title: 'Restructure REST API Inference Endpoints', status: 'Under Review', assignee: 'Alex Mercer', budget: '$4,000', project: 'AI Pipeline Optimization' },
-  { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '$4,200', project: 'Cybersecurity Audit & Shield' }
+  { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', budget: '₹2,500', project: 'AI Pipeline Optimization' },
+  { id: 't2', title: 'Design D3.js Financial Chart Widgets', status: 'In Progress', assignee: 'Sarah Chen', budget: '₹1,800', project: 'FinTech Dashboard v2' },
+  { id: 't3', title: 'Restructure REST API Inference Endpoints', status: 'Under Review', assignee: 'Alex Mercer', budget: '₹4,000', project: 'AI Pipeline Optimization' },
+  { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '₹4,200', project: 'Cybersecurity Audit & Shield' }
 ];
 
 const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initialProjectFilter = 'All', isDark = false }) => {
@@ -83,22 +83,24 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const FREELANCER_DEFAULT_TASKS = {
     alex: [
-      { id: 't_alex_1', title: 'PyTorch Model Optimization & TensorRT Quantization', status: 'In Progress', assignee: 'Alex Mercer', budget: '$4,500', project: 'AI Pipeline Optimization' },
-      { id: 't_alex_2', title: 'CUDA Parallel Execution & vLLM Memory Profiling', status: 'Under Review', assignee: 'Alex Mercer', budget: '$3,500', project: 'AI Pipeline Optimization' },
-      { id: 't_alex_3', title: 'Automated Integration Benchmarking Suite', status: 'To Do', assignee: 'Alex Mercer', budget: '$3,500', project: 'AI Automated Test Pipeline' },
-      { id: 't_alex_4', title: 'REST API Gateway Performance Validation', status: 'Done', assignee: 'Alex Mercer', budget: '$3,000', project: 'AI Automated Test Pipeline' }
+      { id: 't_alex_1', title: 'PyTorch Model Optimization & TensorRT Quantization', status: 'In Progress', assignee: 'Alex Mercer', budget: '₹4,500', project: 'AI Pipeline Optimization' },
+      { id: 't_alex_2', title: 'CUDA Parallel Execution & vLLM Memory Profiling', status: 'Under Review', assignee: 'Alex Mercer', budget: '₹3,500', project: 'AI Pipeline Optimization' },
+      { id: 't_alex_3', title: 'Automated Integration Benchmarking Suite', status: 'To Do', assignee: 'Alex Mercer', budget: '₹3,500', project: 'AI Automated Test Pipeline' },
+      { id: 't_alex_4', title: 'REST API Gateway Performance Validation', status: 'Done', assignee: 'Alex Mercer', budget: '₹3,000', project: 'AI Automated Test Pipeline' }
     ],
     haines: [
-      { id: 't_haines_1', title: 'Build Rust Order Execution Core Engine', status: 'In Progress', assignee: 'Haines Jose Paulson', budget: '$6,000', project: 'NextGen Autonomous Trading Engine' },
-      { id: 't_haines_2', title: 'Implement WebSocket Orderbook & Telemetry Feed', status: 'To Do', assignee: 'Haines Jose Paulson', budget: '$4,000', project: 'NextGen Autonomous Trading Engine' },
-      { id: 't_haines_3', title: 'Configure Google OR-Tools TSP solver', status: 'In Progress', assignee: 'Haines Jose Paulson', budget: '$5,000', project: 'Autonomous Supply Chain Freight Router' },
-      { id: 't_haines_4', title: 'Implement real-time GPS telemetry WebSockets', status: 'Done', assignee: 'Haines Jose Paulson', budget: '$3,500', project: 'Autonomous Supply Chain Freight Router' }
+      { id: 't_haines_1', title: 'Build Rust Order Execution Core Engine', status: 'In Progress', assignee: 'Haines Jose Paulson', budget: '₹6,000', project: 'NextGen Autonomous Trading Engine' },
+      { id: 't_haines_2', title: 'Implement WebSocket Orderbook & Telemetry Feed', status: 'To Do', assignee: 'Haines Jose Paulson', budget: '₹4,000', project: 'NextGen Autonomous Trading Engine' },
+      { id: 't_haines_3', title: 'Configure Google OR-Tools TSP solver', status: 'In Progress', assignee: 'Haines Jose Paulson', budget: '₹5,000', project: 'Autonomous Supply Chain Freight Router' },
+      { id: 't_haines_4', title: 'Implement real-time GPS telemetry WebSockets', status: 'Done', assignee: 'Haines Jose Paulson', budget: '₹3,500', project: 'Autonomous Supply Chain Freight Router' },
+      { id: 't_haines_5', title: 'Setup DICOM Telemetry & PACS Pipeline', status: 'In Progress', assignee: 'Haines Jose Paulson', budget: '₹4,500', project: 'AI Medical Imaging Diagnostic Suite' },
+      { id: 't_haines_6', title: 'Lesion Segmentation Model Validation', status: 'To Do', assignee: 'Haines Jose Paulson', budget: '₹4,000', project: 'AI Medical Imaging Diagnostic Suite' }
     ],
     sarah: [
-      { id: 't_sarah_1', title: 'Set up DICOM PACS server connection', status: 'In Progress', assignee: 'Sarah Chen', budget: '$4,800', project: 'AI Medical Imaging Diagnostic Suite' },
-      { id: 't_sarah_2', title: 'Train UNet lesion detection model', status: 'In Progress', assignee: 'Sarah Chen', budget: '$5,500', project: 'AI Medical Imaging Diagnostic Suite' },
-      { id: 't_sarah_3', title: 'Neo4j Schema Design & Entity Extraction', status: 'Done', assignee: 'Sarah Chen', budget: '$4,200', project: 'Enterprise Knowledge Graph RAG Bot' },
-      { id: 't_sarah_4', title: 'Deploy GraphRAG Compliance Verification Bot', status: 'Done', assignee: 'Sarah Chen', budget: '$3,800', project: 'Enterprise Knowledge Graph RAG Bot' }
+      { id: 't_sarah_1', title: 'Set up DICOM PACS server connection', status: 'In Progress', assignee: 'Sarah Chen', budget: '₹4,800', project: 'AI Medical Imaging Diagnostic Suite' },
+      { id: 't_sarah_2', title: 'Train UNet lesion detection model', status: 'In Progress', assignee: 'Sarah Chen', budget: '₹5,500', project: 'AI Medical Imaging Diagnostic Suite' },
+      { id: 't_sarah_3', title: 'Neo4j Schema Design & Entity Extraction', status: 'Done', assignee: 'Sarah Chen', budget: '₹4,200', project: 'Enterprise Knowledge Graph RAG Bot' },
+      { id: 't_sarah_4', title: 'Deploy GraphRAG Compliance Verification Bot', status: 'Done', assignee: 'Sarah Chen', budget: '₹3,800', project: 'Enterprise Knowledge Graph RAG Bot' }
     ]
   };
 
@@ -177,7 +179,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         const pTitle = p.project || p.projectTitle || 'AI Deliverable';
         const cleanTitle = pTitle.toLowerCase().trim();
         const flName = p.freelancer || p.freelancerName || 'James Joe';
-        const bidVal = p.bid || p.bidAmount || '$4,500';
+        const bidVal = p.bid || p.bidAmount || '₹4,500';
 
         const projObj = projectMap.get(cleanTitle);
         const isProjCompleted = projObj && (projObj.status === 'Completed' || projObj.progress === 100);
@@ -234,7 +236,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 title: `Deliverable: ${pTitle}`,
                 status: defaultStatus,
                 assignee: assignee,
-                budget: proj.budget || '$5,000',
+                budget: proj.budget || '₹5,000',
                 project: pTitle
               });
             }
@@ -428,19 +430,19 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       tasks.forEach(t => {
         const p = t.project || t.projectTitle || t.project_name;
         if (!p) return;
-        if (isDemoUser) {
+        const currentNameClean = (currentUserName || currentUserId || 'freelancer').toLowerCase().trim();
+        const assigneeClean = (t.assignee || '').toLowerCase().trim();
+
+        const isAlex = (currentNameClean.includes('alex') || currentUserId.includes('alex')) && (assigneeClean.includes('alex') || assigneeClean.includes('mercer'));
+        const isSarah = (currentNameClean.includes('sarah') || currentUserId.includes('sarah')) && (assigneeClean.includes('sarah') || assigneeClean.includes('chen'));
+        const isHaines = (currentNameClean.includes('haines') || currentUserId.includes('haines')) && (assigneeClean.includes('haines') || assigneeClean.includes('paulson'));
+
+        const firstWordCurrent = currentNameClean.split(' ')[0];
+        const matches = isAlex || isSarah || isHaines ||
+          (assigneeClean && (assigneeClean.includes(currentNameClean) || currentNameClean.includes(assigneeClean) || (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent))));
+
+        if (matches) {
           set.add(p);
-        } else {
-          const currentNameClean = (currentUserName || 'freelancer').toLowerCase().trim();
-          const assigneeClean = (t.assignee || '').toLowerCase().trim();
-          const firstWordCurrent = currentNameClean.split(' ')[0];
-          const matches = assigneeClean.includes(currentNameClean) ||
-            currentNameClean.includes(assigneeClean) ||
-            (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent)) ||
-            (currentUserId && currentUserId !== 'guest' && (assigneeClean.includes(currentUserId.toLowerCase()) || currentUserId.toLowerCase().includes(assigneeClean.split(' ')[0])));
-          if (matches) {
-            set.add(p);
-          }
         }
       });
       return Array.from(set);
@@ -537,7 +539,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     setNewTaskTitle('');
     setNewTaskProject(availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || 'NextGen Autonomous Trading Engine');
     setNewTaskAssignee(availableFreelancers[0] || 'Haines Jose Paulson');
-    setNewTaskBudget('$1,500');
+    setNewTaskBudget('₹1,500');
     setShowAddTaskModal(true);
   };
 
@@ -549,9 +551,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     }
 
     let formattedBudget = newTaskBudget.trim();
-    if (formattedBudget && !formattedBudget.startsWith('$')) {
+    if (formattedBudget && !formattedBudget.startsWith('₹') && !formattedBudget.startsWith('$')) {
       const num = parseFloat(formattedBudget.replace(/[^0-9.]/g, ''));
-      formattedBudget = isNaN(num) ? '$1,500' : `$${num.toLocaleString()}`;
+      formattedBudget = isNaN(num) ? '₹1,500' : `₹${num.toLocaleString('en-IN')}`;
     }
 
     const newTask = {
@@ -559,7 +561,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       title: newTaskTitle.trim(),
       status: 'To Do',
       assignee: newTaskAssignee || 'Haines Jose Paulson',
-      budget: formattedBudget || '$1,500',
+      budget: formattedBudget || '₹1,500',
       project: newTaskProject || 'NextGen Autonomous Trading Engine'
     };
 
@@ -696,7 +698,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
   // Priority helper based on budget/title
   const getTaskPriority = (task) => {
     if (task.priority) return task.priority;
-    const b = task.budget || '$1,500';
+    const b = task.budget || '₹1,500';
     const num = parseFloat(b.replace(/[^0-9.]/g, '')) || 1500;
     if (num >= 3500) return 'High';
     if (num >= 2000) return 'Medium';
@@ -716,19 +718,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-3">
-            <h2 className="text-2xl font-black tracking-tight flex items-center gap-2">
-              <span>{role === 'client' ? <Kanban className="w-6 h-6 text-blue-500" /> : <Workflow className="w-6 h-6 text-emerald-500" />}</span>
-              <span>{role === 'client' ? 'Client Sprint Task Board' : 'Freelancer Sprint Execution Board'}</span>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight flex items-center gap-2.5">
+              <span className="p-2.5 rounded-2xl bg-blue-100 text-[#2563eb] border border-blue-200 shadow-2xs">
+                {role === 'client' ? <Kanban className="w-6.5 h-6.5 stroke-[2.5]" /> : <Workflow className="w-6.5 h-6.5 text-emerald-600 stroke-[2.5]" />}
+              </span>
+              <span>{role === 'client' ? 'Sprint Task Board' : 'Freelancer Sprint Execution Board'}</span>
             </h2>
-            <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider shadow-xs ${
+            <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shadow-2xs ${
               role === 'client' 
-                ? 'bg-blue-600/10 text-blue-500 border border-blue-500/20' 
-                : 'bg-emerald-600/10 text-emerald-500 border border-emerald-500/20'
+                ? 'bg-blue-100 text-[#1e40af] border border-blue-300' 
+                : 'bg-emerald-100 text-[#065f46] border border-emerald-300'
             }`}>
-              {role === 'client' ? 'Client Master Oversight' : 'Freelancer Execution View'}
+              {role === 'client' ? 'CLIENT MASTER OVERSIGHT' : 'FREELANCER EXECUTION VIEW'}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1 font-medium">
+          <p className="text-sm font-semibold text-[#334155] mt-2 leading-relaxed">
             {role === 'client' 
               ? 'Monitor day-to-day freelancer progress, audit task milestones, and review submitted deliverables.' 
               : 'Execute assigned sprint tasks, update status milestones, and submit completed work for escrow release.'}
@@ -736,33 +740,33 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <div className="flex items-center space-x-2 bg-slate-100/90 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 pl-2.5">Filter Project:</span>
+          <div className="flex items-center space-x-2.5 bg-white text-[#0f172a] px-4 py-2.5 rounded-2xl border border-slate-300 shadow-xs">
+            <span className="text-xs font-extrabold text-[#334155] tracking-wide uppercase">Filter Project:</span>
             <select
               value={selectedProjectFilter}
               onChange={(e) => setSelectedProjectFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-[#081024] text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+              className="bg-white text-[#0f172a] font-bold text-sm focus:outline-none cursor-pointer pr-2"
             >
               {availableProjects.map(proj => (
-                <option key={proj} value={proj}>{proj}</option>
+                <option key={proj} value={proj} className="bg-white text-[#0f172a] font-bold">{proj}</option>
               ))}
             </select>
           </div>
 
           <button
             onClick={handleClearCompletedTasks}
-            className="px-3.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs flex items-center space-x-1"
+            className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-[#dc2626] border border-rose-300 rounded-2xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
           >
-            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            <Trash2 className="w-4 h-4 text-[#dc2626]" />
             <span>Clear Completed</span>
           </button>
 
           {role === 'client' && (
             <button
               onClick={handleOpenAddTaskModal}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0 flex items-center space-x-1.5"
+              className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-2xl text-sm font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer shrink-0 flex items-center space-x-2"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
               <span>Add Sprint Task</span>
             </button>
           )}
@@ -772,32 +776,32 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       {/* COMPACT ROLE-SPECIFIC PROJECT SUMMARY BANNER */}
       {role === 'client' ? (
         /* CLIENT OVERSIGHT BANNER */
-        <div className={`p-5 rounded-3xl border shadow-xs transition-all relative overflow-hidden ${
-          isDark ? 'bg-gradient-to-r from-[#060e22] via-[#0b1736] to-[#08132e] border-blue-900/40 text-white' : 'bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-slate-50 border-blue-200/80 text-slate-900'
-        }`}>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm transition-all">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-blue-500">CLIENT OVERSIGHT SUMMARY</span>
-                <span className="text-[10px] font-bold bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-md border border-blue-500/20">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#2563eb] bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
+                  OVERSIGHT SUMMARY
+                </span>
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#334155] bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
                   {selectedProjectFilter === 'All' ? 'ALL PROJECTS' : 'SELECTED PROJECT'}
                 </span>
               </div>
-              <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
-                <FolderKanban className="w-4 h-4 text-blue-500" />
+              <h3 className="text-2xl font-black text-[#0f172a] tracking-tight flex items-center gap-2.5 pt-0.5">
+                <FolderKanban className="w-6 h-6 text-[#2563eb]" />
                 <span>{projectSummaryData.name}</span>
               </h3>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-[#334155] pt-1">
                 <span className="flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-400">Freelancer:</span>
-                  <strong className="text-slate-800 dark:text-white font-bold">{projectSummaryData.assigneeStr}</strong>
+                  <User className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-500">Freelancer:</span>
+                  <strong className="text-[#0f172a] font-bold">{projectSummaryData.assigneeStr}</strong>
                 </span>
-                <span>•</span>
+                <span className="text-slate-300">•</span>
                 <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-400">Project Deadline:</span>
-                  <strong className="text-slate-800 dark:text-white font-bold">{projectSummaryData.deadline}</strong>
+                  <Calendar className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-500">Deadline:</span>
+                  <strong className="text-[#2563eb] font-extrabold">{projectSummaryData.deadline}</strong>
                 </span>
               </div>
             </div>
@@ -805,45 +809,53 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
             {/* PROGRESS & TASK STATS PILLS */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
               {/* Overall Progress Gauge */}
-              <div className={`p-4 rounded-2xl border flex flex-col justify-center items-center min-w-[140px] ${
-                isDark ? 'bg-[#081024]/80 border-slate-800' : 'bg-white border-blue-100 shadow-2xs'
-              }`}>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">OVERALL PROGRESS</span>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-2xl font-black text-blue-500">{projectSummaryData.progress}%</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${projectSummaryData.progress}%` }}
-                  />
+              <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-center items-center min-w-[140px]">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-[#475569] mb-1">OVERALL PROGRESS</span>
+                <div className="relative w-16 h-16 flex items-center justify-center my-1">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-slate-200"
+                      strokeWidth="3.5"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-[#2563eb] transition-all duration-700"
+                      strokeDasharray={`${projectSummaryData.progress}, 100`}
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <span className="absolute text-base font-black text-[#0f172a]">{projectSummaryData.progress}%</span>
                 </div>
               </div>
 
               {/* Task Breakdown Chips */}
-              <div className={`p-4 rounded-2xl border space-y-2 min-w-[240px] ${
-                isDark ? 'bg-[#081024]/80 border-slate-800' : 'bg-white border-blue-100 shadow-2xs'
-              }`}>
-                <div className="flex items-center justify-between text-xs font-extrabold text-slate-400 border-b pb-1.5 border-slate-200 dark:border-slate-800">
-                  <span>TASKS OVERVIEW</span>
-                  <span className="text-slate-700 dark:text-slate-200 font-bold">{projectSummaryData.totalCount} Total</span>
+              <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-2.5 min-w-[280px]">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#475569] border-b pb-1.5 border-slate-200">
+                  <span className="tracking-wider">TASKS OVERVIEW</span>
+                  <span className="text-[#0f172a] font-black text-xs">({projectSummaryData.totalCount} Total)</span>
                 </div>
-                <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-extrabold">
-                  <div className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    <div className="text-xs font-black">{projectSummaryData.todoCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">To-Do</div>
+                <div className="grid grid-cols-4 gap-2 text-center text-xs font-extrabold">
+                  <div className="p-2 rounded-xl bg-slate-100 text-[#334155] border border-slate-200">
+                    <div className="text-base font-black">{projectSummaryData.todoCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500 mt-0.5">TO-DO</div>
                   </div>
-                  <div className="p-1.5 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                    <div className="text-xs font-black">{projectSummaryData.inProgressCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">Progress</div>
+                  <div className="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
+                    <div className="text-base font-black">{projectSummaryData.inProgressCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-blue-600 mt-0.5">IN PROGRESS</div>
                   </div>
-                  <div className="p-1.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                    <div className="text-xs font-black">{projectSummaryData.underReviewCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">Review</div>
+                  <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                    <div className="text-base font-black">{projectSummaryData.underReviewCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-amber-600 mt-0.5">UNDER REVIEW</div>
                   </div>
-                  <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                    <div className="text-xs font-black">{projectSummaryData.doneCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">Done</div>
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <div className="text-base font-black">{projectSummaryData.doneCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-emerald-600 mt-0.5">DONE</div>
                   </div>
                 </div>
               </div>
@@ -852,32 +864,32 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         </div>
       ) : (
         /* FREELANCER EXECUTION BANNER */
-        <div className={`p-5 rounded-3xl border shadow-xs transition-all relative overflow-hidden ${
-          isDark ? 'bg-gradient-to-r from-[#051817] via-[#09221d] to-[#081a25] border-emerald-900/40 text-white' : 'bg-gradient-to-r from-emerald-50/90 via-teal-50/60 to-slate-50 border-emerald-200/80 text-slate-900'
-        }`}>
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm transition-all">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-extrabold uppercase tracking-widest text-emerald-500">FREELANCER EXECUTION WORKSPACE</span>
-                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#065f46] bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                  FREELANCER EXECUTION WORKSPACE
+                </span>
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#334155] bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
                   MY ASSIGNED TASKS
                 </span>
               </div>
-              <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
-                <ListChecks className="w-4 h-4 text-emerald-500" />
+              <h3 className="text-2xl font-black text-[#0f172a] tracking-tight flex items-center gap-2.5 pt-0.5">
+                <ListChecks className="w-6 h-6 text-[#059669]" />
                 <span>{projectSummaryData.name}</span>
               </h3>
-              <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-[#334155] pt-1">
                 <span className="flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-400">Client:</span>
-                  <strong className="text-slate-800 dark:text-white font-bold">{projectSummaryData.clientName}</strong>
+                  <Building2 className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-500">Client:</span>
+                  <strong className="text-[#0f172a] font-bold">{projectSummaryData.clientName}</strong>
                 </span>
-                <span>•</span>
+                <span className="text-slate-300">•</span>
                 <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-slate-400">Next Milestone Deadline:</span>
-                  <strong className="text-slate-800 dark:text-white font-bold">{projectSummaryData.deadline}</strong>
+                  <Clock className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-500">Deadline:</span>
+                  <strong className="text-[#059669] font-extrabold">{projectSummaryData.deadline}</strong>
                 </span>
               </div>
             </div>
@@ -885,41 +897,49 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
             {/* FREELANCER STATS PILLS */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
               {/* Project Progress Gauge */}
-              <div className={`p-4 rounded-2xl border flex flex-col justify-center items-center min-w-[140px] ${
-                isDark ? 'bg-[#081a18]/80 border-slate-800' : 'bg-white border-emerald-100 shadow-2xs'
-              }`}>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">PROJECT PROGRESS</span>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-2xl font-black text-emerald-500">{projectSummaryData.progress}%</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${projectSummaryData.progress}%` }}
-                  />
+              <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/80 flex flex-col justify-center items-center min-w-[140px]">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-[#475569] mb-1">PROJECT PROGRESS</span>
+                <div className="relative w-16 h-16 flex items-center justify-center my-1">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-slate-200"
+                      strokeWidth="3.5"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-[#059669] transition-all duration-700"
+                      strokeDasharray={`${projectSummaryData.progress}, 100`}
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <span className="absolute text-base font-black text-[#0f172a]">{projectSummaryData.progress}%</span>
                 </div>
               </div>
 
               {/* Freelancer Task Breakdown Chips */}
-              <div className={`p-4 rounded-2xl border space-y-2 min-w-[240px] ${
-                isDark ? 'bg-[#081a18]/80 border-slate-800' : 'bg-white border-emerald-100 shadow-2xs'
-              }`}>
-                <div className="flex items-center justify-between text-xs font-extrabold text-slate-400 border-b pb-1.5 border-slate-200 dark:border-slate-800">
-                  <span>MY WORK SUMMARY</span>
-                  <span className="text-slate-700 dark:text-slate-200 font-bold">{projectSummaryData.totalCount} Tasks</span>
+              <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/80 space-y-2.5 min-w-[260px]">
+                <div className="flex items-center justify-between text-xs font-extrabold text-[#475569] border-b pb-1.5 border-slate-200">
+                  <span className="tracking-wider">MY WORK SUMMARY</span>
+                  <span className="text-[#0f172a] font-black text-xs">({projectSummaryData.totalCount} Tasks)</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-extrabold">
-                  <div className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                    <div className="text-xs font-black">{projectSummaryData.doneCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">Completed</div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs font-extrabold">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <div className="text-base font-black">{projectSummaryData.doneCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider mt-0.5">COMPLETED</div>
                   </div>
-                  <div className="p-1.5 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                    <div className="text-xs font-black">{projectSummaryData.inProgressCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">In Progress</div>
+                  <div className="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
+                    <div className="text-base font-black">{projectSummaryData.inProgressCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider mt-0.5">IN PROGRESS</div>
                   </div>
-                  <div className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    <div className="text-xs font-black">{projectSummaryData.todoCount + projectSummaryData.underReviewCount}</div>
-                    <div className="text-[9px] uppercase tracking-tighter">Pending</div>
+                  <div className="p-2 rounded-xl bg-slate-100 text-[#334155] border border-slate-200">
+                    <div className="text-base font-black">{projectSummaryData.todoCount + projectSummaryData.underReviewCount}</div>
+                    <div className="text-[10px] uppercase tracking-wider mt-0.5">PENDING</div>
                   </div>
                 </div>
               </div>
@@ -932,11 +952,11 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       {role === 'freelancer' && freelancerAssignedProjects.length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <FolderKanban className="w-4 h-4 text-emerald-500" />
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 flex items-center gap-2">
+              <FolderKanban className="w-4 h-4 text-emerald-600" />
               <span>MY ASSIGNED PROJECTS</span>
             </h3>
-            <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-500 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/40">
               {freelancerAssignedProjects.length} {freelancerAssignedProjects.length === 1 ? 'Assigned Project' : 'Assigned Projects'}
             </span>
           </div>
@@ -950,53 +970,49 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                   onClick={() => setSelectedProjectFilter(proj.name)}
                   className={`p-5 rounded-2xl border transition-all cursor-pointer relative group ${
                     isSelected 
-                      ? (isDark ? 'bg-[#081a18] border-emerald-500/60 shadow-lg ring-1 ring-emerald-500/30' : 'bg-white border-emerald-500 shadow-md ring-1 ring-emerald-500/20')
-                      : (isDark ? 'bg-[#060e22] border-slate-800 hover:border-slate-700' : 'bg-slate-50/80 border-slate-200 hover:border-slate-300')
+                      ? 'bg-white dark:bg-[#081024] border-emerald-500 shadow-md ring-1 ring-emerald-500/20'
+                      : 'bg-white dark:bg-[#060e22] border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
                   }`}
                 >
-                  {/* Title & Percentage Row */}
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white leading-snug break-words flex-1" title={proj.name}>
+                    <h4 className="font-extrabold text-base text-slate-900 dark:text-white leading-snug break-words flex-1" title={proj.name}>
                       {proj.name}
                     </h4>
-                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <span className="text-xs font-black px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 shrink-0">
                       {proj.progress}%
                     </span>
                   </div>
 
-                  {/* Client & Deadline Meta */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium mb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-300 font-medium mb-3">
                     <span className="flex items-center space-x-1.5">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>Client: <strong className="text-slate-800 dark:text-white font-bold">{proj.clientName}</strong></span>
+                      <span>Client: <strong className="text-slate-900 dark:text-white font-bold">{proj.clientName}</strong></span>
                     </span>
-                    <span className="flex items-center space-x-1 text-slate-400">
+                    <span className="flex items-center space-x-1 text-slate-500">
                       <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>{proj.deadline}</span>
                     </span>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full mb-3.5 overflow-hidden">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mb-3.5 overflow-hidden">
                     <div 
-                      className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                       style={{ width: `${proj.progress}%` }}
                     />
                   </div>
 
-                  {/* Task Breakdown Pills */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-extrabold pt-3 border-t border-slate-200/60 dark:border-slate-800">
-                    <span className="text-slate-400 uppercase tracking-wider text-[11px]">
-                      TASKS: <strong className="text-slate-800 dark:text-slate-200 font-black">{proj.totalTasks}</strong>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-extrabold pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 uppercase tracking-wider text-xs">
+                      TASKS: <strong className="text-slate-900 dark:text-slate-200 font-black">{proj.totalTasks}</strong>
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 text-xs">
                         ✓ {proj.doneTasks} Done
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 text-xs">
                         ⚡ {proj.inProgressTasks} In Progress
                       </span>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs">
                         ⏳ {proj.pendingTasks} Pending
                       </span>
                     </div>
@@ -1008,30 +1024,17 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         </div>
       )}
 
-      {/* MY ASSIGNED TASKS HEADER */}
-      {role === 'freelancer' && (
-        <div className="flex items-center justify-between pt-2">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-            <span>🎯</span>
-            <span>MY ASSIGNED TASKS</span>
-          </h3>
-          <span className="text-[10px] font-bold text-slate-400">
-            Showing tasks assigned to {currentUserName}
-          </span>
-        </div>
-      )}
-
-      {/* MOBILE COLUMN SELECTOR TABS (Visible only on small screens) */}
+      {/* MOBILE COLUMN SELECTOR TABS */}
       <div className="block md:hidden">
         <div className="flex items-center space-x-1 overflow-x-auto p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl">
           {['ALL', 'To Do', 'In Progress', 'Under Review', 'Done'].map(colTab => (
             <button
               key={colTab}
               onClick={() => setMobileActiveTab(colTab)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${
                 mobileActiveTab === colTab
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-[#2563eb] text-white shadow-xs'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {colTab === 'ALL' ? 'All Columns' : colTab}
@@ -1040,23 +1043,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         </div>
       </div>
 
-      {/* 4 KANBAN COLUMNS (Responsive Grid) */}
+      {/* 4 KANBAN COLUMNS (Responsive SaaS Grid) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         
         {/* 1. TO-DO COLUMN (0%) */}
         {(mobileActiveTab === 'ALL' || mobileActiveTab === 'To Do') && (
-          <div className={`p-4 sm:p-5 rounded-3xl border transition-all flex flex-col justify-between ${
-            isDark ? 'bg-[#060e22] border-slate-800/80' : 'bg-slate-50/70 border-slate-200/80 shadow-xs'
-          }`}>
+          <div className="p-5 rounded-3xl bg-slate-50/70 dark:bg-[#060e22] border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
             <div>
               {/* COLUMN HEADER */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/60 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200/80 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">TO-DO</h3>
-                  <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black px-2 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">0%</span>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300">TO-DO</h3>
+                  <span className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-black px-2.5 py-0.5 rounded-full border border-slate-300 dark:border-slate-700">0%</span>
                 </div>
-                <span className="text-[11px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold px-2.5 py-0.5 rounded-full">
+                <span className="text-xs bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold px-3 py-0.5 rounded-full">
                   {displayTasks.filter(t => t.status === 'To Do').length}
                 </span>
               </div>
@@ -1064,10 +1065,12 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               {/* TASK CARDS */}
               <div className="space-y-3.5">
                 {displayTasks.filter(t => t.status === 'To Do').length === 0 ? (
-                  <div className="p-6 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-                    <p className="text-xl mb-1">📌</p>
-                    <p className="text-xs font-bold text-slate-400">No To-Do Tasks</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">All pending work is underway or complete.</p>
+                  <div className="p-6 text-center rounded-2xl bg-white dark:bg-[#081024] border border-dashed border-slate-300 dark:border-slate-800 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center mx-auto">
+                      <ListChecks className="w-5 h-5" />
+                    </div>
+                    <p className="text-base font-bold text-slate-800 dark:text-slate-200">No To-Do Tasks</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">All pending work is underway or complete.</p>
                   </div>
                 ) : (
                   displayTasks.filter(t => t.status === 'To Do').map(t => {
@@ -1075,67 +1078,64 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                     return (
                       <div 
                         key={t.id} 
-                        className={`p-4 rounded-2xl border transition-all hover:shadow-md ${
-                          isDark ? 'bg-[#081024] border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200/90'
-                        }`}
+                        className="p-4.5 rounded-2xl bg-white dark:bg-[#081024] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all space-y-3"
                       >
                         {/* CARD TOP BADGES */}
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[160px]">
-                            📂 {t.project || t.projectTitle || 'Enterprise Project'}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 truncate max-w-[200px] flex items-center gap-1">
+                            <FolderKanban className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span className="truncate">{t.project || t.projectTitle || 'Enterprise Project'}</span>
                           </span>
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            priority === 'High' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                            priority === 'Medium' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                            'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            priority === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
+                            priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
                             {priority}
                           </span>
                         </div>
 
                         {/* TASK TITLE */}
-                        <h4 className={`font-bold text-xs mb-1.5 leading-snug break-words ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <h4 className="font-bold text-base text-slate-900 dark:text-white leading-snug break-words">
                           {t.title}
                         </h4>
 
                         {/* METADATA INFO */}
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-3 pt-1 border-t border-slate-100 dark:border-slate-800/60">
-                          <span className="flex items-center gap-1">
-                            <span className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] font-extrabold text-slate-700 dark:text-slate-300">
+                        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/60 flex items-center justify-center text-xs font-extrabold text-[#2563eb] dark:text-blue-400">
                               {(t.assignee || 'A').charAt(0).toUpperCase()}
                             </span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[90px]">{t.assignee}</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[110px]">{t.assignee}</span>
                           </span>
-                          <span className="font-extrabold text-blue-600 dark:text-blue-400">{t.budget || '$1,500'}</span>
+                          <span className="font-extrabold text-sm text-slate-900 dark:text-white">{t.budget || '₹1,500'}</span>
                         </div>
 
                         {/* ROLE ACTION BUTTON / OVERSIGHT BADGE */}
                         {role === 'freelancer' ? (
-                          <div className="space-y-1.5">
+                          <div className="space-y-2 pt-1">
                             <button 
                               onClick={() => updateTaskStatus(t.id, 'In Progress', `Started task "${t.title}" (Progress -> 30%)`)} 
-                              className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-[10px] font-extrabold transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1"
+                              className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1.5"
                             >
-                              <span>⚡</span>
+                              <Play className="w-3.5 h-3.5 fill-current" />
                               <span>Start Task (30%) →</span>
                             </button>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-slate-200 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-[#2563eb] transition-all text-center cursor-pointer"
                             >
                               View Details
                             </button>
                           </div>
                         ) : (
-                          <div className="space-y-1.5">
-                            <div className={`p-2 rounded-xl text-[10px] font-bold text-center ${
-                              isDark ? 'bg-slate-800/80 border border-slate-700/60 text-slate-400' : 'bg-slate-100 border border-slate-200 text-slate-600'
-                            }`}>
+                          <div className="space-y-2 pt-1">
+                            <div className="p-2.5 rounded-xl text-xs font-bold text-center bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                               ⏳ Pending Freelancer Start (0%)
                             </div>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-blue-500 hover:text-blue-600 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all text-center cursor-pointer"
                             >
                               View Details
                             </button>
@@ -1147,23 +1147,31 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 )}
               </div>
             </div>
+
+            {role === 'client' && (
+              <button
+                onClick={handleOpenAddTaskModal}
+                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+            )}
           </div>
         )}
 
         {/* 2. IN PROGRESS COLUMN (30%) */}
         {(mobileActiveTab === 'ALL' || mobileActiveTab === 'In Progress') && (
-          <div className={`p-4 sm:p-5 rounded-3xl border transition-all flex flex-col justify-between ${
-            isDark ? 'bg-[#060e22] border-blue-900/30' : 'bg-blue-50/40 border-blue-200/80 shadow-xs'
-          }`}>
+          <div className="p-5 rounded-3xl bg-blue-50/40 dark:bg-[#060e22] border border-blue-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
             <div>
               {/* COLUMN HEADER */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200/60 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-blue-200/80 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-blue-500">IN PROGRESS</h3>
-                  <span className="text-[10px] bg-blue-500/20 text-blue-500 font-black px-2 py-0.5 rounded-full border border-blue-500/30">30%</span>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-blue-600 dark:text-blue-400">IN PROGRESS</h3>
+                  <span className="text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 font-black px-2.5 py-0.5 rounded-full border border-blue-500/30">30%</span>
                 </div>
-                <span className="text-[11px] bg-blue-500/20 text-blue-500 font-extrabold px-2.5 py-0.5 rounded-full">
+                <span className="text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 font-extrabold px-3 py-0.5 rounded-full">
                   {displayTasks.filter(t => t.status === 'In Progress').length}
                 </span>
               </div>
@@ -1171,10 +1179,12 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               {/* TASK CARDS */}
               <div className="space-y-3.5">
                 {displayTasks.filter(t => t.status === 'In Progress').length === 0 ? (
-                  <div className="p-6 text-center rounded-2xl border border-dashed border-blue-300 dark:border-slate-800">
-                    <p className="text-xl mb-1">⚡</p>
-                    <p className="text-xs font-bold text-slate-400">No Tasks In Progress</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Start a task from To-Do to begin work.</p>
+                  <div className="p-6 text-center rounded-2xl bg-white dark:bg-[#081024] border border-dashed border-blue-200 dark:border-slate-800 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-500 flex items-center justify-center mx-auto">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <p className="text-base font-bold text-slate-800 dark:text-slate-200">No Tasks In Progress</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Start a task from To-Do to begin work.</p>
                   </div>
                 ) : (
                   displayTasks.filter(t => t.status === 'In Progress').map(t => {
@@ -1182,67 +1192,70 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                     return (
                       <div 
                         key={t.id} 
-                        className={`p-4 rounded-2xl border transition-all hover:shadow-md ${
-                          isDark ? 'bg-blue-950/20 border-blue-900/40 hover:border-blue-700/50' : 'bg-white border-blue-200/90'
-                        }`}
+                        className="p-4.5 rounded-2xl bg-white dark:bg-[#081024] border border-blue-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all space-y-3"
                       >
                         {/* CARD TOP BADGES */}
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[160px]">
-                            📂 {t.project || t.projectTitle || 'Enterprise Project'}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 truncate max-w-[200px] flex items-center gap-1">
+                            <FolderKanban className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span className="truncate">{t.project || t.projectTitle || 'Enterprise Project'}</span>
                           </span>
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            priority === 'High' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                            priority === 'Medium' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                            'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            priority === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
+                            priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
                             {priority}
                           </span>
                         </div>
 
                         {/* TASK TITLE */}
-                        <h4 className={`font-bold text-xs mb-1.5 leading-snug break-words ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <h4 className="font-bold text-base text-slate-900 dark:text-white leading-snug break-words">
                           {t.title}
                         </h4>
 
                         {/* METADATA INFO */}
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-3 pt-1 border-t border-blue-100 dark:border-slate-800/60">
-                          <span className="flex items-center gap-1">
-                            <span className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center text-[9px] font-extrabold text-blue-500">
+                        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-blue-100 dark:border-slate-800">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/60 flex items-center justify-center text-xs font-extrabold text-[#2563eb] dark:text-blue-400">
                               {(t.assignee || 'A').charAt(0).toUpperCase()}
                             </span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[90px]">{t.assignee}</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[110px]">{t.assignee}</span>
                           </span>
-                          <span className="font-extrabold text-blue-600 dark:text-blue-400">{t.budget || '$1,500'}</span>
+                          <span className="font-extrabold text-sm text-slate-900 dark:text-white">{t.budget || '₹1,500'}</span>
                         </div>
 
                         {/* ROLE ACTION BUTTON / OVERSIGHT BADGE */}
                         {role === 'freelancer' ? (
-                          <div className="space-y-1.5">
+                          <div className="space-y-2 pt-1">
                             <button 
                               onClick={() => updateTaskStatus(t.id, 'Under Review', `Submitted "${t.title}" for review (Progress -> 60%)`)} 
-                              className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-xl text-[10px] font-extrabold transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1"
+                              className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1.5"
                             >
-                              <span>📤</span>
+                              <Send className="w-3.5 h-3.5" />
                               <span>Submit Work for Review (60%) →</span>
                             </button>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-slate-200 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all text-center cursor-pointer"
                             >
                               View Details
                             </button>
                           </div>
                         ) : (
-                          <div className="space-y-1.5">
-                            <div className={`p-2 rounded-xl text-[10px] font-bold text-center animate-pulse ${
-                              isDark ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400' : 'bg-blue-100 border border-blue-200 text-blue-800'
-                            }`}>
-                              ⚡ Work in Progress (30%)
+                          <div className="space-y-2 pt-1">
+                            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900/40 text-blue-800 dark:text-blue-300 space-y-1">
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <span>⚡ Work in Progress</span>
+                                <span>30%</span>
+                              </div>
+                              <div className="w-full bg-blue-200 dark:bg-blue-900 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-[#2563eb] h-full rounded-full w-[30%]" />
+                              </div>
                             </div>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-blue-500 hover:text-blue-600 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all text-center cursor-pointer"
                             >
                               View Details
                             </button>
@@ -1254,23 +1267,31 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 )}
               </div>
             </div>
+
+            {role === 'client' && (
+              <button
+                onClick={handleOpenAddTaskModal}
+                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+            )}
           </div>
         )}
 
         {/* 3. UNDER REVIEW COLUMN (60%) */}
         {(mobileActiveTab === 'ALL' || mobileActiveTab === 'Under Review') && (
-          <div className={`p-4 sm:p-5 rounded-3xl border transition-all flex flex-col justify-between ${
-            isDark ? 'bg-[#060e22] border-amber-900/30' : 'bg-amber-50/40 border-amber-200/80 shadow-xs'
-          }`}>
+          <div className="p-5 rounded-3xl bg-amber-50/40 dark:bg-[#060e22] border border-amber-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
             <div>
               {/* COLUMN HEADER */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-amber-200/60 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-amber-200/80 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-amber-500">UNDER REVIEW</h3>
-                  <span className="text-[10px] bg-amber-500/20 text-amber-500 font-black px-2 py-0.5 rounded-full border border-amber-500/30">60%</span>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-amber-600 dark:text-amber-400">UNDER REVIEW</h3>
+                  <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 font-black px-2.5 py-0.5 rounded-full border border-amber-500/30">60%</span>
                 </div>
-                <span className="text-[11px] bg-amber-500/20 text-amber-500 font-extrabold px-2.5 py-0.5 rounded-full">
+                <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 font-extrabold px-3 py-0.5 rounded-full">
                   {displayTasks.filter(t => t.status === 'Under Review').length}
                 </span>
               </div>
@@ -1278,10 +1299,12 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               {/* TASK CARDS */}
               <div className="space-y-3.5">
                 {displayTasks.filter(t => t.status === 'Under Review').length === 0 ? (
-                  <div className="p-6 text-center rounded-2xl border border-dashed border-amber-300 dark:border-slate-800">
-                    <p className="text-xl mb-1">🔎</p>
-                    <p className="text-xs font-bold text-slate-400">No Tasks Under Review</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Submitted deliverables will appear here.</p>
+                  <div className="p-6 text-center rounded-2xl bg-white dark:bg-[#081024] border border-dashed border-amber-200 dark:border-slate-800 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-500 flex items-center justify-center mx-auto">
+                      <Eye className="w-5 h-5" />
+                    </div>
+                    <p className="text-base font-bold text-slate-800 dark:text-slate-200">No Tasks Under Review</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Submitted deliverables will appear here.</p>
                   </div>
                 ) : (
                   displayTasks.filter(t => t.status === 'Under Review').map(t => {
@@ -1289,67 +1312,64 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                     return (
                       <div 
                         key={t.id} 
-                        className={`p-4 rounded-2xl border transition-all hover:shadow-md ${
-                          isDark ? 'bg-amber-950/20 border-amber-900/40 hover:border-amber-700/50' : 'bg-white border-amber-200/90'
-                        }`}
+                        className="p-4.5 rounded-2xl bg-white dark:bg-[#081024] border border-amber-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all space-y-3"
                       >
                         {/* CARD TOP BADGES */}
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 truncate max-w-[160px]">
-                            📂 {t.project || t.projectTitle || 'Enterprise Project'}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/40 truncate max-w-[200px] flex items-center gap-1">
+                            <FolderKanban className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span className="truncate">{t.project || t.projectTitle || 'Enterprise Project'}</span>
                           </span>
-                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            priority === 'High' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
-                            priority === 'Medium' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                            'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            priority === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
+                            priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            'bg-slate-100 text-slate-600 border border-slate-200'
                           }`}>
                             {priority}
                           </span>
                         </div>
 
                         {/* TASK TITLE */}
-                        <h4 className={`font-bold text-xs mb-1.5 leading-snug break-words ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <h4 className="font-bold text-base text-slate-900 dark:text-white leading-snug break-words">
                           {t.title}
                         </h4>
 
                         {/* METADATA INFO */}
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 mb-3 pt-1 border-t border-amber-100 dark:border-slate-800/60">
-                          <span className="flex items-center gap-1">
-                            <span className="w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center text-[9px] font-extrabold text-amber-500">
+                        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 pt-2 border-t border-amber-100 dark:border-slate-800">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center text-xs font-extrabold text-amber-600 dark:text-amber-400">
                               {(t.assignee || 'A').charAt(0).toUpperCase()}
                             </span>
-                            <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[90px]">{t.assignee}</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[110px]">{t.assignee}</span>
                           </span>
-                          <span className="font-extrabold text-amber-600 dark:text-amber-400">{t.budget || '$1,500'}</span>
+                          <span className="font-extrabold text-sm text-slate-900 dark:text-white">{t.budget || '₹1,500'}</span>
                         </div>
 
                         {/* ROLE ACTION BUTTON / OVERSIGHT BADGE */}
                         {role === 'freelancer' ? (
-                          <div className="space-y-1.5">
+                          <div className="space-y-2 pt-1">
                             <button 
                               onClick={() => updateTaskStatus(t.id, 'Done', `Finalized task "${t.title}" & marked Done (100%)`)} 
-                              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-[10px] font-extrabold transition-all shadow-md cursor-pointer flex items-center justify-center space-x-1"
+                              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center justify-center space-x-1.5"
                             >
-                              <span>✓</span>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                               <span>Finalize & Mark Done (100%) →</span>
                             </button>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-slate-200 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all text-center cursor-pointer"
                             >
                               View Details
                             </button>
                           </div>
                         ) : (
-                          <div className="space-y-1.5">
-                            <div className={`p-2 rounded-xl text-[10px] font-bold text-center animate-pulse ${
-                              isDark ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' : 'bg-amber-100 border border-amber-200 text-amber-800'
-                            }`}>
-                              ⏳ Under Review (60%) — Awaiting Completion
+                          <div className="space-y-2 pt-1">
+                            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-300 text-xs font-bold text-center">
+                              ⏳ Under Review (60%)<br /><span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Awaiting Completion</span>
                             </div>
                             <button
                               onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-all text-center cursor-pointer"
+                              className="w-full py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline transition-all text-center cursor-pointer"
                             >
                               Audit Deliverable
                             </button>
@@ -1361,86 +1381,87 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 )}
               </div>
             </div>
+
+            {role === 'client' && (
+              <button
+                onClick={handleOpenAddTaskModal}
+                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+            )}
           </div>
         )}
 
         {/* 4. DONE COLUMN (100%) */}
         {(mobileActiveTab === 'ALL' || mobileActiveTab === 'Done') && (
-          <div className={`p-4 sm:p-5 rounded-3xl border transition-all flex flex-col justify-between ${
-            isDark ? 'bg-[#060e22] border-emerald-900/30' : 'bg-emerald-50/40 border-emerald-200/80 shadow-xs'
-          }`}>
+          <div className="p-5 rounded-3xl bg-emerald-50/40 dark:bg-[#060e22] border border-emerald-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
             <div>
               {/* COLUMN HEADER */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-200/60 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-emerald-200/80 dark:border-slate-800">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-emerald-500">DONE</h3>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-500 font-black px-2 py-0.5 rounded-full border border-emerald-500/30">100%</span>
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider text-emerald-600 dark:text-emerald-400">DONE</h3>
+                  <span className="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-black px-2.5 py-0.5 rounded-full border border-emerald-500/30">100%</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {displayTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length > 0 && (
-                    <button
-                      onClick={handleClearCompletedTasks}
-                      className="text-[10px] text-red-400 hover:text-red-300 font-bold hover:underline cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  )}
-                  <span className="text-[11px] bg-emerald-500/20 text-emerald-500 font-extrabold px-2.5 py-0.5 rounded-full">
-                    {displayTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length}
-                  </span>
-                </div>
+                <span className="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold px-3 py-0.5 rounded-full">
+                  {displayTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length}
+                </span>
               </div>
 
               {/* TASK CARDS */}
               <div className="space-y-3.5">
                 {displayTasks.filter(t => t.status === 'Done' || t.status === 'Completed').length === 0 ? (
-                  <div className="p-6 text-center rounded-2xl border border-dashed border-emerald-300 dark:border-slate-800">
-                    <p className="text-xl mb-1">🎉</p>
-                    <p className="text-xs font-bold text-slate-400">No Completed Tasks</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Finalized deliverables will display here.</p>
+                  <div className="p-6 text-center rounded-2xl bg-white dark:bg-[#081024] border border-dashed border-emerald-200 dark:border-slate-800 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <p className="text-base font-bold text-slate-800 dark:text-slate-200">No Completed Tasks</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Finalized deliverables will display here.</p>
                   </div>
                 ) : (
                   displayTasks.filter(t => t.status === 'Done' || t.status === 'Completed').map(t => (
                     <div 
                       key={t.id} 
-                      className={`p-4 rounded-2xl border transition-all hover:shadow-md ${
-                        isDark ? 'bg-emerald-950/20 border-emerald-900/40 hover:border-emerald-700/50' : 'bg-white border-emerald-200/90'
-                      }`}
+                      className="p-4.5 rounded-2xl bg-white dark:bg-[#081024] border border-emerald-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all space-y-3"
                     >
                       {/* CARD TOP BADGES */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 truncate max-w-[160px]">
-                          📂 {t.project || t.projectTitle || 'Enterprise Project'}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-900/40 truncate max-w-[200px] flex items-center gap-1">
+                          <FolderKanban className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="truncate">{t.project || t.projectTitle || 'Enterprise Project'}</span>
                         </span>
-                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        <span className="text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                           COMPLETED
                         </span>
                       </div>
 
                       {/* TASK TITLE */}
-                      <h4 className="font-bold text-xs mb-1.5 leading-snug break-words">
+                      <h4 className="font-bold text-base text-slate-900 dark:text-white leading-snug break-words">
                         {t.title}
                       </h4>
 
                       {/* COMPLETED STATUS TEXT */}
-                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold mt-1 flex items-center gap-1">
-                        <span>✔ Escrow Released ({t.budget || '$2,500'}) — 100%</span>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-extrabold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 p-2 rounded-xl border border-emerald-200/60">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Escrow Released ({t.budget || '₹2,500'}) — 100%</span>
                       </p>
 
                       {/* CARD FOOTER ACTIONS */}
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-emerald-500/20">
+                      <div className="flex items-center justify-between pt-2 border-t border-emerald-100 dark:border-slate-800">
                         <button
                           onClick={() => setSelectedTaskDetail(t)}
-                          className="text-[10px] font-bold text-emerald-500 hover:underline cursor-pointer"
+                          className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                         >
                           View Details
                         </button>
                         <button
                           onClick={() => handleRemoveTask(t.id, t.title)}
-                          className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
+                          className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
                         >
-                          <span>🗑️ Remove</span>
+                          <Trash2 className="w-3 h-3 text-rose-600" />
+                          <span>Remove</span>
                         </button>
                       </div>
                     </div>
@@ -1448,9 +1469,30 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 )}
               </div>
             </div>
+
+            {role === 'client' && (
+              <button
+                onClick={handleOpenAddTaskModal}
+                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Task</span>
+              </button>
+            )}
           </div>
         )}
 
+      </div>
+
+      {/* BOTTOM INFO CARD */}
+      <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-slate-900/60 border border-blue-100 dark:border-slate-800 flex items-start space-x-3 text-xs font-medium text-slate-700 dark:text-slate-300">
+        <div className="p-2 rounded-xl bg-white dark:bg-slate-800 text-[#2563eb] dark:text-blue-400 border border-blue-200/60 dark:border-slate-700 shrink-0 mt-0.5">
+          <Workflow className="w-4 h-4" />
+        </div>
+        <div>
+          <strong className="text-slate-900 dark:text-white font-extrabold block text-sm mb-0.5">About This Board</strong>
+          <span>Tasks flow from To-Do → In Progress → Under Review → Done. Ensure all deliverables are reviewed and marked done to maintain accurate project progress.</span>
+        </div>
       </div>
 
       {/* TASK DETAILS MODAL */}
@@ -1472,31 +1514,31 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
             <div className="space-y-4 text-xs">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">TASK TITLE</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">TASK TITLE</span>
                 <h4 className="text-sm font-black mt-0.5">{selectedTaskDetail.title}</h4>
               </div>
 
               <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
                 <div>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">PROJECT</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">PROJECT</span>
                   <p className="font-bold text-blue-500">{selectedTaskDetail.project || selectedTaskDetail.projectTitle || 'Enterprise Project'}</p>
                 </div>
                 <div>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">STATUS & PROGRESS</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">STATUS & PROGRESS</span>
                   <p className="font-bold text-emerald-500">{selectedTaskDetail.status} ({selectedTaskDetail.status === 'Done' ? '100%' : selectedTaskDetail.status === 'Under Review' ? '60%' : selectedTaskDetail.status === 'In Progress' ? '30%' : '0%'})</p>
                 </div>
                 <div>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">ASSIGNED FREELANCER</span>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">ASSIGNED FREELANCER</span>
                   <p className="font-bold text-slate-800 dark:text-slate-200">{selectedTaskDetail.assignee || 'Unassigned'}</p>
                 </div>
                 <div>
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">BUDGET / ESCROW</span>
-                  <p className="font-bold text-blue-600 dark:text-blue-400">{selectedTaskDetail.budget || '$1,500'}</p>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">BUDGET / ESCROW</span>
+                  <p className="font-bold text-blue-600 dark:text-blue-400">{selectedTaskDetail.budget || '₹1,500'}</p>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">WORK ITEM DESCRIPTION</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">WORK ITEM DESCRIPTION</span>
                 <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-medium leading-relaxed mt-1">
                   Task deliverable requirements for "{selectedTaskDetail.title}". Deliverable status is synchronized in real-time between Client Oversight and Freelancer Execution workspaces.
                 </p>
@@ -1610,10 +1652,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Task Budget ($)</label>
+                  <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Task Budget (₹ INR)</label>
                   <input
                     type="text"
-                    placeholder="$1,500"
+                    placeholder="₹1,500"
                     value={newTaskBudget}
                     onChange={(e) => setNewTaskBudget(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}

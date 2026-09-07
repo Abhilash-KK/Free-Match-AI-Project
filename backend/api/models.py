@@ -15,6 +15,10 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, default='')
     avatar_url = models.TextField(blank=True, default='')
     verified = models.BooleanField(default=False)
+    is_deactivated = models.BooleanField(default=False)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    deactivation_until = models.DateTimeField(null=True, blank=True)
+    deactivation_period = models.CharField(max_length=50, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -68,7 +72,7 @@ class Project(models.Model):
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
     title = models.CharField(max_length=200)
     category = models.ForeignKey(SkillCategory, on_delete=models.SET_NULL, null=True, blank=True)
-    budget = models.CharField(max_length=50, default='$5,000')
+    budget = models.CharField(max_length=50, default='₹5,000')
     duration = models.CharField(max_length=50, default='3 Weeks')
     skills_required = models.CharField(max_length=200, default='React, Python')
     description = models.TextField()
@@ -111,7 +115,7 @@ class SprintTask(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='sprint_tasks', null=True, blank=True)
     assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_sprint_tasks', null=True, blank=True)
     status = models.CharField(max_length=30, choices=STAGE_CHOICES, default='To Do')
-    budget = models.CharField(max_length=50, default='$2,500')
+    budget = models.CharField(max_length=50, default='₹2,500')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -132,7 +136,7 @@ class Proposal(models.Model):
     )
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='proposals')
     freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='proposals')
-    bid_amount = models.CharField(max_length=50, default='$5,000')
+    bid_amount = models.CharField(max_length=50, default='₹5,000')
     delivery_time = models.CharField(max_length=50, default='2 Weeks')
     cover_letter = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
@@ -164,10 +168,10 @@ class Contract(models.Model):
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Active')
     start_date = models.CharField(max_length=100, blank=True, default='')
     end_date = models.CharField(max_length=100, blank=True, default='')
-    agreed_amount = models.CharField(max_length=50, default='$5,000')
-    hourly_rate = models.CharField(max_length=50, blank=True, default='$75/hr')
+    agreed_amount = models.CharField(max_length=50, default='₹5,000')
+    hourly_rate = models.CharField(max_length=50, blank=True, default='₹75/hr')
     payment_type = models.CharField(max_length=50, default='Fixed Price')
-    escrow_balance = models.CharField(max_length=50, default='$5,000')
+    escrow_balance = models.CharField(max_length=50, default='₹5,000')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -179,7 +183,7 @@ class ContractMilestone(models.Model):
     milestone_number = models.IntegerField(default=1)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
-    amount = models.CharField(max_length=50, default='$2,500')
+    amount = models.CharField(max_length=50, default='₹2,500')
     due_date = models.CharField(max_length=100, blank=True, default='')
     status = models.CharField(max_length=50, default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -201,7 +205,7 @@ class Payment(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Payment ${self.amount} for {self.milestone_title}"
+        return f"Payment ₹{self.amount} for {self.milestone_title}"
 
 class Review(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, null=True, blank=True)

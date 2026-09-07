@@ -68,6 +68,35 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [deactivatedUserHandle, setDeactivatedUserHandle] = useState('');
+
+  const handleReactivateFromLogin = async () => {
+    const handleToReactivate = deactivatedUserHandle || loginIdentifier.trim();
+    if (!handleToReactivate) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/reactivate-account/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: handleToReactivate })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({
+          type: 'success',
+          text: 'Account reactivated successfully! You can now log in.'
+        });
+        setDeactivatedUserHandle('');
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to reactivate account.' });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Network error reactivating account.' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (initialMode === 'register') {
@@ -343,8 +372,16 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         });
         setLoading(false);
         return;
-      } else if (response.status === 403 || (data.error && data.error.includes('Incorrect account type'))) {
-        setMessage({ type: 'error', text: data.error || 'Incorrect account type for this account.' });
+      } else if (response.status === 403) {
+        if (data.deactivated || (data.error && data.error.toLowerCase().includes('deactivated'))) {
+          setDeactivatedUserHandle(data.user_id || enteredIdentifier);
+          setMessage({
+            type: 'deactivated',
+            text: 'Your account is currently deactivated.'
+          });
+        } else {
+          setMessage({ type: 'error', text: data.error || 'Incorrect account type for this account.' });
+        }
         setLoading(false);
         return;
       }
@@ -360,18 +397,18 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       (u) => u.email.toLowerCase() === cleanId || (u.user_id && u.user_id.toLowerCase() === cleanId)
     );
 
-    let actualAccountRole = matchedRegUser ? matchedRegUser.role : null;
+    let actualAccountRole = null;
 
-    if (!actualAccountRole) {
-      if (['admin', 'administrator', 'admin@freematch.ai'].includes(cleanId)) {
-        actualAccountRole = 'admin';
-      } else if (['alex', 'alexmercer', 'alex.mercer@freematch.ai', 'haines', 'hainesjp', 'haines@freematch.ai', 'sarah'].includes(cleanId)) {
-        actualAccountRole = 'freelancer';
-      } else if (['abhi', 'user1', 'john@freematch.ai', 'abhi@freematch.ai'].includes(cleanId)) {
-        actualAccountRole = 'client';
-      } else {
-        actualAccountRole = targetRole;
-      }
+    if (['admin', 'administrator', 'admin@freematch.ai'].includes(cleanId)) {
+      actualAccountRole = 'admin';
+    } else if (['alex', 'alexmercer', 'alex.mercer@freematch.ai', 'haines', 'hainesjp', 'haines@freematch.ai', 'sarah'].includes(cleanId)) {
+      actualAccountRole = 'freelancer';
+    } else if (['abhi', 'user1', 'john@freematch.ai', 'abhi@freematch.ai', 'abhilash'].includes(cleanId)) {
+      actualAccountRole = 'client';
+    } else if (matchedRegUser) {
+      actualAccountRole = matchedRegUser.role;
+    } else {
+      actualAccountRole = targetRole;
     }
 
     // Reject login if selected login tab (targetRole) does not match account actualAccountRole
@@ -477,7 +514,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     }
     // Eye Hidden / Outline
     return (
-      <svg className="w-5 h-5 text-slate-400 hover:text-slate-600 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg className="w-5 h-5 text-slate-600 dark:text-slate-300 hover:text-slate-600 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         <circle cx="12" cy="12" r="3" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         <line x1="3" y1="3" x2="21" y2="21" strokeWidth="1.8" strokeLinecap="round"/>
@@ -536,7 +573,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
             }`}>
             
             {/* Top Live Stats Badge (Left) */}
-            <div className="absolute top-5 left-5 z-20 flex items-center space-x-2 bg-[#091533]/90 border border-slate-700/80 px-3 py-1 rounded-full text-[10px] text-slate-300 font-medium">
+            <div className="absolute top-5 left-5 z-20 flex items-center space-x-2 bg-[#091533]/90 border border-slate-700/80 px-3 py-1 rounded-full text-xs text-slate-300 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>GitHub API Synced</span>
             </div>
@@ -548,7 +585,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               </svg>
               <div className="text-left leading-tight">
                 <div className="text-xs font-bold tracking-tight">AI Skill Match 98.4%</div>
-                <div className="text-[8px] text-blue-200 uppercase tracking-widest font-semibold">NLP SEMANTIC ENGINE</div>
+                <div className="text-xs text-blue-200 uppercase tracking-widest font-semibold">NLP SEMANTIC ENGINE</div>
               </div>
             </div>
 
@@ -557,11 +594,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               
               {/* Card Header Title */}
               <div className="text-center mb-4 max-w-sm mx-auto">
-                <span className="inline-block px-3 py-0.5 text-[10px] font-extrabold tracking-widest text-blue-400 uppercase bg-blue-950/80 border border-blue-800/80 rounded-full mb-1.5">
+                <span className="inline-block px-3 py-0.5 text-xs font-extrabold tracking-widest text-blue-400 uppercase bg-blue-950/80 border border-blue-800/80 rounded-full mb-1.5">
                   Phase 2: Intelligent Automation
                 </span>
                 <h4 className="text-lg font-bold text-white tracking-tight">Core System Architecture</h4>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-300 leading-relaxed">
                   Natural Language Processing & GitHub REST API integration for transparent execution.
                 </p>
               </div>
@@ -577,7 +614,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                   <h5 className="text-sm font-bold text-white tracking-tight">
                     {showcaseImages[activeImageIndex].title}
                   </h5>
-                  <p className="text-[11px] text-slate-300 font-normal mt-0.5">
+                  <p className="text-xs text-slate-300 font-normal mt-0.5">
                     {showcaseImages[activeImageIndex].subtitle}
                   </p>
                 </div>
@@ -609,10 +646,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 "FreeMatch AI's automated GitHub progress tracking and NLP skill matching eliminated micromanagement friction completely."
               </p>
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-bold text-slate-300">
+                <p className="text-xs font-bold text-slate-300">
                   Lead Evaluator @ Dept. of Computer Applications
                 </p>
-                <span className="px-2 py-0.5 bg-blue-600/30 text-blue-300 rounded-full text-[9px] font-bold border border-blue-400/30">
+                <span className="px-2 py-0.5 bg-blue-600/30 text-blue-300 rounded-full text-xs font-bold border border-blue-400/30">
                   ✓ Verified Research
                 </span>
               </div>
@@ -623,7 +660,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         </div>
 
         {/* Bottom Footer Tracking Line */}
-        <div className="relative z-10 text-[11px] font-bold tracking-[0.25em] text-slate-400 flex items-center justify-between w-full pt-4 border-t border-slate-700/50">
+        <div className="relative z-10 text-xs font-bold tracking-[0.25em] text-slate-600 dark:text-slate-300 flex items-center justify-between w-full pt-4 border-t border-slate-700/50">
           <span>ALGORITHMIC</span>
           <div className="flex-1 mx-4 h-[1px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-60"></div>
           <span>TRUST</span>
@@ -655,7 +692,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           <div className="flex items-center space-x-3 ml-auto">
             <button
               onClick={() => onNavigate('landing')}
-              className="hidden sm:inline-flex items-center space-x-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center space-x-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -671,13 +708,34 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           {/* Alert Notification */}
           {message && (
             <div
-              className={`mb-5 p-3.5 rounded-2xl text-xs font-semibold ${
+              className={`mb-5 p-4 rounded-2xl text-xs font-semibold space-y-2.5 ${
                 message.type === 'error'
                   ? isDark ? 'bg-rose-950/70 text-rose-300 border border-rose-800/80' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : message.type === 'deactivated'
+                  ? isDark ? 'bg-amber-950/80 text-amber-300 border border-amber-800/80' : 'bg-amber-50 text-amber-900 border border-amber-300'
                   : isDark ? 'bg-blue-950/70 text-blue-300 border border-blue-800/80' : 'bg-blue-50 text-blue-700 border border-blue-200'
               }`}
             >
-              {message.text}
+              <p className="font-extrabold flex items-center gap-1.5 text-xs">
+                {message.type === 'deactivated' && '🔒 '}
+                {message.text}
+              </p>
+
+              {message.type === 'deactivated' && (
+                <div className="pt-2 space-y-2 border-t border-amber-300/40 dark:border-amber-800/40">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300 leading-relaxed">
+                    Your complete profile, projects, contracts, reviews, and historical records are preserved 100%. Would you like to reactivate your account now?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleReactivateFromLogin}
+                    disabled={loading}
+                    className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                  >
+                    {loading ? 'Reactivating...' : 'Reactivate Account Now'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -688,7 +746,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <h2 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Reset Password
                 </h2>
-                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'}`}>
                   Enter your registered work email and your new password.
                 </p>
               </div>
@@ -696,11 +754,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               <form onSubmit={handleResetPassword} className="space-y-4">
                 {/* Registered Work Email */}
                 <div>
-                  <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Work Email Address
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
@@ -722,11 +780,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                 {/* New Security Password with View Password Toggle */}
                 <div>
-                  <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     New Security Password
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
@@ -756,11 +814,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                 {/* Confirm New Password with View Password Toggle */}
                 <div>
-                  <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Confirm New Password
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
@@ -818,7 +876,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <h2 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {mode === 'register' ? 'Create Account' : 'Welcome Back'}
                 </h2>
-                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'}`}>
                   {mode === 'register'
                     ? 'Join the elite network of professional matches.'
                     : 'Securely sign in using your Email ID or User ID.'}
@@ -837,7 +895,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-xl transition-all duration-200 cursor-pointer ${
                       role === r
                         ? 'bg-[#0d5be1] text-white shadow-[0_0_15px_rgba(13,91,225,0.4)]'
-                        : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                        : isDark ? 'text-slate-600 dark:text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {r}
@@ -854,11 +912,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     <div className="grid grid-cols-2 gap-3">
                       {/* First Name */}
                       <div>
-                        <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                           First Name
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
@@ -880,11 +938,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                       {/* Last Name */}
                       <div>
-                        <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                           Last Name
                         </label>
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
@@ -907,11 +965,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                     {/* Registration User ID / Handle */}
                     <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                        User ID / Handle <span className="text-slate-400 font-normal">(for login)</span>
+                      <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        User ID / Handle <span className="text-slate-600 dark:text-slate-300 font-normal">(for login)</span>
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                           </svg>
@@ -933,11 +991,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                     {/* Registration Work Email */}
                     <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Work Email Address
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
@@ -959,11 +1017,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                     {/* Set Security Password (with View Password toggle) */}
                     <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Set Security Password
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
@@ -993,11 +1051,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
                     {/* Confirm Security Password (with View Password toggle) */}
                     <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Confirm Security Password
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
@@ -1031,11 +1089,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 {mode === 'login' && (
                   <>
                     <div>
-                      <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <label className={`block text-sm font-bold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         Work Email Address or User ID
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
@@ -1058,7 +1116,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     {/* Sign In Security Password Field with View Password Toggle */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className={`block text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        <label className={`block text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                           Security Password
                         </label>
                         <button
@@ -1076,7 +1134,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         </button>
                       </div>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600 dark:text-slate-300">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
@@ -1119,7 +1177,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         isDark ? 'bg-[#081024]' : 'bg-white'
                       }`}
                     />
-                    <label htmlFor="terms-checkbox" className={`text-xs leading-snug cursor-pointer select-none ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <label htmlFor="terms-checkbox" className={`text-xs leading-snug cursor-pointer select-none ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-600'}`}>
                       I agree to the <button type="button" onClick={() => setActivePolicyModal('terms')} className="text-blue-500 hover:underline font-semibold cursor-pointer">Terms of Service</button> and <button type="button" onClick={() => setActivePolicyModal('privacy')} className="text-blue-500 hover:underline font-semibold cursor-pointer">Privacy Policy</button> regarding my professional data processing.
                     </label>
                   </div>
@@ -1143,7 +1201,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               {/* Divider */}
               <div className="w-full flex items-center my-6">
                 <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}></div>
-                <span className="flex-shrink mx-4 text-[10px] text-slate-400 font-semibold tracking-widest uppercase">
+                <span className="flex-shrink mx-4 text-xs text-slate-600 dark:text-slate-300 font-semibold tracking-widest uppercase">
                   OR CONTINUE WITH
                 </span>
                 <div className={`flex-grow border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}></div>
@@ -1186,7 +1244,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               </div>
 
               {/* Bottom Switch Account Mode Link */}
-              <div className={`mt-8 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className={`mt-8 text-center text-xs ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'}`}>
                 {mode === 'register' ? (
                   <>
                     Already part of the network?{' '}
@@ -1217,8 +1275,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         </div>
 
         {/* Right Panel Footer Links */}
-        <div className={`w-full flex items-center justify-center space-x-6 text-[11px] font-medium pt-6 border-t mt-auto ${
-          isDark ? 'border-slate-900 text-slate-500' : 'border-slate-200 text-slate-400'
+        <div className={`w-full flex items-center justify-center space-x-6 text-xs font-medium pt-6 border-t mt-auto ${
+          isDark ? 'border-slate-900 text-slate-700 dark:text-slate-300' : 'border-slate-200 text-slate-600 dark:text-slate-300'
         }`}>
           <button type="button" onClick={() => setActivePolicyModal('privacy')} className="hover:text-blue-500 transition-colors cursor-pointer">Privacy Policy</button>
           <button type="button" onClick={() => setActivePolicyModal('terms')} className="hover:text-blue-500 transition-colors cursor-pointer">Terms of Service</button>
@@ -1235,7 +1293,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
             <button
               onClick={() => setActivePolicyModal(null)}
               className={`absolute top-5 right-5 p-1.5 rounded-xl transition-colors cursor-pointer ${
-                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                isDark ? 'text-slate-600 dark:text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-600 dark:text-slate-300 hover:text-slate-700 hover:bg-slate-100'
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1267,7 +1325,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <div className="flex justify-end">
                   <button
                     onClick={() => setActivePolicyModal(null)}
-                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer"
                   >
                     Close Privacy Policy
                   </button>
@@ -1299,7 +1357,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <div className="flex justify-end">
                   <button
                     onClick={() => setActivePolicyModal(null)}
-                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer"
                   >
                     Accept & Close
                   </button>
@@ -1330,7 +1388,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <div className="flex justify-end">
                   <button
                     onClick={() => setActivePolicyModal(null)}
-                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                    className="px-5 py-2.5 bg-[#0d5be1] hover:bg-blue-600 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer"
                   >
                     Close Security Overview
                   </button>

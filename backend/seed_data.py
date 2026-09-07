@@ -108,7 +108,7 @@ def seed_database():
         title='AI Pipeline Optimization',
         defaults={
             'category': cat_ai,
-            'budget': '$12,000',
+            'budget': '₹12,000',
             'duration': '4 Weeks',
             'skills_required': 'Python, PyTorch ML',
             'description': 'Optimize deep learning model training pipelines and automate RESTful API inferences.',
@@ -121,7 +121,7 @@ def seed_database():
         title='FinTech Data Visualization Dashboard',
         defaults={
             'category': cat_se,
-            'budget': '$6,500',
+            'budget': '₹6,500',
             'duration': '3 Weeks',
             'skills_required': 'React.js, D3.js, Tailwind CSS',
             'description': 'Implementation of a complex data visualization dashboard for crypto asset management.',
@@ -134,7 +134,7 @@ def seed_database():
         project=p1,
         freelancer=alex_user,
         defaults={
-            'bid_amount': '$11,500',
+            'bid_amount': '₹11,500',
             'delivery_time': '3 Weeks',
             'cover_letter': 'Expert in high-performance PyTorch & Django API integrations. Ready to deliver ahead of schedule.',
             'status': 'Accepted'
@@ -167,19 +167,19 @@ def seed_database():
     from api.models import SprintTask
     SprintTask.objects.get_or_create(
         title='Setup PyTorch Model Training Cluster',
-        defaults={'project': p1, 'assignee': alex_user, 'status': 'To Do', 'budget': '$2,500'}
+        defaults={'project': p1, 'assignee': alex_user, 'status': 'To Do', 'budget': '₹2,500'}
     )
     SprintTask.objects.get_or_create(
         title='Design D3.js Financial Chart Widgets',
-        defaults={'project': p2, 'assignee': sarah_user, 'status': 'In Progress', 'budget': '$1,800'}
+        defaults={'project': p2, 'assignee': sarah_user, 'status': 'In Progress', 'budget': '₹1,800'}
     )
     SprintTask.objects.get_or_create(
         title='Restructure REST API Inference Endpoints',
-        defaults={'project': p1, 'assignee': alex_user, 'status': 'Under Review', 'budget': '$4,000'}
+        defaults={'project': p1, 'assignee': alex_user, 'status': 'Under Review', 'budget': '₹4,000'}
     )
     SprintTask.objects.get_or_create(
         title='OWASP Security Audit & Vulnerability Report',
-        defaults={'project': p1, 'assignee': sarah_user, 'status': 'Done', 'budget': '$4,200'}
+        defaults={'project': p1, 'assignee': sarah_user, 'status': 'Done', 'budget': '₹4,200'}
     )
 
     print("SUCCESS: Database seeded with full marketplace authentication and sample records!")

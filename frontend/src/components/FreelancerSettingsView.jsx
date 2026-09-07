@@ -219,6 +219,108 @@ const FreelancerSettingsView = ({
     else setToast({ message, type });
   };
 
+  // ---------------------------------------------------------------------------
+  // ACCOUNT DEACTIVATION STATE & BACKEND INTEGRATION
+  // ---------------------------------------------------------------------------
+  const [deactivationPeriod, setDeactivationPeriod] = useState('30 days');
+  const [deactivationStatus, setDeactivationStatus] = useState({
+    loading: true,
+    eligible: false,
+    reasons: [],
+    message: '',
+    is_deactivated: false,
+    deactivation_until: null
+  });
+  const [deactivationLoading, setDeactivationLoading] = useState(false);
+
+  const fetchDeactivationStatus = async () => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/deactivation-status/?user_id=${encodeURIComponent(authUsername)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeactivationStatus({
+          loading: false,
+          eligible: data.eligible,
+          reasons: data.reasons || [],
+          message: data.message || '',
+          is_deactivated: data.is_deactivated || false,
+          deactivation_until: data.deactivation_until || null
+        });
+      } else {
+        setDeactivationStatus({
+          loading: false,
+          eligible: false,
+          reasons: ['Backend active work check returned error.'],
+          message: 'Account deactivation check unavailable.',
+          is_deactivated: false,
+          deactivation_until: null
+        });
+      }
+    } catch (e) {
+      setDeactivationStatus({
+        loading: false,
+        eligible: false,
+        reasons: [],
+        message: 'Could not connect to database verification server.',
+        is_deactivated: false,
+        deactivation_until: null
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchDeactivationStatus();
+  }, [authUsername]);
+
+  const handleDeactivateAccount = async () => {
+    setDeactivationLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/deactivate-account/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: authUsername, period: deactivationPeriod })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Account deactivated for ${deactivationPeriod}. All profile data and historical records remain preserved!`, 'info');
+        setActiveModal(null);
+        fetchDeactivationStatus();
+        setTimeout(() => {
+          localStorage.removeItem('freematch_user_session');
+          window.location.reload();
+        }, 1500);
+      } else {
+        showToast(data.error || 'Deactivation failed.', 'error');
+      }
+    } catch (e) {
+      showToast('Network error deactivating account.', 'error');
+    } finally {
+      setDeactivationLoading(false);
+    }
+  };
+
+  const handleReactivateAccount = async () => {
+    setDeactivationLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/reactivate-account/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: authUsername })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Account reactivated successfully!', 'success');
+        fetchDeactivationStatus();
+      } else {
+        showToast(data.error || 'Reactivation failed.', 'error');
+      }
+    } catch (e) {
+      showToast('Network error reactivating account.', 'error');
+    } finally {
+      setDeactivationLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 4000);
@@ -687,7 +789,7 @@ const FreelancerSettingsView = ({
   ];
 
   const labelColor = isDark ? 'text-slate-100' : 'text-slate-900';
-  const descColor = isDark ? 'text-slate-400' : 'text-slate-600';
+  const descColor = isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-600';
   const cardBg = isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-xs';
   const rowBg = isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200/80';
 
@@ -751,7 +853,7 @@ const FreelancerSettingsView = ({
               <button
                 key={item.id}
                 onClick={() => selectSection(item.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
                   isActive ? (
                     item.danger ? 'bg-red-600 text-white shadow-sm' : 'bg-blue-600 text-white shadow-sm'
                   ) : (
@@ -787,11 +889,11 @@ const FreelancerSettingsView = ({
               <button
                 key={item.id}
                 onClick={() => selectSection(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-bold transition-all cursor-pointer ${
                   isActive ? (
                     item.danger ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-md'
                   ) : (
-                    item.danger ? 'text-red-500 hover:bg-red-500/10' : (isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-100')
+                    item.danger ? 'text-red-500 hover:bg-red-500/10' : (isDark ? 'text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-100')
                   )
                 }`}
               >
@@ -841,14 +943,14 @@ const FreelancerSettingsView = ({
                   <div>
                     <h4 className={`font-black text-lg ${labelColor}`}>{profile.displayName || currentUserName}</h4>
                     <p className={`text-xs font-bold ${descColor}`}>{profile.contactEmail}</p>
-                    <span className="mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold inline-block">
+                    <span className="mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-extrabold inline-block">
                       Freelancer Account • {profile.location || 'Remote'}
                     </span>
                   </div>
                 </div>
 
                 <div className="space-y-1.5 text-xs sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">ACCOUNT TYPE</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">ACCOUNT TYPE</span>
                   <p className={`font-bold ${labelColor}`}>Professional Freelancer</p>
                 </div>
               </div>
@@ -879,15 +981,15 @@ const FreelancerSettingsView = ({
               {/* STATS GRID */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div className={`p-4 rounded-2xl border space-y-1 ${rowBg}`}>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">HOURLY RATE</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">HOURLY RATE</span>
                   <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">${profile.hourlyRate}/hr</p>
                 </div>
                 <div className={`p-4 rounded-2xl border space-y-1 ${rowBg}`}>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">AVAILABILITY</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">AVAILABILITY</span>
                   <p className="text-sm font-black text-blue-600 dark:text-blue-400">{profile.availability}</p>
                 </div>
                 <div className={`p-4 rounded-2xl border space-y-1 ${rowBg}`}>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">WEEKLY HOURS</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">WEEKLY HOURS</span>
                   <p className={`text-sm font-black ${labelColor}`}>{profile.workingHours} hrs/week</p>
                 </div>
               </div>
@@ -895,12 +997,12 @@ const FreelancerSettingsView = ({
               {/* PROFESSIONAL TITLE & BIO */}
               <div className="space-y-3 text-xs">
                 <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">PROFESSIONAL TITLE</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">PROFESSIONAL TITLE</span>
                   <p className={`font-black text-base ${labelColor} mt-0.5`}>{profile.title}</p>
                 </div>
 
                 <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">PROFESSIONAL BIO</span>
+                  <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">PROFESSIONAL BIO</span>
                   <p className={`text-xs font-medium ${descColor} leading-relaxed p-4 rounded-2xl border ${rowBg}`}>
                     {profile.bio || 'No bio provided yet.'}
                   </p>
@@ -911,7 +1013,7 @@ const FreelancerSettingsView = ({
               <div className="space-y-3 text-xs border-t pt-4 border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <h4 className={`font-black text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400`}>TECHNICAL SKILLS & EXPERTISE</h4>
-                  <span className="text-[11px] font-bold text-slate-400">{(profile.skills || []).length} Skills</span>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{(profile.skills || []).length} Skills</span>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -950,7 +1052,7 @@ const FreelancerSettingsView = ({
                     <span>Add Skill</span>
                   </button>
                 </form>
-                {skillError && <p className="text-[11px] text-red-500 font-bold">{skillError}</p>}
+                {skillError && <p className="text-xs text-red-500 font-bold">{skillError}</p>}
               </div>
 
               {/* RESUME MANAGEMENT */}
@@ -961,7 +1063,7 @@ const FreelancerSettingsView = ({
                     <FileText className="w-6 h-6 text-emerald-500 shrink-0" />
                     <div>
                       <p className={`font-extrabold ${labelColor}`}>{profile.resumeName || 'No Resume Uploaded'}</p>
-                      <p className={`text-[11px] ${descColor}`}>PDF, DOC, DOCX (Max 10MB)</p>
+                      <p className={`text-xs ${descColor}`}>PDF, DOC, DOCX (Max 10MB)</p>
                     </div>
                   </div>
 
@@ -1009,7 +1111,7 @@ const FreelancerSettingsView = ({
                     <KeyRound className="w-4 h-4 text-indigo-500" />
                     <span className={`font-extrabold ${labelColor}`}>Account Password</span>
                   </div>
-                  <p className={`text-[11px] font-medium ${descColor}`}>Password set • Protect your account with complex credentials.</p>
+                  <p className={`text-xs font-medium ${descColor}`}>Password set • Protect your account with complex credentials.</p>
                   <button
                     onClick={openChangePasswordModal}
                     className="px-4 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 font-bold rounded-xl text-xs cursor-pointer transition-all"
@@ -1025,13 +1127,13 @@ const FreelancerSettingsView = ({
                       <Smartphone className="w-4 h-4 text-emerald-500" />
                       <span className={`font-extrabold ${labelColor}`}>Two-Factor Authentication</span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      settings.twoFactorEnabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold ${
+                      settings.twoFactorEnabled ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
                     }`}>
                       {settings.twoFactorEnabled ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
-                  <p className={`text-[11px] font-medium ${descColor}`}>Adds 6-digit TOTP verification to protect login access.</p>
+                  <p className={`text-xs font-medium ${descColor}`}>Adds 6-digit TOTP verification to protect login access.</p>
                   <button
                     onClick={handleToggle2FA}
                     className={`px-4 py-2 font-bold rounded-xl text-xs border transition-all cursor-pointer ${
@@ -1074,7 +1176,7 @@ const FreelancerSettingsView = ({
                     <div key={item.key} className={`p-3.5 rounded-2xl border flex items-center justify-between ${rowBg}`}>
                       <div>
                         <p className={`font-bold ${labelColor}`}>{item.title}</p>
-                        <p className={`text-[11px] ${descColor}`}>{item.desc}</p>
+                        <p className={`text-xs ${descColor}`}>{item.desc}</p>
                       </div>
                       
                       {/* CUSTOM SMOOTH TOGGLE */}
@@ -1138,7 +1240,7 @@ const FreelancerSettingsView = ({
                 <div className={`p-4 rounded-2xl border flex items-center justify-between ${rowBg}`}>
                   <div>
                     <p className={`font-bold ${labelColor}`}>Profile Visibility</p>
-                    <p className={`text-[11px] ${descColor}`}>Control whether enterprise clients can view your public freelancer profile.</p>
+                    <p className={`text-xs ${descColor}`}>Control whether enterprise clients can view your public freelancer profile.</p>
                   </div>
                   <select
                     value={settings.privacy.profileVisibility}
@@ -1155,7 +1257,7 @@ const FreelancerSettingsView = ({
                 <div className={`p-4 rounded-2xl border flex items-center justify-between ${rowBg}`}>
                   <div>
                     <p className={`font-bold ${labelColor}`}>Show Hourly Rate on Profile</p>
-                    <p className={`text-[11px] ${descColor}`}>Display your rate on marketplace job proposals.</p>
+                    <p className={`text-xs ${descColor}`}>Display your rate on marketplace job proposals.</p>
                   </div>
                   <button
                     onClick={() => togglePrivacyPref('showHourlyRate')}
@@ -1189,7 +1291,7 @@ const FreelancerSettingsView = ({
                 <div className={`p-4 rounded-2xl border flex items-center justify-between ${rowBg}`}>
                   <div>
                     <p className={`font-bold ${labelColor}`}>Show in AI Skill Matching Engine</p>
-                    <p className={`text-[11px] ${descColor}`}>Include your profile in automated candidate recommendations for clients.</p>
+                    <p className={`text-xs ${descColor}`}>Include your profile in automated candidate recommendations for clients.</p>
                   </div>
                   <button
                     onClick={() => toggleMarketplacePref('aiMatching')}
@@ -1235,10 +1337,10 @@ const FreelancerSettingsView = ({
                     <MonitorSmartphone className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                     <div>
                       <p className={`font-extrabold ${labelColor}`}>Current Session • Windows (Chrome)</p>
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">Active now • IP: 127.0.0.1 (Verified)</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">Active now • IP: 127.0.0.1 (Verified)</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-600 text-white">
                     This Device
                   </span>
                 </div>
@@ -1262,7 +1364,7 @@ const FreelancerSettingsView = ({
               <div className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border gap-4 text-xs ${rowBg}`}>
                 <div>
                   <p className={`font-bold ${labelColor}`}>Export Complete Freelancer Data (JSON)</p>
-                  <p className={`text-[11px] ${descColor}`}>Download formatted JSON containing profile, rate history, skills, and credentials.</p>
+                  <p className={`text-xs ${descColor}`}>Download formatted JSON containing profile, rate history, skills, and credentials.</p>
                 </div>
                 <button
                   onClick={handleDownloadData}
@@ -1275,36 +1377,122 @@ const FreelancerSettingsView = ({
             </div>
           )}
 
-          {/* 9. DANGER ZONE CARD */}
+          {/* 9. DANGER ZONE CARD (ACCOUNT DEACTIVATION) */}
           {showSection('danger') && (
-            <div id="settings-section-danger" className={`rounded-3xl p-6 sm:p-8 border border-red-500/30 space-y-6 ${
-              isDark ? 'bg-red-950/20' : 'bg-red-50/70 border-red-200'
+            <div id="settings-section-danger" className={`rounded-3xl p-6 sm:p-8 border border-amber-500/30 space-y-6 ${
+              isDark ? 'bg-amber-950/20' : 'bg-amber-50/60 border-amber-200'
             }`}>
-              <div className="flex items-center space-x-3 border-b pb-4 border-red-500/20">
-                <div className="p-2.5 rounded-2xl bg-red-500/10 text-red-500 border border-red-500/20">
+              <div className="flex items-center space-x-3 border-b pb-4 border-amber-500/20">
+                <div className="p-2.5 rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-red-600 dark:text-red-500">Danger Zone</h3>
-                  <p className={`text-xs font-medium ${descColor}`}>Irreversible actions regarding account deactivation and removal.</p>
+                  <h3 className="font-black text-base text-amber-600 dark:text-amber-500">Danger Zone: Account Deactivation</h3>
+                  <p className={`text-xs font-medium ${descColor}`}>Temporarily deactivate your freelancer account. Your profile and data will be preserved and your account can be reactivated later.</p>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                <div>
-                  <p className={`font-extrabold ${labelColor}`}>Delete Freelancer Account & Data</p>
-                  <p className={`text-[11px] font-medium ${descColor}`}>Permanently deletes your freelancer profile and local workspace credentials.</p>
+              {deactivationStatus.loading ? (
+                <div className="p-4 text-xs font-bold text-slate-600 dark:text-slate-300 animate-pulse">
+                  Checking active project obligations and account eligibility...
                 </div>
-                <button
-                  onClick={() => {
-                    setDeleteConfirmText('');
-                    setActiveModal('delete_account');
-                  }}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer shrink-0"
-                >
-                  Delete Account
-                </button>
-              </div>
+              ) : deactivationStatus.is_deactivated ? (
+                <div className="space-y-4 text-xs">
+                  <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                    <p className="font-extrabold text-amber-800 dark:text-amber-300">
+                      Your account is currently DEACTIVATED.
+                    </p>
+                    <p className="text-amber-700 dark:text-amber-400 text-xs">
+                      Deactivated Period: <strong>{deactivationStatus.deactivation_period || 'Temporary'}</strong>. Your complete profile, reviews, and historical records remain 100% safe and preserved.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleReactivateAccount}
+                    disabled={deactivationLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
+                  >
+                    {deactivationLoading ? 'Reactivating...' : 'Reactivate Account Now'}
+                  </button>
+                </div>
+              ) : !deactivationStatus.eligible ? (
+                /* WHEN ACTIVE WORK EXISTS */
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center space-x-2 font-bold text-amber-700 dark:text-amber-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                    <span>Status: Deactivation unavailable</span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-100/70 dark:bg-amber-950/50 border border-amber-300/70 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 space-y-2">
+                    <p className="font-extrabold leading-relaxed">
+                      Account deactivation is unavailable while you have active projects or pending work. Please complete your current projects before deactivating your account.
+                    </p>
+                    {deactivationStatus.reasons.length > 0 && (
+                      <div className="pt-1 border-t border-amber-200 dark:border-amber-800/60 mt-2">
+                        <p className="text-xs font-black uppercase text-amber-800 dark:text-amber-400 mb-1">Active Obligations Found ({deactivationStatus.reasons.length}):</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                          {deactivationStatus.reasons.map((r, i) => (
+                            <li key={i}>{r}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      disabled
+                      className="px-5 py-2.5 bg-slate-300 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl text-xs cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                    >
+                      Deactivation Unavailable
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* WHEN ELIGIBLE */
+                <div className="space-y-5 text-xs">
+                  <div className="flex items-center space-x-2 font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span>Status: Eligible</span>
+                  </div>
+
+                  <p className={`font-medium leading-relaxed ${descColor}`}>
+                    No active projects or pending obligations were found. Your account will be temporarily deactivated. Your profile, projects, contracts, reviews, earnings history, and other records will be preserved.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-amber-500/20">
+                    <div className="space-y-1.5">
+                      <label className={`block text-xs font-extrabold uppercase tracking-wider ${labelColor}`}>
+                        Deactivation Period
+                      </label>
+                      <select
+                        value={deactivationPeriod}
+                        onChange={(e) => setDeactivationPeriod(e.target.value)}
+                        className={`p-3 pr-8 rounded-xl border text-xs font-bold focus:outline-none focus:border-amber-500 transition-all ${
+                          isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
+                      >
+                        <option value="7 days">7 days</option>
+                        <option value="30 days">30 days</option>
+                        <option value="90 days">90 days</option>
+                        <option value="Until I reactivate">Until I reactivate</option>
+                      </select>
+                      <p className={`text-xs font-medium text-slate-700 dark:text-slate-300`}>
+                        {deactivationPeriod === 'Until I reactivate' 
+                          ? 'Account will remain deactivated until you manually log in and reactivate it.' 
+                          : `Account will be reactivated automatically after ${deactivationPeriod}.`}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal('deactivate_account')}
+                      className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer shrink-0 transition-all"
+                    >
+                      Deactivate Account
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1327,14 +1515,14 @@ const FreelancerSettingsView = ({
                 <UserRound className="w-5 h-5 text-blue-500" />
                 <span>Edit Account Credentials</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveAccount} className="space-y-4 text-xs">
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Display / Full Name *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Display / Full Name *</label>
                 <input
                   type="text"
                   value={accountForm.displayName}
@@ -1344,11 +1532,11 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="e.g. Haines JP"
                 />
-                {accountErrors.displayName && <p className="text-[11px] text-red-500 font-bold mt-1">{accountErrors.displayName}</p>}
+                {accountErrors.displayName && <p className="text-xs text-red-500 font-bold mt-1">{accountErrors.displayName}</p>}
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Contact Email Address *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Contact Email Address *</label>
                 <input
                   type="email"
                   value={accountForm.contactEmail}
@@ -1358,11 +1546,11 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="e.g. freelancer@example.com"
                 />
-                {accountErrors.contactEmail && <p className="text-[11px] text-red-500 font-bold mt-1">{accountErrors.contactEmail}</p>}
+                {accountErrors.contactEmail && <p className="text-xs text-red-500 font-bold mt-1">{accountErrors.contactEmail}</p>}
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Location *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Location *</label>
                 <input
                   type="text"
                   value={accountForm.location}
@@ -1372,14 +1560,14 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="e.g. San Francisco, CA"
                 />
-                {accountErrors.location && <p className="text-[11px] text-red-500 font-bold mt-1">{accountErrors.location}</p>}
+                {accountErrors.location && <p className="text-xs text-red-500 font-bold mt-1">{accountErrors.location}</p>}
               </div>
 
               <div className="pt-3 flex items-center justify-end space-x-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
                 >
                   Cancel
                 </button>
@@ -1408,14 +1596,14 @@ const FreelancerSettingsView = ({
                 <BadgeCheck className="w-5 h-5 text-emerald-500" />
                 <span>Edit Freelancer Professional Profile</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Professional Title *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Professional Title *</label>
                 <input
                   type="text"
                   value={profileForm.title}
@@ -1425,12 +1613,12 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="e.g. Senior PyTorch & AI Architect"
                 />
-                {profileErrors.title && <p className="text-[11px] text-red-500 font-bold mt-1">{profileErrors.title}</p>}
+                {profileErrors.title && <p className="text-xs text-red-500 font-bold mt-1">{profileErrors.title}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Hourly Rate ($/hr) *</label>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Hourly Rate ($/hr) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1441,11 +1629,11 @@ const FreelancerSettingsView = ({
                     }`}
                     placeholder="75"
                   />
-                  {profileErrors.hourlyRate && <p className="text-[11px] text-red-500 font-bold mt-1">{profileErrors.hourlyRate}</p>}
+                  {profileErrors.hourlyRate && <p className="text-xs text-red-500 font-bold mt-1">{profileErrors.hourlyRate}</p>}
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Weekly Working Hours *</label>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Weekly Working Hours *</label>
                   <input
                     type="number"
                     value={profileForm.workingHours}
@@ -1455,12 +1643,12 @@ const FreelancerSettingsView = ({
                     }`}
                     placeholder="40"
                   />
-                  {profileErrors.workingHours && <p className="text-[11px] text-red-500 font-bold mt-1">{profileErrors.workingHours}</p>}
+                  {profileErrors.workingHours && <p className="text-xs text-red-500 font-bold mt-1">{profileErrors.workingHours}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Availability Status *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Availability Status *</label>
                 <select
                   value={profileForm.availability}
                   onChange={(e) => setProfileForm({ ...profileForm, availability: e.target.value })}
@@ -1475,7 +1663,7 @@ const FreelancerSettingsView = ({
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Professional Bio *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Professional Bio *</label>
                 <textarea
                   rows={4}
                   value={profileForm.bio}
@@ -1485,14 +1673,14 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="Explain your technical background, domain expertise, and accomplishments..."
                 />
-                {profileErrors.bio && <p className="text-[11px] text-red-500 font-bold mt-1">{profileErrors.bio}</p>}
+                {profileErrors.bio && <p className="text-xs text-red-500 font-bold mt-1">{profileErrors.bio}</p>}
               </div>
 
               <div className="pt-3 flex items-center justify-end space-x-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
                 >
                   Cancel
                 </button>
@@ -1521,14 +1709,14 @@ const FreelancerSettingsView = ({
                 <KeyRound className="w-5 h-5 text-indigo-500" />
                 <span>Change Security Password</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSavePassword} className="space-y-4 text-xs">
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Current Password *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Current Password *</label>
                 <input
                   type="password"
                   value={passForm.currentPassword}
@@ -1538,11 +1726,11 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="••••••••"
                 />
-                {passErrors.currentPassword && <p className="text-[11px] text-red-500 font-bold mt-1">{passErrors.currentPassword}</p>}
+                {passErrors.currentPassword && <p className="text-xs text-red-500 font-bold mt-1">{passErrors.currentPassword}</p>}
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">New Password *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">New Password *</label>
                 <input
                   type="password"
                   value={passForm.newPassword}
@@ -1552,11 +1740,11 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="••••••••"
                 />
-                {passErrors.newPassword && <p className="text-[11px] text-red-500 font-bold mt-1">{passErrors.newPassword}</p>}
+                {passErrors.newPassword && <p className="text-xs text-red-500 font-bold mt-1">{passErrors.newPassword}</p>}
               </div>
 
               <div>
-                <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">Confirm New Password *</label>
+                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">Confirm New Password *</label>
                 <input
                   type="password"
                   value={passForm.confirmPassword}
@@ -1566,14 +1754,14 @@ const FreelancerSettingsView = ({
                   }`}
                   placeholder="••••••••"
                 />
-                {passErrors.confirmPassword && <p className="text-[11px] text-red-500 font-bold mt-1">{passErrors.confirmPassword}</p>}
+                {passErrors.confirmPassword && <p className="text-xs text-red-500 font-bold mt-1">{passErrors.confirmPassword}</p>}
               </div>
 
               <div className="pt-3 flex items-center justify-end space-x-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
+                  className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border border-slate-300 dark:border-slate-700"
                 >
                   Cancel
                 </button>
@@ -1602,7 +1790,7 @@ const FreelancerSettingsView = ({
                 <Smartphone className="w-5 h-5 text-emerald-500" />
                 <span>Enable Two-Factor Authentication</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1617,7 +1805,7 @@ const FreelancerSettingsView = ({
 
               <form onSubmit={handleConfirm2FA} className="space-y-3 pt-2">
                 <div>
-                  <label className="font-bold text-slate-500 dark:text-slate-400 block mb-1 uppercase tracking-wider text-[10px]">6-Digit Code *</label>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1 uppercase tracking-wider text-xs">6-Digit Code *</label>
                   <input
                     type="text"
                     maxLength={6}
@@ -1626,14 +1814,14 @@ const FreelancerSettingsView = ({
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-center text-base tracking-widest"
                     placeholder="123456"
                   />
-                  {totpError && <p className="text-[11px] text-red-500 font-bold mt-1 text-left">{totpError}</p>}
+                  {totpError && <p className="text-xs text-red-500 font-bold mt-1 text-left">{totpError}</p>}
                 </div>
 
                 <div className="pt-2 flex items-center justify-end space-x-3">
                   <button
                     type="button"
                     onClick={() => setActiveModal(null)}
-                    className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700"
+                    className="px-4 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
                   >
                     Cancel
                   </button>
@@ -1650,43 +1838,45 @@ const FreelancerSettingsView = ({
         </div>
       )}
 
-      {/* DELETE ACCOUNT CONFIRMATION MODAL */}
-      {activeModal === 'delete_account' && (
+      {/* ACCOUNT DEACTIVATION CONFIRMATION MODAL */}
+      {activeModal === 'deactivate_account' && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-md rounded-3xl border border-red-500/30 shadow-2xl p-6 space-y-4 ${
+          <div className={`w-full max-w-md rounded-3xl border border-amber-500/30 shadow-2xl p-6 space-y-4 ${
             isDark ? 'bg-[#060e22] text-white' : 'bg-white text-slate-900'
           }`}>
-            <div className="flex items-center space-x-3 text-red-600 dark:text-red-500 border-b pb-3 border-red-500/20">
+            <div className="flex items-center space-x-3 text-amber-600 dark:text-amber-500 border-b pb-3 border-amber-500/20">
               <AlertTriangle className="w-6 h-6 shrink-0" />
-              <h3 className="text-base font-black">Delete Freelancer Account Permanently?</h3>
+              <h3 className="text-base font-black">Deactivate Your Account?</h3>
             </div>
-            <p className={`text-xs font-medium ${descColor}`}>
-              This action permanently removes your freelancer profile, skills, settings, and local workspace credentials.
-            </p>
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Type "DELETE" to confirm *
-              </label>
-              <input
-                type="text"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                className="w-full px-4 py-2 rounded-xl border border-red-500/30 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-bold text-xs"
-                placeholder="DELETE"
-              />
+            
+            <div className="space-y-3 text-xs">
+              <p className={`font-medium ${descColor}`}>
+                Your account will be temporarily unavailable during the selected period.
+              </p>
+              
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-300 text-xs font-bold leading-relaxed">
+                ✓ Your existing profile, projects, contracts, reviews, earnings history, and historical records will NOT be deleted.
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase text-slate-600 dark:text-slate-300">Selected Period</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-400">{deactivationPeriod}</span>
+              </div>
             </div>
+
             <div className="pt-2 flex items-center justify-end space-x-3">
               <button
                 onClick={() => setActiveModal(null)}
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={handleDeleteAccount}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl cursor-pointer"
+                onClick={handleDeactivateAccount}
+                disabled={deactivationLoading}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
               >
-                Permanently Delete
+                {deactivationLoading ? 'Deactivating...' : 'Confirm Deactivation'}
               </button>
             </div>
           </div>

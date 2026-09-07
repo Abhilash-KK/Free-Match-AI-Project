@@ -203,21 +203,25 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
   });
 
   return (
-    <div className={`w-full h-[calc(100vh-100px)] min-h-[580px] flex rounded-3xl border shadow-sm overflow-hidden ${
+    <div className={`w-full h-[calc(100vh-100px)] min-h-[580px] flex rounded-3xl border shadow-md overflow-hidden ${
       isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
     }`}>
 
       {/* LEFT SIDEBAR: CONVERSATIONS LIST */}
       <div className={`w-full md:w-80 lg:w-96 flex-col border-r ${
         mobileShowChat ? 'hidden md:flex' : 'flex'
-      } ${isDark ? 'border-slate-800 bg-[#081024]' : 'border-slate-100 bg-[#f8fafc]'}`}>
+      } ${isDark ? 'border-slate-800 bg-[#081024]' : 'border-slate-200 bg-slate-50'}`}>
         
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-lg font-bold tracking-tight">Conversations</h2>
+        <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+          isDark ? 'border-slate-800 bg-[#081024]' : 'border-slate-200 bg-slate-50'
+        }`}>
+          <div className="flex items-center space-x-2.5">
+            <h2 className={`text-xl font-black tracking-tight ${
+              isDark ? 'text-white' : 'text-slate-900'
+            }`}>Conversations</h2>
             {conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0) > 0 && (
-              <span className="px-2 py-0.5 text-xs font-bold bg-blue-600 text-white rounded-full">
+              <span className="px-2.5 py-0.5 text-xs font-black bg-blue-600 text-white rounded-full">
                 {conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)}
               </span>
             )}
@@ -225,45 +229,49 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
           <button 
             type="button"
             title="Compose new message"
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
+            className={`p-2.5 rounded-xl transition-colors ${
+              isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-800 hover:bg-slate-200'
+            }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
           </button>
         </div>
 
         {/* Conversation Search Bar */}
-        <div className="p-3 border-b border-slate-200/60 dark:border-slate-800/80">
+        <div className={`p-3.5 border-b ${isDark ? 'border-slate-800 bg-[#081024]' : 'border-slate-200 bg-slate-50'}`}>
           <div className="relative">
-            <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg className={`w-4.5 h-4.5 absolute left-3.5 top-3.5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className={`w-full pl-9 pr-4 py-2 text-xs rounded-xl border focus:outline-none focus:border-blue-500 transition-all ${
-                isDark ? 'bg-[#0d1733] border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+              className={`w-full pl-10 pr-4 py-2.5 text-sm font-semibold rounded-xl border focus:outline-none focus:border-blue-500 transition-all ${
+                isDark ? 'bg-[#0d1733] border-slate-700 text-white placeholder-slate-400' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-500'
               }`}
             />
           </div>
         </div>
 
         {/* Conversation List Scroll Region */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+        <div className={`flex-1 overflow-y-auto divide-y ${isDark ? 'divide-slate-800/60 bg-[#081024]' : 'divide-slate-200 bg-slate-50'}`}>
           {loading ? (
-            <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
+            <div className={`p-8 text-center text-sm font-bold animate-pulse ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               Loading conversations...
             </div>
           ) : filteredConversations.length === 0 ? (
             <div className="p-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto flex items-center justify-center text-slate-400 mb-3">
+              <div className={`w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-3 text-lg ${
+                isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'
+              }`}>
                 💬
               </div>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No conversations found</p>
-              <p className="text-[11px] text-slate-400 mt-1">Select a counterpart to start messaging.</p>
+              <p className={`text-sm font-black ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>No conversations found</p>
+              <p className={`text-xs font-semibold mt-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select a counterpart to start messaging.</p>
             </div>
           ) : (
             filteredConversations.map((c) => {
@@ -272,47 +280,57 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
                 <button
                   key={c.username}
                   onClick={() => handleSelectConversation(c.username)}
-                  className={`w-full p-3.5 text-left flex items-start space-x-3 transition-all relative ${
+                  className={`w-full p-4 text-left flex items-start space-x-3.5 transition-all relative ${
                     isSelected
-                      ? (isDark ? 'bg-blue-600/20 border-l-4 border-blue-500' : 'bg-blue-50/80 border-l-4 border-blue-600')
-                      : (isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50')
+                      ? (isDark ? 'bg-blue-600/20 border-l-4 border-blue-500' : 'bg-blue-100 border-l-4 border-blue-600')
+                      : (isDark ? 'hover:bg-slate-800/50 bg-[#081024]' : 'bg-white hover:bg-slate-100')
                   }`}
                 >
                   {/* Avatar + Online Badge */}
                   <div className="relative shrink-0">
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-xs overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-base font-black text-white shadow-md overflow-hidden">
                       {c.avatar_url || (c.avatar && (c.avatar.startsWith('data:') || c.avatar.startsWith('http'))) ? (
                         <img src={c.avatar_url || c.avatar} alt={c.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                       ) : (
                         <span>{c.avatar || c.name.slice(0, 2).toUpperCase()}</span>
                       )}
                     </div>
-                    <span className="w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full absolute bottom-0 right-0"></span>
+                    <span className="w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full absolute bottom-0 right-0"></span>
                   </div>
 
                   {/* Conversation Card Text Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                      <h4 className={`text-sm font-black truncate ${
+                        isSelected 
+                          ? (isDark ? 'text-blue-400' : 'text-blue-800') 
+                          : (isDark ? 'text-white' : 'text-slate-900')
+                      }`}>
                         {c.name}
                       </h4>
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-2">
+                      <span className={`text-xs font-extrabold shrink-0 ml-2 ${
+                        isDark ? 'text-slate-300' : 'text-slate-800'
+                      }`}>
                         {c.lastMessageTime || 'Just now'}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mb-1">
+                    <p className={`text-xs font-bold truncate mb-1 ${
+                      isDark ? 'text-slate-300' : 'text-slate-800'
+                    }`}>
                       {c.title || c.role}
                     </p>
 
                     <div className="flex items-center justify-between">
-                      <p className={`text-xs truncate max-w-[180px] ${
-                        c.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500'
+                      <p className={`text-xs truncate max-w-[190px] ${
+                        c.unreadCount > 0 
+                          ? (isDark ? 'font-black text-white' : 'font-black text-slate-950') 
+                          : (isDark ? 'font-semibold text-slate-400' : 'font-semibold text-slate-800')
                       }`}>
                         {c.lastMessage}
                       </p>
                       {c.unreadCount > 0 && (
-                        <span className="px-2 py-0.5 text-[10px] font-extrabold bg-blue-600 text-white rounded-full shrink-0 ml-2 shadow-xs">
+                        <span className="px-2 py-0.5 text-xs font-black bg-blue-600 text-white rounded-full shrink-0 ml-2 shadow-2xs">
                           {c.unreadCount}
                         </span>
                       )}
@@ -332,66 +350,78 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
 
         {!activeConversation ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center text-xl font-bold">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center text-2xl font-black">
               💬
             </div>
-            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No Conversations Yet</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+            <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>No Conversations Yet</h3>
+            <p className={`text-sm font-semibold max-w-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               When clients or team members message you regarding bids or contracts, your conversation threads will appear here.
             </p>
           </div>
         ) : (
           <>
             {/* 1. CHAT HEADER */}
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0d1b3e] shadow-2xs">
-              <div className="flex items-center space-x-3">
+            <div className={`px-6 py-4 border-b flex items-center justify-between shadow-2xs ${
+              isDark ? 'bg-[#0d1b3e] border-slate-800' : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center space-x-3.5">
                 {/* Mobile Back Button */}
                 <button
                   onClick={() => setMobileShowChat(false)}
-                  className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 mr-1"
+                  className={`md:hidden p-2 rounded-lg mr-1 text-base font-black ${
+                    isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-800 hover:bg-slate-100'
+                  }`}
                 >
                   ←
                 </button>
 
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-xs overflow-hidden">
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-base font-black text-white shadow-md overflow-hidden">
                     {activeConversation.avatar_url || (activeConversation.avatar && (activeConversation.avatar.startsWith('data:') || activeConversation.avatar.startsWith('http'))) ? (
                       <img src={activeConversation.avatar_url || activeConversation.avatar} alt={activeConversation.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                     ) : (
                       <span>{activeConversation.avatar || activeConversation.name.slice(0, 2).toUpperCase()}</span>
                     )}
                   </div>
-                  <span className="w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full absolute bottom-0 right-0"></span>
+                  <span className="w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full absolute bottom-0 right-0"></span>
                 </div>
 
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">
+                    <h3 className={`font-black text-base tracking-tight ${
+                      isDark ? 'text-white' : 'text-slate-900'
+                    }`}>
                       {activeConversation.name}
                     </h3>
-                    <span className="px-2 py-0.5 text-[10px] font-black bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 rounded-md border border-blue-200 dark:border-blue-700/50">
+                    <span className={`px-2.5 py-0.5 text-xs font-black rounded-md border ${
+                      isDark ? 'bg-blue-900/60 text-blue-200 border-blue-700/50' : 'bg-blue-100 text-blue-900 border-blue-300'
+                    }`}>
                       {activeConversation.role}
                     </span>
                   </div>
-                  <p className="text-xs text-emerald-500 font-extrabold flex items-center mt-0.5">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full inline-block mr-1.5"></span>
-                    Online <span className="text-slate-700 dark:text-slate-300 font-semibold ml-1.5">• {activeConversation.title}</span>
+                  <p className={`text-xs font-extrabold flex items-center mt-0.5 ${
+                    isDark ? 'text-emerald-400' : 'text-emerald-600'
+                  }`}>
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5"></span>
+                    Online <span className={`font-bold ml-1.5 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>• {activeConversation.title}</span>
                   </p>
                 </div>
               </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2.5">
             <button
               onClick={() => onNavigateToContract && onNavigateToContract(activeConversation.contractId)}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all hidden sm:inline-flex items-center space-x-1 cursor-pointer"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs transition-all hidden sm:inline-flex items-center space-x-1 cursor-pointer"
             >
               <span>View Contract Details</span>
             </button>
             <button 
               type="button" 
               title="More options"
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl"
+              className={`p-2 rounded-xl font-bold ${
+                isDark ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-100'
+              }`}
             >
               ⋮
             </button>
@@ -399,37 +429,45 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
         </div>
 
         {/* 2. PROJECT / CONTRACT CONTEXT BANNER */}
-        <div className="px-6 py-2.5 bg-slate-100 dark:bg-[#081226] border-b border-slate-200 dark:border-slate-700/80 flex items-center justify-between text-xs">
-          <div className="flex items-center space-x-3 truncate">
-            <span className="text-slate-700 dark:text-slate-300 font-extrabold shrink-0">📁 Project:</span>
-            <span className="font-black text-slate-900 dark:text-white truncate">
+        <div className={`px-6 py-3 border-b flex items-center justify-between text-xs sm:text-sm ${
+          isDark ? 'bg-[#081226] border-slate-700/80' : 'bg-slate-100 border-slate-200'
+        }`}>
+          <div className="flex items-center space-x-3.5 truncate">
+            <span className={`font-black shrink-0 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>📁 Project:</span>
+            <span className={`font-black truncate ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
               {activeConversation.projectTitle || 'AI Automated Test Pipeline'}
             </span>
-            <span className="text-slate-300 dark:text-slate-600">|</span>
-            <span className="text-slate-700 dark:text-slate-300 font-extrabold shrink-0">Contract:</span>
-            <span className="font-mono text-slate-900 dark:text-amber-400 font-extrabold shrink-0">
+            <span className={`font-bold ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>|</span>
+            <span className={`font-black shrink-0 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Contract:</span>
+            <span className={`font-mono font-black shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
               {activeConversation.contractId || 'FMCT-2024-0156'}
             </span>
           </div>
           <button
             onClick={() => onNavigateToProject && onNavigateToProject(activeConversation.projectTitle)}
-            className="text-blue-600 dark:text-blue-400 font-black hover:underline shrink-0 text-xs ml-3 hidden md:inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 cursor-pointer"
+            className={`font-black hover:underline shrink-0 text-xs ml-3 hidden md:inline-flex items-center px-3 py-1.5 rounded-lg cursor-pointer shadow-2xs ${
+              isDark ? 'bg-blue-950/60 text-blue-400 border border-blue-800/80' : 'bg-blue-50 text-blue-800 border border-blue-200'
+            }`}
           >
             View Project ↗
           </button>
         </div>
 
         {/* 3. CHAT MESSAGES FEED */}
-        <div ref={chatFeedRef} className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/30 dark:bg-[#060e22]">
+        <div ref={chatFeedRef} className={`flex-1 p-6 overflow-y-auto space-y-4 ${
+          isDark ? 'bg-[#060e22]' : 'bg-slate-50/50'
+        }`}>
           {/* Date Divider */}
           <div className="flex items-center justify-center my-2">
-            <span className="px-3 py-1 bg-slate-200/60 dark:bg-slate-800 text-[11px] font-medium text-slate-500 dark:text-slate-400 rounded-full">
+            <span className={`px-4 py-1.5 text-xs font-black rounded-full border ${
+              isDark ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-200/90 text-slate-800 border-slate-300'
+            }`}>
               Today
             </span>
           </div>
 
           {messages.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-xs">
+            <div className={`text-center py-12 text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               No messages yet in this conversation. Send a message to get started!
             </div>
           ) : (
@@ -438,29 +476,29 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
               return (
                 <div
                   key={m.id || idx}
-                  className={`flex items-end space-x-2 ${isMine ? 'justify-end' : 'justify-start'}`}
+                  className={`flex items-end space-x-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isMine && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mb-1">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-xs font-black flex items-center justify-center shrink-0 mb-1 shadow-xs">
                       {activeConversation.avatar || 'FL'}
                     </div>
                   )}
 
-                  <div className={`max-w-md lg:max-w-lg p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs relative group ${
+                  <div className={`max-w-md lg:max-w-xl p-4 rounded-2xl text-sm font-semibold leading-relaxed shadow-2xs relative group ${
                     isMine
                       ? 'bg-blue-600 text-white rounded-br-xs'
                       : isDark
                         ? 'bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700/50'
-                        : 'bg-white text-slate-800 rounded-bl-xs border border-slate-200/80'
+                        : 'bg-white text-slate-900 rounded-bl-xs border border-slate-300/90'
                   }`}>
                     <p className="whitespace-pre-wrap">{m.text}</p>
 
-                    <div className={`flex items-center justify-end space-x-1 text-[9px] mt-1.5 ${
-                      isMine ? 'text-blue-100 opacity-90' : 'text-slate-400'
+                    <div className={`flex items-center justify-end space-x-1.5 text-xs font-extrabold mt-2 ${
+                      isMine ? 'text-blue-100' : (isDark ? 'text-slate-300' : 'text-slate-700')
                     }`}>
                       <span>{m.timestamp}</span>
                       {isMine && (
-                        <span className="text-[11px] font-bold ml-0.5">✓✓</span>
+                        <span className="text-xs font-black ml-0.5">✓✓</span>
                       )}
                     </div>
                   </div>
@@ -471,17 +509,19 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
         </div>
 
         {/* 4. CHAT MESSAGE INPUT BAR */}
-        <div className="p-4 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#060e22]">
-          <form onSubmit={handleSendMessage} className="space-y-2">
-            <div className={`flex items-center space-x-2 p-2 border rounded-2xl focus-within:ring-2 focus-within:ring-blue-500/30 transition-all ${
-              isDark ? 'bg-[#09142e] border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+        <div className={`p-4 border-t ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200'}`}>
+          <form onSubmit={handleSendMessage} className="space-y-2.5">
+            <div className={`flex items-center space-x-2 p-2.5 border rounded-2xl focus-within:ring-2 focus-within:ring-blue-500/30 transition-all ${
+              isDark ? 'bg-[#09142e] border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900 shadow-2xs'
             }`}>
               {/* Attachment Icon */}
               <button
                 type="button"
                 onClick={() => alert('Attachment picker: Select project file or image to send.')}
                 title="Attach file"
-                className="p-2 text-slate-400 hover:text-blue-600 transition-colors rounded-xl"
+                className={`p-2 rounded-xl font-bold transition-colors ${
+                  isDark ? 'text-slate-300 hover:text-blue-400' : 'text-slate-700 hover:text-blue-600'
+                }`}
               >
                 📎
               </button>
@@ -492,7 +532,9 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 placeholder={`Type your message to ${activeConversation.name}...`}
-                className="flex-1 bg-transparent border-none text-xs focus:outline-none placeholder-slate-400 py-1"
+                className={`flex-1 bg-transparent border-none text-sm font-semibold focus:outline-none py-1.5 ${
+                  isDark ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-500'
+                }`}
               />
 
               {/* Emoji Icon */}
@@ -500,7 +542,9 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
                 type="button"
                 onClick={() => setMessageInput(prev => prev + ' 👍')}
                 title="Add emoji"
-                className="p-2 text-slate-400 hover:text-amber-500 transition-colors rounded-xl text-sm"
+                className={`p-2 rounded-xl text-base transition-colors ${
+                  isDark ? 'text-slate-300 hover:text-amber-400' : 'text-slate-700 hover:text-amber-500'
+                }`}
               >
                 😊
               </button>
@@ -509,18 +553,22 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
               <button
                 type="submit"
                 disabled={!messageInput.trim() || isSending}
-                className={`px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 transition-all shadow-xs ${
+                className={`px-5 py-2.5 bg-blue-600 text-white font-black rounded-xl text-sm flex items-center space-x-1.5 transition-all shadow-md ${
                   !messageInput.trim() || isSending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700 active:scale-95'
                 }`}
               >
                 <span>Send</span>
-                <span className="text-sm">➤</span>
+                <span className="text-sm font-black">➤</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-400 px-2">
+            <div className={`flex items-center justify-between text-xs px-2 font-bold ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}>
               <span>Press Enter to send • Shift + Enter for new line</span>
-              <span className="flex items-center text-emerald-500 font-semibold">
+              <span className={`flex items-center font-black ${
+                isDark ? 'text-emerald-400' : 'text-emerald-700'
+              }`}>
                 🔒 End-to-end encrypted project chat
               </span>
             </div>

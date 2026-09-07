@@ -30,7 +30,22 @@ import {
   Zap,
   CheckCircle2,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Layers,
+  Wallet,
+  Clock,
+  Milestone,
+  UploadCloud,
+  Code,
+  Github,
+  Send,
+  Trash2,
+  X,
+  GripVertical,
+  Check,
+  AlertCircle,
+  Link as LinkIcon,
+  Briefcase
 } from 'lucide-react';
 
 const ClientDashboard = ({ userSession, onSignOut }) => {
@@ -73,12 +88,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   };
 
   const DEFAULT_PROJECTS = [
-    { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '$12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Aug 01, 2026', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
-    { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '$6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Aug 02, 2026', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
-    { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '$4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Jul 28, 2026', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
-    { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '$8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Aug 03, 2026', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
-    { id: 'cp5', title: 'AI Customer Support Chatbot', client: 'TechStream Corp', category: 'Data Science & AI', budget: '$9,500', duration: '3 Weeks', skills: 'Python, LLM, LangChain, React', status: 'Open for Bids', postedDate: 'Just Now', progress: 0, applicants: 6, description: 'RAG-powered customer support assistant with automated document ingestion and vector search.' },
-    { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '$14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Aug 04, 2026', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
+    { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Aug 01, 2026', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
+    { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '₹6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Aug 02, 2026', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
+    { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '₹4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Jul 28, 2026', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
+    { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '₹8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Aug 03, 2026', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
+    { id: 'cp5', title: 'AI Customer Support Chatbot', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹9,500', duration: '3 Weeks', skills: 'Python, LLM, LangChain, React', status: 'Open for Bids', postedDate: 'Just Now', progress: 0, applicants: 6, description: 'RAG-powered customer support assistant with automated document ingestion and vector search.' },
+    { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '₹14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Aug 04, 2026', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
   ];
 
   const currentUserId = (userSession?.username || userSession?.user_id || userSession?.email || userSession?.name || 'guest').toLowerCase().trim();
@@ -144,19 +159,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   }, [loadLiveProjects]);
 
   const DEFAULT_PROPOSALS = [
-    { id: 'prop_james_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'James Joe', freelancerName: 'James Joe', avatar: 'JJ', title: 'Senior Full Stack & AI Specialist', rating: 5.0, bid: '$5,500', bidAmount: '$5,500', delivery: '2 Weeks', deliveryTime: '2 Weeks', coverLetter: 'I am excited to submit my proposal for your AI project! Experienced in PyTorch inference optimization, Django APIs, and React dashboards.', status: 'Under Review' },
-    { id: 'prop_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', rating: 4.9, bid: '$11,500', delivery: '3 Weeks', coverLetter: 'I have 7+ years optimizing PyTorch inference models for enterprise SaaS backends. Ready to start immediately with daily GitHub syncs.', status: 'Accepted' },
-    { id: 'prop_2', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '$4,500', delivery: '2 Weeks', coverLetter: 'Ex-Stripe UI engineer specializing in high-frequency financial charts and D3.js real-time websockets.', status: 'Accepted' },
-    { id: 'prop_3', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '$7,000', delivery: '7 Weeks', coverLetter: 'Built vector similarity pipelines using Pinecone and spaCy. Can deliver clean code with 100% test coverage.', status: 'Accepted' },
-    { id: 'prop_4', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '$8,999', delivery: '3 Weeks', coverLetter: 'Experienced in LLM orchestration with LangChain, Pinecone vector stores, and custom OpenAI fine-tuning.', status: 'Accepted' },
-    { id: 'prop_5', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '$10,000', delivery: '5 Weeks', coverLetter: 'Specialist in Swift, iOS Native, React Native cross-platform apps with biometric security integrations.', status: 'Accepted' },
-    { id: 'prop_6', projectId: 'cp3', projectTitle: 'Cybersecurity Audit & Shield', freelancer: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', rating: 5.0, bid: '$4,200', delivery: '2 Weeks', coverLetter: 'OWASP Certified Penetration Tester. Experienced in scanning SaaS backends, auditing API security, and patch validation.', status: 'Accepted' },
-    { id: 'prop_7', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist & Frontend Lead', rating: 5.0, bid: '$6,200', delivery: '2.5 Weeks', coverLetter: 'Specialist in real-time WebSocket market feeds, D3.js interactive chart rendering, and micro-frontend state management.', status: 'Pending' },
-    { id: 'prop_8', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Lana Kim', avatar: 'LK', title: 'LLM & Vector Search Specialist', rating: 4.9, bid: '$7,800', delivery: '2 Weeks', coverLetter: 'Expertise in building hybrid keyword & semantic vector search backends using Weaviate and Elasticsearch.', status: 'Pending' },
-    { id: 'prop_9', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Elena Rostova', avatar: 'ER', title: 'NLP & Conversational AI Engineer', rating: 4.9, bid: '$9,200', delivery: '3 Weeks', coverLetter: 'Built multi-agent customer support bots using LangGraph, Redis session caching, and automated fallback escalation.', status: 'Pending' },
-    { id: 'prop_10', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Marcus Vance', avatar: 'MV', title: 'Senior iOS & Security Architect', rating: 4.9, bid: '$12,500', delivery: '4 Weeks', coverLetter: '10+ years mobile app development. Built fintech banking apps with encrypted SQLite local vaults and biometric hardware auth.', status: 'Pending' },
-    { id: 'prop_11', projectId: 'cp7', projectTitle: 'AI Automated PostgreSQL Test', freelancer: 'David K.', avatar: 'DK', title: 'Full Stack & Database Engineer', rating: 4.8, bid: '$9,500', delivery: '3.5 Weeks', coverLetter: 'Specializing in Django ORM optimization, PostgreSQL query indexing, and automated REST endpoint benchmarking.', status: 'Pending' },
-    { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '$11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
+    { id: 'prop_james_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'James Joe', freelancerName: 'James Joe', avatar: 'JJ', title: 'Senior Full Stack & AI Specialist', rating: 5.0, bid: '₹5,500', bidAmount: '₹5,500', delivery: '2 Weeks', deliveryTime: '2 Weeks', coverLetter: 'I am excited to submit my proposal for your AI project! Experienced in PyTorch inference optimization, Django APIs, and React dashboards.', status: 'Under Review' },
+    { id: 'prop_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', rating: 4.9, bid: '₹11,500', delivery: '3 Weeks', coverLetter: 'I have 7+ years optimizing PyTorch inference models for enterprise SaaS backends. Ready to start immediately with daily GitHub syncs.', status: 'Accepted' },
+    { id: 'prop_2', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹4,500', delivery: '2 Weeks', coverLetter: 'Ex-Stripe UI engineer specializing in high-frequency financial charts and D3.js real-time websockets.', status: 'Accepted' },
+    { id: 'prop_3', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹7,000', delivery: '7 Weeks', coverLetter: 'Built vector similarity pipelines using Pinecone and spaCy. Can deliver clean code with 100% test coverage.', status: 'Accepted' },
+    { id: 'prop_4', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹8,999', delivery: '3 Weeks', coverLetter: 'Experienced in LLM orchestration with LangChain, Pinecone vector stores, and custom OpenAI fine-tuning.', status: 'Accepted' },
+    { id: 'prop_5', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹10,000', delivery: '5 Weeks', coverLetter: 'Specialist in Swift, iOS Native, React Native cross-platform apps with biometric security integrations.', status: 'Accepted' },
+    { id: 'prop_6', projectId: 'cp3', projectTitle: 'Cybersecurity Audit & Shield', freelancer: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', rating: 5.0, bid: '₹4,200', delivery: '2 Weeks', coverLetter: 'OWASP Certified Penetration Tester. Experienced in scanning SaaS backends, auditing API security, and patch validation.', status: 'Accepted' },
+    { id: 'prop_7', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist & Frontend Lead', rating: 5.0, bid: '₹6,200', delivery: '2.5 Weeks', coverLetter: 'Specialist in real-time WebSocket market feeds, D3.js interactive chart rendering, and micro-frontend state management.', status: 'Pending' },
+    { id: 'prop_8', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Lana Kim', avatar: 'LK', title: 'LLM & Vector Search Specialist', rating: 4.9, bid: '₹7,800', delivery: '2 Weeks', coverLetter: 'Expertise in building hybrid keyword & semantic vector search backends using Weaviate and Elasticsearch.', status: 'Pending' },
+    { id: 'prop_9', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Elena Rostova', avatar: 'ER', title: 'NLP & Conversational AI Engineer', rating: 4.9, bid: '₹9,200', delivery: '3 Weeks', coverLetter: 'Built multi-agent customer support bots using LangGraph, Redis session caching, and automated fallback escalation.', status: 'Pending' },
+    { id: 'prop_10', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Marcus Vance', avatar: 'MV', title: 'Senior iOS & Security Architect', rating: 4.9, bid: '₹12,500', delivery: '4 Weeks', coverLetter: '10+ years mobile app development. Built fintech banking apps with encrypted SQLite local vaults and biometric hardware auth.', status: 'Pending' },
+    { id: 'prop_11', projectId: 'cp7', projectTitle: 'AI Automated PostgreSQL Test', freelancer: 'David K.', avatar: 'DK', title: 'Full Stack & Database Engineer', rating: 4.8, bid: '₹9,500', delivery: '3.5 Weeks', coverLetter: 'Specializing in Django ORM optimization, PostgreSQL query indexing, and automated REST endpoint benchmarking.', status: 'Pending' },
+    { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '₹11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
   ];
 
   // 2. APPLICATIONS STATE
@@ -226,7 +241,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 avatar: sp.avatar || 'JJ',
                 title: sp.title || sp.freelancerRole || 'Senior Full Stack & AI Specialist',
                 rating: sp.rating || 5.0,
-                bid: sp.bid || sp.bidAmount || '$5,500',
+                bid: sp.bid || sp.bidAmount || '₹5,500',
                 delivery: sp.delivery || sp.deliveryTime || '2 Weeks',
                 coverLetter: sp.coverLetter || 'Submitted proposal for AI Project.',
                 status: sp.status || 'Under Review'
@@ -308,11 +323,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const validProposals = proposals;
 
   const formatCurrency = (val) => {
-    if (!val) return '$0';
-    const str = String(val).trim();
-    if (str.startsWith('$')) return str;
-    const num = parseFloat(str.replace(/[^0-9.]/g, ''));
-    return isNaN(num) ? '$0' : `$${num.toLocaleString()}`;
+    if (!val) return '₹0';
+    let str = String(val).trim();
+    str = str.replace(/\$/g, '₹').replace(/USD/gi, 'INR');
+    if (str.startsWith('₹') && (str.includes(',') || !/\d/.test(str))) return str;
+    const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+    return isNaN(num) ? '₹0' : `₹${num.toLocaleString('en-IN')}`;
+  };
+
+  const formatHourlyRate = (rate) => {
+    if (!rate) return '₹0/hr';
+    let str = String(rate).trim().replace(/\$/g, '₹').replace(/USD/gi, 'INR');
+    if (str.includes('/hr') || str.includes('/ hr')) {
+      const numPart = parseFloat(str.replace(/[^0-9.-]/g, ''));
+      if (!isNaN(numPart)) {
+        return `₹${numPart.toLocaleString('en-IN')}/hr`;
+      }
+      return str;
+    }
+    const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+    return isNaN(num) ? '₹0/hr' : `₹${num.toLocaleString('en-IN')}/hr`;
   };
 
   const getProjectApplicantCount = (project) => {
@@ -359,9 +389,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   // 3. DYNAMIC HIRED FREELANCERS ROSTER (Includes defaults + accepted proposals)
   const defaultHired = isDemoUser ? [
-    { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '$75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
-    { id: 'hf2', name: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist', project: 'FinTech Dashboard v2', rate: '$85/hr', status: 'Active', hiredDate: 'Oct 23, 2023' },
-    { id: 'hf3', name: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', project: 'Cybersecurity Audit & Shield', rate: '$90/hr', status: 'Completed', hiredDate: 'Oct 15, 2023' }
+    { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '₹75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
+    { id: 'hf2', name: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist', project: 'FinTech Dashboard v2', rate: '₹85/hr', status: 'Active', hiredDate: 'Oct 23, 2023' },
+    { id: 'hf3', name: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', project: 'Cybersecurity Audit & Shield', rate: '₹90/hr', status: 'Completed', hiredDate: 'Oct 15, 2023' }
   ] : [];
 
   const acceptedProposalsList = proposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
@@ -374,7 +404,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       avatar: p.avatar || initials,
       title: p.title || 'Senior Full Stack & AI Specialist',
       project: p.project || p.projectTitle || 'Marketplace Project',
-      rate: p.bid || p.bidAmount || '$75/hr',
+      rate: p.bid || p.bidAmount || '₹75/hr',
       status: 'Active',
       hiredDate: p.date || 'Just Now'
     };
@@ -430,8 +460,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       } catch (e) {}
     }
     return isDemoUser ? [
-      { id: 'sf1', freelancer_id: 'sarahchen', name: 'Sarah Chen', title: 'Senior AI Lead & Data Scientist', hourly_rate: '$110/hr', rating: 5.0, skills: 'PyTorch, DICOM, LangChain, Neo4j', avatar: 'SC' },
-      { id: 'sf2', freelancer_id: 'alexmercer', name: 'Alex Mercer', title: 'Senior PyTorch Architect', hourly_rate: '$95/hr', rating: 4.9, skills: 'PyTorch, Python, React, FastAPI', avatar: 'AM' }
+      { id: 'sf1', freelancer_id: 'sarahchen', name: 'Sarah Chen', title: 'Senior AI Lead & Data Scientist', hourly_rate: '₹110/hr', rating: 5.0, skills: 'PyTorch, DICOM, LangChain, Neo4j', avatar: 'SC' },
+      { id: 'sf2', freelancer_id: 'alexmercer', name: 'Alex Mercer', title: 'Senior PyTorch Architect', hourly_rate: '₹95/hr', rating: 4.9, skills: 'PyTorch, Python, React, FastAPI', avatar: 'AM' }
     ] : [];
   });
 
@@ -491,7 +521,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           client_id: currentUserId,
           freelancer_id: flId,
           project_id: projId,
-          agreed_amount: freelancerObj.hourly_rate ? `${freelancerObj.hourly_rate}` : '$5,000'
+          agreed_amount: freelancerObj.hourly_rate ? `${freelancerObj.hourly_rate}` : '₹5,000'
         })
       });
       const data = await res.json();
@@ -506,32 +536,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
   };
 
-  const defaultContracts = isDemoUser ? [
-    { contractId: 'CTR-9024', id: 'CTR-9024', freelancerName: 'Alex Mercer', freelancer: 'Alex Mercer', project: 'AI Pipeline Optimization', projectName: 'AI Pipeline Optimization', amount: '$11,500', agreedAmount: '$11,500', escrow: '$11,500', escrowBalance: '$11,500', startDate: 'Aug 10, 2026', status: 'Active', paymentType: 'Fixed Price', hourlyRate: '$75/hr' },
-    { contractId: 'CTR-8812', id: 'CTR-8812', freelancerName: 'Sarah Chen', freelancer: 'Sarah Chen', project: 'FinTech Dashboard v2', projectName: 'FinTech Dashboard v2', amount: '$6,200', agreedAmount: '$6,200', escrow: '$6,200', escrowBalance: '$6,200', startDate: 'Aug 08, 2026', status: 'Active', paymentType: 'Fixed Price', hourlyRate: '$85/hr' }
+  const defaultContracts = (isDemoUser && dbContracts.length === 0) ? [
+    { contractId: 'CTR-9024', id: 'CTR-9024', freelancerName: 'Alex Mercer', freelancer: 'Alex Mercer', project: 'AI Pipeline Optimization', projectName: 'AI Pipeline Optimization', amount: '₹2,25,000', agreedAmount: '₹2,25,000', escrow: '₹2,25,000', escrowBalance: '₹2,25,000', startDate: 'Aug 10, 2026', status: 'Active', paymentType: 'Fixed Price', hourlyRate: '₹75/hr' },
+    { contractId: 'CTR-8812', id: 'CTR-8812', freelancerName: 'Sarah Chen', freelancer: 'Sarah Chen', project: 'FinTech Dashboard v2', projectName: 'FinTech Dashboard v2', amount: '₹1,20,000', agreedAmount: '₹1,20,000', escrow: '₹1,20,000', escrowBalance: '₹1,20,000', startDate: 'Aug 08, 2026', status: 'Active', paymentType: 'Fixed Price', hourlyRate: '₹85/hr' }
   ] : [];
 
-  const dynamicContracts = acceptedProposalsList.map((p, idx) => ({
-    contractId: `CTR-${9050 + idx}`,
-    id: `CTR-${9050 + idx}`,
-    freelancer: p.freelancer || p.freelancerName || 'Freelancer',
-    freelancerName: p.freelancer || p.freelancerName || 'Freelancer',
-    project: p.project || p.projectTitle || 'Marketplace Project',
-    projectName: p.project || p.projectTitle || 'Marketplace Project',
-    amount: p.bid || p.bidAmount || '$5,000',
-    agreedAmount: p.bid || p.bidAmount || '$5,000',
-    escrow: p.bid || p.bidAmount || '$5,000',
-    escrowBalance: p.bid || p.bidAmount || '$5,000',
-    startDate: p.date || 'Aug 10, 2026',
-    status: 'Active',
-    paymentType: 'Fixed Price',
-    hourlyRate: '$75/hr'
-  }));
-
-  const rawContracts = [...dbContracts, ...defaultContracts];
-  dynamicContracts.forEach(dc => {
-    if (!rawContracts.some(c => (c.freelancer || c.freelancerName || '').toLowerCase() === dc.freelancer.toLowerCase() && (c.project || c.projectName || '').toLowerCase() === dc.project.toLowerCase())) {
-      rawContracts.push(dc);
+  const rawContracts = dbContracts.length > 0 ? [...dbContracts] : [...defaultContracts];
+  acceptedProposalsList.forEach((p, idx) => {
+    const dcId = `CTR-${9050 + idx}`;
+    const pTitle = (p.project || p.projectTitle || '').toLowerCase().trim();
+    if (pTitle && !rawContracts.some(c => (c.projectName || c.project || '').toLowerCase().trim() === pTitle)) {
+      rawContracts.push({
+        contractId: dcId,
+        id: dcId,
+        freelancer: p.freelancer || p.freelancerName || 'Freelancer',
+        freelancerName: p.freelancer || p.freelancerName || 'Freelancer',
+        project: p.project || p.projectTitle || 'Marketplace Project',
+        projectName: p.project || p.projectTitle || 'Marketplace Project',
+        amount: p.bid || p.bidAmount || '₹5,000',
+        agreedAmount: p.bid || p.bidAmount || '₹5,000',
+        escrow: p.bid || p.bidAmount || '₹5,000',
+        escrowBalance: p.bid || p.bidAmount || '₹5,000',
+        startDate: p.date || 'Aug 10, 2026',
+        status: 'Active',
+        paymentType: 'Fixed Price',
+        hourlyRate: '₹75/hr'
+      });
     }
   });
 
@@ -568,11 +598,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const cProject = contract.projectName || contract.project || 'AI System Architecture';
     const cClient = contract.clientName || contract.client || userSession?.name || 'Abhilash K K';
     const cFreelancer = contract.freelancerName || contract.freelancer || 'Alex Mercer';
-    const cAmount = contract.agreedAmount || contract.amount || '$5,000';
-    const cEscrow = contract.escrowBalance || contract.escrow || cAmount;
+    const cAmount = formatCurrency(contract.agreedAmount || contract.agreed_amount || contract.amount || '₹5,000');
+    const cEscrow = formatCurrency(contract.escrowBalance || contract.escrow || cAmount);
     const cStartDate = contract.startDate || 'Aug 10, 2026';
     const cPaymentType = contract.paymentType || 'Fixed Price';
-    const cHourlyRate = contract.hourlyRate || '$75/hr';
+    const cHourlyRate = formatHourlyRate(contract.hourlyRate || contract.hourly_rate || '₹75/hr');
     const cStatus = contract.status || 'Active';
 
     const pdfWindow = window.open('', '_blank');
@@ -741,8 +771,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       try { return JSON.parse(saved); } catch (e) {}
     }
     return isDemoUser ? [
-      { id: 'INV-3041', date: 'Aug 01, 2026', project: 'AI Pipeline Optimization', milestone: 'Milestone 1: Model Setup', amount: '$4,000', type: 'Milestone Release', status: 'Paid' },
-      { id: 'INV-3042', date: 'Aug 03, 2026', project: 'FinTech Dashboard v2', milestone: 'Milestone 1: Wireframes', amount: '$2,500', type: 'Escrow Lock', status: 'Pending' }
+      { id: 'INV-3041', date: 'Aug 01, 2026', project: 'AI Pipeline Optimization', milestone: 'Milestone 1: Model Setup', amount: '₹4,000', type: 'Milestone Release', status: 'Paid' },
+      { id: 'INV-3042', date: 'Aug 03, 2026', project: 'FinTech Dashboard v2', milestone: 'Milestone 1: Wireframes', amount: '₹2,500', type: 'Escrow Lock', status: 'Pending' }
     ] : [];
   });
 
@@ -753,16 +783,38 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   }, [payments, currentUserId]);
 
   // 8. DYNAMIC REVIEWS STATE & CANDIDATES (Client-scoped)
-  const REVIEWABLE_CANDIDATES = hiredFreelancers.map((hf, idx) => ({
-    id: `cand_${hf.id || idx}`,
-    freelancer: hf.name,
-    avatar: hf.avatar,
-    projectTitle: hf.project,
-    rate: hf.rate
-  }));
+  const baseCandidates = [
+    { id: 'cand_alex_1', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Pipeline Optimization', rate: '₹75/hr' },
+    { id: 'cand_alex_2', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Automated Test Pipeline', rate: '₹75/hr' },
+    { id: 'cand_haines_1', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'NextGen Autonomous Trading Engine', rate: '₹85/hr' },
+    { id: 'cand_haines_2', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'Autonomous Supply Chain Freight Router', rate: '₹85/hr' },
+    { id: 'cand_haines_3', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'AI Medical Imaging Diagnostic Suite', rate: '₹85/hr' },
+    { id: 'cand_sarah_1', freelancer: 'Sarah Chen', avatar: 'SC', projectTitle: 'Enterprise Knowledge Graph RAG Bot', rate: '₹85/hr' },
+    { id: 'cand_sarah_2', freelancer: 'Sarah Chen', avatar: 'SC', projectTitle: 'AI Medical Imaging Diagnostic Suite', rate: '₹85/hr' },
+    { id: 'cand_lana_1', freelancer: 'Lana Kim', avatar: 'LK', projectTitle: 'Penetration Testing & OWASP Scan', rate: '₹90/hr' },
+    { id: 'cand_james_1', freelancer: 'James Joe', avatar: 'JJ', projectTitle: 'Autonomous Supply Chain Freight Router', rate: '₹65/hr' }
+  ];
+
+  hiredFreelancers.forEach((hf, idx) => {
+    let projName = hf.project;
+    if ((hf.name || '').toLowerCase().includes('alex') && projName === 'NextGen Autonomous Trading Engine') {
+      projName = 'AI Pipeline Optimization';
+    }
+    if (!baseCandidates.some(c => (c.freelancer || '').toLowerCase() === (hf.name || '').toLowerCase() && (c.projectTitle || '').toLowerCase() === (projName || '').toLowerCase())) {
+      baseCandidates.push({
+        id: `cand_dyn_${hf.id || idx}`,
+        freelancer: hf.name,
+        avatar: hf.avatar,
+        projectTitle: projName,
+        rate: hf.rate
+      });
+    }
+  });
+
+  const REVIEWABLE_CANDIDATES = baseCandidates;
 
   const [selectedCandidate, setSelectedCandidate] = useState(REVIEWABLE_CANDIDATES[0] || {
-    id: 'cand_0', freelancer: 'Haines Jp', avatar: 'HJ', projectTitle: 'AI Search Engine', rate: '$85/hr'
+    id: 'cand_alex_1', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Pipeline Optimization', rate: '₹75/hr'
   });
   const [commRating, setCommRating] = useState(5);
   const [codeRating, setCodeRating] = useState(5);
@@ -770,21 +822,73 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const [commentInput, setCommentInput] = useState('');
   const [reviewTab, setReviewTab] = useState('given'); // 'given' | 'received'
 
-  const [reviews, setReviews] = useState(() => {
-    const saved = localStorage.getItem(`freematch_user_${currentUserId}_reviews`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
+  const [reviews, setReviews] = useState([]);
+
+  const loadClientReviews = React.useCallback(async () => {
+    let combined = [];
+
+    // 1. Load from user-specific localStorage
+    try {
+      const savedUser = localStorage.getItem(`freematch_user_${currentUserId}_reviews`);
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (Array.isArray(parsed)) combined = [...combined, ...parsed];
+      }
+    } catch (e) {}
+
+    // 2. Load from shared localStorage log
+    try {
+      const savedShared = localStorage.getItem('freematch_shared_reviews');
+      if (savedShared) {
+        const parsed = JSON.parse(savedShared);
+        if (Array.isArray(parsed)) combined = [...combined, ...parsed];
+      }
+    } catch (e) {}
+
+    // 3. Fetch from backend REST API
+    try {
+      const res = await fetch('http://localhost:8000/api/reviews/');
+      if (res.ok) {
+        const apiData = await res.json();
+        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
+      }
+    } catch (e) {}
+
+    // Fallback demo reviews if empty and isDemoUser
+    if (combined.length === 0 && isDemoUser) {
+      combined = [
+        { id: 'r1', type: 'given', reviewer: currentUserName, reviewee: 'Alex Mercer', projectTitle: 'AI Pipeline Optimization', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Alex completed the model inference optimization ahead of schedule with 4x speedup!', date: 'Aug 01, 2026' },
+        { id: 'r2', type: 'given', reviewer: currentUserName, reviewee: 'Alex Mercer', projectTitle: 'AI Automated Test Pipeline', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Excellent execution on the automated test suite pipeline and FastAPI telemetry integration.', date: 'Aug 05, 2026' },
+        { id: 'r3', type: 'given', reviewer: currentUserName, reviewee: 'Lana Kim', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Lana completed the penetration audit ahead of schedule with zero security flaws left unpatched.', date: 'Aug 01, 2026' }
+      ];
     }
-    return isDemoUser ? [
-      { id: 'r1', type: 'given', reviewer: currentUserName, reviewee: 'Lana Kim', projectTitle: 'Penetration Testing & OWASP Scan', rating: 5, comm: 5, code: 5, deadline: 5, comment: 'Lana completed the penetration audit ahead of schedule with zero security flaws left unpatched.', date: 'Aug 01, 2026' }
-    ] : [];
-  });
+
+    // Deduplicate by unique key
+    const uniqueMap = new Map();
+    combined.forEach(r => {
+      if (!r) return;
+      const key = r.id || `${r.reviewer}_${r.reviewee}_${r.projectTitle || r.project_title}_${r.comment}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, r);
+      }
+    });
+
+    setReviews(Array.from(uniqueMap.values()));
+  }, [currentUserId, currentUserName, isDemoUser]);
 
   useEffect(() => {
-    if (currentUserId && currentUserId !== 'guest') {
+    loadClientReviews();
+    const handleSync = () => loadClientReviews();
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('freematch_review_submitted', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('freematch_review_submitted', handleSync);
+    };
+  }, [loadClientReviews]);
+
+  useEffect(() => {
+    if (currentUserId && currentUserId !== 'guest' && reviews.length > 0) {
       localStorage.setItem(`freematch_user_${currentUserId}_reviews`, JSON.stringify(reviews));
     }
   }, [reviews, currentUserId]);
@@ -813,7 +917,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const updated = [newRev, ...reviews];
     setReviews(updated);
     localStorage.setItem(`freematch_user_${currentUserId}_reviews`, JSON.stringify(updated));
+
+    // Save to shared localStorage review log for cross-session/cross-account sync
+    try {
+      let shared = [];
+      const savedShared = localStorage.getItem('freematch_shared_reviews');
+      if (savedShared) shared = JSON.parse(savedShared);
+      shared = [newRev, ...shared.filter(r => r.id !== newRev.id)];
+      localStorage.setItem('freematch_shared_reviews', JSON.stringify(shared));
+    } catch (e) {}
+
     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('freematch_review_submitted'));
 
     // Try posting to Python Django backend REST API
     try {
@@ -856,12 +971,45 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       description: `${currentUserName} enterprise client account on FreeMatch AI platform.`,
       paymentVerified: true,
       paymentMethod: 'Visa ending in **** 4242',
-      escrowLocked: '$0',
-      totalSpent: '$0',
+      escrowLocked: '₹0',
+      totalSpent: '₹0',
       projectsPosted: clientProjects.length,
       activeHires: hiredFreelancers.length
     };
   });
+
+  useEffect(() => {
+    const syncClientProfile = () => {
+      const keys = [
+        `freematch_user_${currentUserId}_profile`,
+        `freematch_client_${currentUserId}_profile`,
+        `freematch_profile_${currentUserId}`,
+        `freematch_user_user1_profile`,
+        `freematch_user_abhi_profile`
+      ];
+      for (const k of keys) {
+        const saved = localStorage.getItem(k);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object') {
+              setClientProfile(parsed);
+              break;
+            }
+          } catch (e) {}
+        }
+      }
+    };
+
+    window.addEventListener('storage', syncClientProfile);
+    window.addEventListener('freematch_profile_event', syncClientProfile);
+    window.addEventListener('freematch_user_avatar_event', syncClientProfile);
+    return () => {
+      window.removeEventListener('storage', syncClientProfile);
+      window.removeEventListener('freematch_profile_event', syncClientProfile);
+      window.removeEventListener('freematch_user_avatar_event', syncClientProfile);
+    };
+  }, [currentUserId]);
 
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -938,25 +1086,151 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   };
 
 
-  // 9. REAL-TIME NOTIFICATIONS STATE
+  // 9. REAL-TIME NOTIFICATIONS & MESSAGES STATE
   const [notifications, setNotifications] = useState([]);
+  const [messagesCount, setMessagesCount] = useState(2);
 
   useEffect(() => {
     const loadLiveNotifications = async () => {
       const list = await fetchNotifications(userSession?.user_id || userSession?.name || 'client');
       setNotifications(list);
     };
-    loadLiveNotifications();
 
-    const handleNotifEvent = () => loadLiveNotifications();
+    const loadLiveMessagesCount = async () => {
+      const cUserId = (userSession?.username || userSession?.user_id || userSession?.email || 'client').toLowerCase().trim();
+      try {
+        const res = await fetch(`http://localhost:8000/api/messages/?user_id=${encodeURIComponent(cUserId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.conversations)) {
+            setMessagesCount(data.conversations.length);
+          }
+        }
+      } catch (err) {}
+    };
+
+    loadLiveNotifications();
+    loadLiveMessagesCount();
+
+    const handleNotifEvent = () => {
+      loadLiveNotifications();
+      loadLiveMessagesCount();
+    };
     window.addEventListener('freematch_notification_event', handleNotifEvent);
-    return () => window.removeEventListener('freematch_notification_event', handleNotifEvent);
+    window.addEventListener('freematch_shared_event', handleNotifEvent);
+    return () => {
+      window.removeEventListener('freematch_notification_event', handleNotifEvent);
+      window.removeEventListener('freematch_shared_event', handleNotifEvent);
+    };
   }, [userSession]);
 
   const unreadNotifCount = notifications.filter(n => !n.is_read).length;
 
   // List Filter State
   const [projectFilter, setProjectFilter] = useState('All');
+
+  // Skill Chip Tag Management Helper
+  const [skillTagInput, setSkillTagInput] = useState('');
+
+  const currentSkillsList = React.useMemo(() => {
+    if (Array.isArray(skillsReq)) return skillsReq;
+    if (typeof skillsReq === 'string' && skillsReq.trim()) {
+      return skillsReq.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [skillsReq]);
+
+  const handleAddSkillTag = (skillName) => {
+    const trimmed = (skillName || '').trim().replace(/,/g, '');
+    if (!trimmed) return;
+    if (currentSkillsList.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      setSkillTagInput('');
+      return;
+    }
+    const newList = [...currentSkillsList, trimmed];
+    setSkillsReq(newList.join(', '));
+    setSkillTagInput('');
+  };
+
+  const handleRemoveSkillTag = (skillToRemove) => {
+    const newList = currentSkillsList.filter(s => s !== skillToRemove);
+    setSkillsReq(newList.join(', '));
+  };
+
+  // Saved Drafts State & Helpers
+  const draftListKey = `freematch_user_${userSession?.user_id || 'client'}_project_drafts_list`;
+  const activeDraftKey = `freematch_user_${userSession?.user_id || 'client'}_project_draft`;
+
+  const [savedDraftsList, setSavedDraftsList] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`freematch_user_${userSession?.user_id || 'client'}_project_drafts_list`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return [];
+  });
+
+  const handleSaveDraft = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    try {
+      const titleToSave = (projectTitle || '').trim() || 'Untitled Project Draft';
+      const draftId = `draft_${Date.now()}`;
+      const now = new Date();
+      const savedAtFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + now.toLocaleDateString();
+
+      const draftObj = {
+        id: draftId,
+        projectTitle: titleToSave,
+        category: category || 'Software Development',
+        skillsReq: skillsReq || '',
+        budget: budget || '',
+        duration: duration || '3 Weeks',
+        description: description || '',
+        projectAbstract: projectAbstract || '',
+        attachedFile: attachedFile || null,
+        milestoneItems: milestoneItems || [],
+        savedAt: savedAtFormatted
+      };
+
+      localStorage.setItem(activeDraftKey, JSON.stringify(draftObj));
+
+      const existingList = savedDraftsList.filter(d => (d.projectTitle || '').toLowerCase() !== titleToSave.toLowerCase());
+      const updatedList = [draftObj, ...existingList];
+
+      setSavedDraftsList(updatedList);
+      localStorage.setItem(draftListKey, JSON.stringify(updatedList));
+
+      setToast({ 
+        message: `Project draft "${titleToSave}" saved successfully! You can resume it anytime under My Projects -> Saved Drafts.`, 
+        type: 'success' 
+      });
+    } catch (err) {
+      setToast({ message: 'Draft saved to local workspace.', type: 'info' });
+    }
+  };
+
+  const handleResumeDraft = (draftObj) => {
+    if (!draftObj) return;
+    if (draftObj.projectTitle) setProjectTitle(draftObj.projectTitle);
+    if (draftObj.category) setCategory(draftObj.category);
+    if (draftObj.skillsReq) setSkillsReq(draftObj.skillsReq);
+    if (draftObj.budget) setBudget(draftObj.budget);
+    if (draftObj.duration) setDuration(draftObj.duration);
+    if (draftObj.description) setDescription(draftObj.description);
+    if (draftObj.projectAbstract) setProjectAbstract(draftObj.projectAbstract);
+    if (draftObj.attachedFile) setAttachedFile(draftObj.attachedFile);
+    if (Array.isArray(draftObj.milestoneItems) && draftObj.milestoneItems.length > 0) {
+      setMilestoneItems(draftObj.milestoneItems);
+    }
+    setShowPostProjectModal(true);
+    setToast({ message: `Loaded draft "${draftObj.projectTitle || 'Project Draft'}"!`, type: 'info' });
+  };
+
+  const handleDeleteDraft = (draftId) => {
+    const updatedList = savedDraftsList.filter(d => d.id !== draftId);
+    setSavedDraftsList(updatedList);
+    localStorage.setItem(draftListKey, JSON.stringify(updatedList));
+    setToast({ message: 'Saved draft removed from workspace.', type: 'info' });
+  };
 
   // Title formatting helper
   const formatTitle = (str) => {
@@ -1047,7 +1321,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     const flName = acceptedProp.freelancer || acceptedProp.freelancerName || 'Freelancer';
     const targetProjTitle = acceptedProp.projectTitle || acceptedProp.project || 'Project';
-    const rawBid = acceptedProp.bid || acceptedProp.bidAmount || '$5,000';
+    const rawBid = acceptedProp.bid || acceptedProp.bidAmount || '₹5,000';
     const bidVal = formatCurrency(rawBid);
 
     const updatedProjects = clientProjects.map(p => {
@@ -1246,7 +1520,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             </div>
             <div>
               <h1 className="font-extrabold text-base tracking-tight text-[#2563eb]">FreeMatch AI</h1>
-              <p className="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase">CLIENT WORKSPACE</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-extrabold tracking-wider uppercase">CLIENT WORKSPACE</p>
             </div>
           </div>
 
@@ -1255,7 +1529,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             
             {/* 1. WORKSPACE */}
             <div className="space-y-1">
-              <p className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">WORKSPACE</p>
+              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">WORKSPACE</p>
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
                 { id: 'post', label: 'Post Project', icon: PlusCircle, action: () => setShowPostProjectModal(true) },
@@ -1280,7 +1554,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <span>{item.label}</span>
                     </span>
                     {item.badge ? (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold ${
                         activeTab === item.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
                       }`}>{item.badge}</span>
                     ) : null}
@@ -1291,7 +1565,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             {/* 2. MANAGEMENT */}
             <div className="space-y-1">
-              <p className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">MANAGEMENT</p>
+              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">MANAGEMENT</p>
               {[
                 { id: 'contracts', label: 'Contracts', icon: FileText },
                 { id: 'kanban', label: 'Sprint Task Board', icon: Kanban },
@@ -1320,9 +1594,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             {/* 3. COMMUNICATION */}
             <div className="space-y-1">
-              <p className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">COMMUNICATION</p>
+              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">COMMUNICATION</p>
               {[
-                { id: 'messages', label: 'Messages', icon: MessageSquare, badge: 3 },
+                { id: 'messages', label: 'Messages', icon: MessageSquare, badge: messagesCount },
                 { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifCount }
               ].map(item => {
                 const IconComp = item.icon;
@@ -1341,7 +1615,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <span>{item.label}</span>
                     </span>
                     {item.badge ? (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold ${
                         activeTab === item.id ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600'
                       }`}>{item.badge}</span>
                     ) : null}
@@ -1352,21 +1626,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             {/* 4. AI POWERED */}
             <div className="space-y-1">
-              <p className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">AI POWERED</p>
+              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">AI POWERED</p>
               <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 p-3 rounded-2xl border border-blue-100/80 flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 <div>
                   <p className="text-xs font-extrabold text-slate-900">AI Assistant</p>
-                  <p className="text-[10px] text-blue-600 font-bold">Smart NLP Auto-Match</p>
+                  <p className="text-xs text-blue-600 font-bold">Smart NLP Auto-Match</p>
                 </div>
               </div>
             </div>
 
             {/* 5. ACCOUNT */}
             <div className="space-y-1 pt-2 border-t border-slate-200">
-              <p className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">ACCOUNT</p>
+              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">ACCOUNT</p>
               <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'profile' 
                   ? 'bg-[#2563eb] text-white shadow-xs' 
@@ -1395,13 +1669,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* Top Navigation Header */}
         <header className="sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
           <div className="relative w-full max-w-md">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-xs">🔍</span>
+            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300 text-xs">🔍</span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search projects by title, category, skills, freelancer, or contract ID..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
             />
             {searchQuery.trim() !== '' && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-50 p-3 space-y-3">
@@ -1427,7 +1701,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                   if (totalMatches === 0) {
                     return (
-                      <p className="text-xs text-slate-400 font-medium text-center py-2">No matching results found for "{searchQuery}"</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium text-center py-2">No matching results found for "{searchQuery}"</p>
                     );
                   }
 
@@ -1435,12 +1709,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <>
                       {matchingProjects.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider mb-1">PROJECTS</p>
+                          <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1">PROJECTS</p>
                           <div className="space-y-1">
                             {matchingProjects.map(p => (
                               <div key={p.id} onClick={() => { setActiveTab('projects'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
                                 <span className="font-extrabold text-slate-900">{p.title}</span>
-                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{p.status}</span>
+                                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{p.status}</span>
                               </div>
                             ))}
                           </div>
@@ -1449,12 +1723,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                       {matchingFreelancers.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider mb-1">FREELANCERS</p>
+                          <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider mb-1">FREELANCERS</p>
                           <div className="space-y-1">
                             {matchingFreelancers.map(name => (
                               <div key={name} onClick={() => { setActiveTab('freelancers'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
                                 <span className="font-extrabold text-slate-900">{name}</span>
-                                <span className="text-[10px] text-slate-400 font-medium">Hired Candidate</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Hired Candidate</span>
                               </div>
                             ))}
                           </div>
@@ -1463,12 +1737,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                       {matchingContracts.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider mb-1">CONTRACTS</p>
+                          <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider mb-1">CONTRACTS</p>
                           <div className="space-y-1">
                             {matchingContracts.map(c => (
                               <div key={c.id} onClick={() => { setActiveTab('contracts'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
                                 <span className="font-extrabold text-slate-900">{c.id} — {c.title}</span>
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{c.status}</span>
+                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{c.status}</span>
                               </div>
                             ))}
                           </div>
@@ -1485,7 +1759,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <button onClick={() => setActiveTab('notifications')} className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50 flex items-center justify-center">
               <Bell className="w-4 h-4 text-slate-700" />
               {unreadNotifCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-blue-600 text-white font-extrabold text-[10px] px-1.5 min-w-[18px] h-4 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                <span className="absolute -top-1 -right-1 bg-blue-600 text-white font-extrabold text-xs px-1.5 min-w-[18px] h-4 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
                   {unreadNotifCount}
                 </span>
               )}
@@ -1498,13 +1772,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               >
                 <div className="text-right">
                   <p className="text-xs font-extrabold text-slate-900">{currentUserName}</p>
-                  <p className="text-[10px] text-[#2563eb] font-extrabold tracking-wider uppercase">
+                  <p className="text-xs text-[#2563eb] font-extrabold tracking-wider uppercase">
                     CLIENT WORKSPACE
                   </p>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xs shadow-xs overflow-hidden">
                   {(() => {
-                    let avatarUrl = clientProfile.avatar_url || userSession?.avatar_url || '';
+                    const uid = (currentUserId || userSession?.user_id || userSession?.email || '').toLowerCase();
+                    let avatarUrl = clientProfile?.avatar_url || userSession?.avatar_url || '';
+                    if (!avatarUrl && uid) {
+                      const keys = [
+                        `freematch_user_${uid}_profile`,
+                        `freematch_client_${uid}_profile`,
+                        `freematch_profile_${uid}`,
+                        `freematch_user_user1_profile`,
+                        `freematch_user_abhi_profile`
+                      ];
+                      for (const k of keys) {
+                        try {
+                          const cached = JSON.parse(localStorage.getItem(k) || '{}');
+                          if (cached && cached.avatar_url) {
+                            avatarUrl = cached.avatar_url;
+                            break;
+                          }
+                        } catch (e) {}
+                      }
+                    }
                     const initials = currentUserName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'CL';
                     return avatarUrl ? (
                       <img src={avatarUrl} alt={currentUserName} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
@@ -1513,7 +1806,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     );
                   })()}
                 </div>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 font-bold ml-0.5" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 font-bold ml-0.5" />
               </button>
 
               {/* PROFILE DROPDOWN MENU */}
@@ -1524,7 +1817,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 >
                   <div className="px-3.5 py-2.5 border-b border-slate-100 mb-1 bg-slate-50/50 rounded-xl">
                     <p className="text-xs font-extrabold text-slate-900 truncate">{currentUserName}</p>
-                    <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">{userSession?.email || `${currentUserId}@freematch.ai`}</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate mt-0.5">{userSession?.email || `${currentUserId}@freematch.ai`}</p>
                   </div>
 
                   <button
@@ -1532,7 +1825,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       setActiveTab('profile');
                       setShowProfileDropdown(false);
                     }}
-                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#1e3a8a] hover:bg-blue-50 transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-sm font-bold text-[#1e3a8a] hover:bg-blue-50 transition-colors text-left cursor-pointer"
                   >
                     <UserCircle className="w-4 h-4 text-blue-600" />
                     <span>View Profile</span>
@@ -1543,7 +1836,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       setActiveTab('settings');
                       setShowProfileDropdown(false);
                     }}
-                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#1e3a8a] hover:bg-blue-50 transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-sm font-bold text-[#1e3a8a] hover:bg-blue-50 transition-colors text-left cursor-pointer"
                   >
                     <Settings className="w-4 h-4 text-blue-600" />
                     <span>Settings</span>
@@ -1555,7 +1848,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         setShowProfileDropdown(false);
                         setShowLogoutConfirmModal(true);
                       }}
-                      className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl text-sm font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 text-rose-600" />
                       <span>Logout</span>
@@ -1585,11 +1878,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           const pendingReviewCount = proposals.filter(p => p.status === 'Pending').length;
 
           const totalBudgetSum = clientProjects.reduce((sum, p) => sum + parseCurrency(p.budget), 0);
-          const formattedTotalBudget = `$${totalBudgetSum.toLocaleString()}`;
+          const formattedTotalBudget = `₹${totalBudgetSum.toLocaleString('en-IN')}`;
 
           const activeContracts = contracts.filter(c => c.status === 'Active');
-          const pendingEscrowSum = activeContracts.reduce((sum, c) => sum + parseCurrency(c.escrow || c.amount), 0);
-          const formattedPendingEscrow = `$${pendingEscrowSum.toLocaleString()}`;
+          const pendingEscrowSum = activeContracts.reduce((sum, c) => sum + parseCurrency(c.escrow || c.escrowBalance || c.amount || c.agreedAmount || c.agreed_amount), 0);
+          const formattedPendingEscrow = `₹${pendingEscrowSum.toLocaleString('en-IN')}`;
 
           return (
             <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
@@ -1605,7 +1898,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       return `${greeting}, ${firstName} 👋`;
                     })()}
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium mt-1">
                     Here's an overview of your projects, hiring activity, and payments.
                   </p>
                 </div>
@@ -1625,11 +1918,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Card 1: ACTIVE PROJECTS */}
                   <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-[11px] font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
+                      <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{activeProjectsCount}</p>
-                      <p className="text-xs text-slate-400 font-medium">{inProgressCount} in progress</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{inProgressCount} in progress</p>
                       <div className="pt-2">
-                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 2 this month
                         </span>
                       </div>
@@ -1642,11 +1935,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Card 2: PENDING APPLICATIONS */}
                   <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
+                      <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{pendingAppsCount}</p>
-                      <p className="text-xs text-slate-400 font-medium">{pendingReviewCount} require your review</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{pendingReviewCount} require your review</p>
                       <div className="pt-2">
-                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 3 new
                         </span>
                       </div>
@@ -1659,29 +1952,29 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Card 3: TOTAL PROJECT VALUE */}
                   <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL PROJECT VALUE</p>
+                      <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL PROJECT VALUE</p>
                       <p className="text-3xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
-                      <p className="text-xs text-slate-400 font-medium">Across all active projects</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Across all active projects</p>
                       <div className="pt-2">
-                        <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 12% this month
                         </span>
                       </div>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                      <DollarSign className="w-6 h-6 text-emerald-600" />
+                      <span className="text-2xl font-black text-emerald-600">₹</span>
                     </div>
                   </div>
 
                   {/* Card 4: ESCROW BALANCE */}
                   <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
                     <div className="space-y-1">
-                      <p className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wider">ESCROW BALANCE</p>
+                      <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider">ESCROW BALANCE</p>
                       <p className="text-3xl font-extrabold text-slate-900">{formattedPendingEscrow}</p>
-                      <p className="text-xs text-slate-400 font-medium">$2,400 available</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">₹2,400 available</p>
                       <div className="pt-2">
-                        <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
-                          ↓ $300 this month
+                        <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
+                          ↓ ₹300 this month
                         </span>
                       </div>
                     </div>
@@ -1715,7 +2008,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <FolderKanban className="w-6 h-6 text-blue-600" />
                       </div>
                       <h4 className="font-extrabold text-slate-900 text-base">No projects yet</h4>
-                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
+                      <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium">
                         Start by posting your first project to receive freelancer applications and AI matches.
                       </p>
                       <button 
@@ -1743,21 +2036,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               <div>
                                 <div className="flex items-center space-x-2">
                                   <h4 className="font-extrabold text-slate-900 text-sm">{formatTitle(p.title)}</h4>
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                                     isHiring ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                                   }`}>
                                     {isHiring ? 'Hiring' : 'In Progress'}
                                   </span>
                                 </div>
-                                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-0.5">
                                   {Array.isArray(p.skills) ? p.skills.join(' • ') : p.skills}
                                 </p>
                               </div>
                             </div>
 
                             <div className="text-right">
-                              <p className="text-sm font-extrabold text-slate-900">{p.budget}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">BUDGET</p>
+                              <p className="text-sm font-extrabold text-slate-900">{formatCurrency(p.budget)}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">BUDGET</p>
                             </div>
                           </div>
 
@@ -1775,16 +2068,16 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <div className="flex items-center justify-between pt-1 text-xs">
                             {hiredFreelancer ? (
                               <div className="flex items-center space-x-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-extrabold text-[10px] flex items-center justify-center">
+                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center">
                                   {initials}
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-slate-800">{hiredFreelancer}</p>
-                                  <p className="text-[10px] text-slate-400">Hired Freelancer</p>
+                                  <p className="text-xs text-slate-600 dark:text-slate-300">Hired Freelancer</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[11px] text-slate-400 font-medium">Posted: {p.postedDate || 'Aug 10, 2026'}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Posted: {p.postedDate || 'Aug 10, 2026'}</p>
                             )}
 
                             <div className="flex items-center space-x-4">
@@ -1792,11 +2085,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 <>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{getProjectApplicantCount(p)}</p>
-                                    <p className="text-[9px] text-slate-400 font-bold">APPLICANTS</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">APPLICANTS</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-[9px] text-slate-400 font-bold">DURATION</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">DURATION</p>
                                   </div>
                                   <button 
                                     onClick={() => { setApplicationFilter('All'); setActiveTab('applications'); }}
@@ -1809,11 +2102,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 <>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">Milestones</p>
-                                    <p className="text-[9px] text-slate-400 font-bold">ACTIVE</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">ACTIVE</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-[9px] text-slate-400 font-bold">REMAINING</p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">REMAINING</p>
                                   </div>
                                   <button 
                                     onClick={() => setSelectedManageProject(p)}
@@ -1851,7 +2144,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                       </div>
                       <p className="text-xs font-extrabold text-slate-800">You're all caught up</p>
-                      <p className="text-[11px] text-slate-400 mt-1">No actions currently require your review.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">No actions currently require your review.</p>
                     </div>
                   ) : (
                     <>
@@ -1863,7 +2156,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             </div>
                             <div>
                               <p className="text-xs font-extrabold text-slate-900">{pendingAppsCount} proposals waiting for review</p>
-                              <p className="text-[11px] text-slate-400">Review and shortlist candidates</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">Review and shortlist candidates</p>
                             </div>
                           </div>
                           <button 
@@ -1882,7 +2175,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             </div>
                             <div>
                               <p className="text-xs font-extrabold text-slate-900">Milestone active on contract</p>
-                              <p className="text-[11px] text-slate-400">{activeContracts[0].projectName || activeContracts[0].project}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">{activeContracts[0].projectName || activeContracts[0].project}</p>
                             </div>
                           </div>
                           <button 
@@ -1916,7 +2209,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {notifications.length === 0 && proposals.length === 0 ? (
                     <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex-1 flex flex-col justify-center items-center min-h-[160px]">
                       <p className="text-xs font-extrabold text-slate-800">No hiring activity yet.</p>
-                      <p className="text-[11px] text-slate-400 mt-1">Activity will appear when proposals are submitted.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Activity will appear when proposals are submitted.</p>
                     </div>
                   ) : (
                     (notifications.length > 0 ? notifications : proposals).slice(0, 3).map((item, idx) => (
@@ -1926,9 +2219,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-extrabold text-slate-900">{item.title || 'Activity Event'}</p>
-                          <p className="text-slate-500 truncate text-[11px]">{item.message || item.coverLetter || 'Update recorded'}</p>
+                          <p className="text-slate-700 dark:text-slate-300 truncate text-xs">{item.message || item.coverLetter || 'Update recorded'}</p>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium shrink-0">Just now</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium shrink-0">Just now</span>
                       </div>
                     ))
                   )}
@@ -1953,18 +2246,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {contracts.length === 0 ? (
                     <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px]">
                       <p className="text-xs font-extrabold text-slate-800">No active milestones.</p>
-                      <p className="text-[11px] text-slate-400 mt-1">Milestones will appear when contracts are activated.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Milestones will appear when contracts are activated.</p>
                     </div>
                   ) : (
                     contracts.slice(0, 2).map((c, idx) => (
                       <div key={c.id || idx} className="space-y-3">
                         <div className="flex items-center space-x-2 font-bold text-slate-800">
-                          <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-[10px]">🧠</span>
+                          <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-xs">🧠</span>
                           <span>{c.projectName || c.project}</span>
                         </div>
                         <div className="space-y-2">
                           <div className="space-y-1">
-                            <div className="flex justify-between text-[11px]">
+                            <div className="flex justify-between text-xs">
                               <span className="text-slate-600 font-semibold">Milestone 1</span>
                               <span className="text-emerald-600 font-bold flex items-center space-x-1">
                                 <span>100%</span>
@@ -1976,7 +2269,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <div className="flex justify-between text-[11px]">
+                            <div className="flex justify-between text-xs">
                               <span className="text-slate-600 font-semibold">Milestone 2</span>
                               <span className="text-blue-600 font-bold flex items-center space-x-1">
                                 <span>60%</span>
@@ -2008,7 +2301,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Total Value + Sparkline */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-extrabold text-slate-400 uppercase">Total Project Value</p>
+                      <p className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase">Total Project Value</p>
                       <p className="text-2xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
                     </div>
 
@@ -2021,27 +2314,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Sub Metrics Grid */}
                   <div className="grid grid-cols-4 gap-2 pt-1 text-center">
                     <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Escrow Funded</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Escrow Funded</p>
                       <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{formattedPendingEscrow}</p>
                     </div>
                     <div className="p-2 rounded-xl bg-blue-50/50 border border-blue-100/60">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Released</p>
-                      <p className="text-xs font-extrabold text-blue-600 mt-0.5">$0</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Released</p>
+                      <p className="text-xs font-extrabold text-blue-600 mt-0.5">₹0</p>
                     </div>
                     <div className="p-2 rounded-xl bg-amber-50/50 border border-amber-100/60">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Pending</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Pending</p>
                       <p className="text-xs font-extrabold text-amber-600 mt-0.5">{formattedPendingEscrow}</p>
                     </div>
                     <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">Available</p>
-                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">$0</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Available</p>
+                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">₹0</p>
                     </div>
                   </div>
 
                   {/* Spending Bar Chart SVG */}
                   <div className="pt-2">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">Spending Overview (Last 6 Months)</p>
-                    <div className="flex items-end justify-between h-14 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-semibold px-1">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase mb-2">Spending Overview (Last 6 Months)</p>
+                    <div className="flex items-end justify-between h-14 pt-2 border-t border-slate-100 text-xs text-slate-600 dark:text-slate-300 font-semibold px-1">
                       {['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((m, i) => {
                         const heights = totalBudgetSum > 0 ? ['h-3', 'h-4', 'h-3', 'h-6', 'h-5', 'h-10'] : ['h-1', 'h-1', 'h-1', 'h-1', 'h-1', 'h-1'];
                         return (
@@ -2070,7 +2363,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {hiredFreelancers.length === 0 ? (
                     <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px]">
                       <p className="text-xs font-extrabold text-slate-800">Hired Freelancers (0)</p>
-                      <p className="text-[11px] text-slate-400 mt-1">No freelancers hired yet.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">No freelancers hired yet.</p>
                       <button onClick={() => setActiveTab('applications')} className="mt-2 text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                         View Applications →
                       </button>
@@ -2084,8 +2377,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </div>
                           <div>
                             <h4 className="font-extrabold text-slate-900 text-xs">{fl.name}</h4>
-                            <p className="text-[10px] text-slate-400">{fl.title || 'Senior Software Specialist'}</p>
-                            <div className="flex items-center space-x-2 text-[10px] text-slate-500 font-semibold mt-0.5">
+                            <p className="text-xs text-slate-600 dark:text-slate-300">{fl.title || 'Senior Software Specialist'}</p>
+                            <div className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 font-semibold mt-0.5">
                               <span className="text-amber-500">⭐ 4.9</span>
                               <span>•</span>
                               <span className="text-emerald-600">Active</span>
@@ -2156,9 +2449,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     </div>
                     <div>
                       <p className="text-xs font-extrabold text-slate-900">Smart Candidate Match</p>
-                      <p className="text-[10px] text-slate-400 font-medium">NLP Skill Indexing</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">NLP Skill Indexing</p>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-700 ml-1">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 ml-1">
                       96% Match
                     </span>
                   </div>
@@ -2178,7 +2471,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   My Posted Projects ({clientProjects.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
                   Central project-management hub. Manage active postings, applications, hired freelancers, contracts, and milestone progress.
                 </p>
               </div>
@@ -2186,7 +2479,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <div className="flex items-center space-x-3">
                 <button 
                   onClick={() => setShowPostProjectModal(true)}
-                  className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <span>+</span>
                   <span>Post New Project</span>
@@ -2210,7 +2503,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   const pProg = getProjectProgress(p);
                   return p.status === 'Completed' || pProg === 100;
                 }).length,
-                closed: clientProjects.filter(p => p.status === 'Closed' || p.status === 'Cancelled').length
+                closed: clientProjects.filter(p => p.status === 'Closed' || p.status === 'Cancelled').length,
+                drafts: savedDraftsList.length
               };
 
               return (
@@ -2220,12 +2514,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     { label: 'Hiring', key: 'Hiring', count: counts.hiring },
                     { label: 'In Progress', key: 'In Progress', count: counts.inProgress },
                     { label: 'Completed', key: 'Completed', count: counts.completed },
-                    { label: 'Closed', key: 'Closed', count: counts.closed }
+                    { label: 'Closed', key: 'Closed', count: counts.closed },
+                    { label: 'Saved Drafts 📝', key: 'Drafts', count: counts.drafts }
                   ].map(f => (
                     <button
                       key={f.key}
                       onClick={() => setProjectFilter(f.key)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                         projectFilter === f.key 
                           ? 'bg-[#2563eb] text-white shadow-xs' 
                           : 'text-slate-600 hover:bg-slate-100'
@@ -2240,14 +2535,87 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             {/* Projects List Container */}
             <div className="space-y-5">
-              {filteredProjects.length === 0 ? (
+              {projectFilter === 'Drafts' ? (
+                savedDraftsList.length === 0 ? (
+                  <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center text-2xl mx-auto font-bold">
+                      📄
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-lg text-slate-900">No saved drafts yet</h3>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 max-w-md mx-auto font-medium">
+                        When you click "Save Draft" while creating a project in the Post New Marketplace Project modal, your saved drafts will appear here so you can edit and publish them anytime.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setShowPostProjectModal(true)}
+                      className="px-5 py-2.5 bg-[#2563eb] text-white font-extrabold text-xs rounded-xl shadow-xs hover:bg-blue-700 cursor-pointer"
+                    >
+                      + Create & Save Draft
+                    </button>
+                  </div>
+                ) : (
+                  savedDraftsList.map(draft => (
+                    <div 
+                      key={draft.id} 
+                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-4 transition-all hover:border-slate-300"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="space-y-2 flex-1 min-w-0">
+                          <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+                            <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
+                              {formatTitle(draft.projectTitle)}
+                            </h3>
+                            <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold flex items-center gap-1">
+                              📄 Saved Draft
+                            </span>
+                            <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">
+                              {draft.category || 'Software Development'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 font-medium">
+                            {draft.description || 'No detailed scope written yet for this project draft.'}
+                          </p>
+
+                          <div className="flex items-center space-x-4 pt-1 text-xs text-slate-700 dark:text-slate-300 font-semibold flex-wrap gap-y-1">
+                            <span>Budget: <strong className="text-slate-900">${draft.budget || '0'}</strong></span>
+                            <span>•</span>
+                            <span>Duration: <strong className="text-slate-900">{draft.duration || '3 Weeks'}</strong></span>
+                            <span>•</span>
+                            <span>Milestones: <strong className="text-slate-900">{draft.milestoneItems?.length || 0} Phases</strong></span>
+                            <span>•</span>
+                            <span className="text-slate-600 dark:text-slate-300">Saved: {draft.savedAt || 'Recently'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3 shrink-0">
+                          <button
+                            onClick={() => handleResumeDraft(draft)}
+                            className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>Resume & Publish Draft</span>
+                            <span>→</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDraft(draft.id)}
+                            className="px-3 py-2.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl text-sm font-bold transition-all cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )
+              ) : filteredProjects.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-4">
                   <div className="w-16 h-16 rounded-full bg-blue-50 text-[#2563eb] flex items-center justify-center text-2xl mx-auto font-bold">
                     📂
                   </div>
                   <div>
                     <h3 className="font-extrabold text-lg text-slate-900">No projects found</h3>
-                    <p className="text-xs text-slate-500 mt-1">No marketplace projects match your selected filter or search query.</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">No marketplace projects match your selected filter or search query.</p>
                   </div>
                   <button 
                     onClick={() => setShowPostProjectModal(true)}
@@ -2307,22 +2675,22 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             )}
                           </div>
 
-                          <p className="text-xs font-semibold text-slate-600">
+                          <p className="text-sm font-semibold text-slate-700">
                             Category: <span className="text-[#2563eb] font-bold">{p.category}</span>
                           </p>
 
                           {/* Required Skills Pills */}
                           <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 pt-1">
-                            <span className="text-xs font-bold text-slate-500 mr-1">Required Skills:</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mr-1">Required Skills:</span>
                             {(Array.isArray(p.skills) ? p.skills : (p.skills || '').split(',')).map((sk, idx) => (
-                              <span key={idx} className="bg-blue-50 text-[#2563eb] font-extrabold text-[11px] px-2.5 py-0.5 rounded-lg border border-blue-100">
+                              <span key={idx} className="bg-blue-50 text-[#2563eb] font-extrabold text-xs px-2.5 py-0.5 rounded-lg border border-blue-100">
                                 {sk.trim()}
                               </span>
                             ))}
                           </div>
 
                           {/* Details Row */}
-                          <div className="flex items-center space-x-4 text-xs font-semibold text-slate-500 pt-2 flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-4 text-xs font-semibold text-slate-700 dark:text-slate-300 pt-2 flex-wrap gap-y-1">
                             <p>Posted: <span className="text-slate-800 font-bold">{p.postedDate || 'Just Now'}</span></p>
                             <p>•</p>
                             <p>Duration: <span className="text-slate-800 font-bold">{p.duration || '3 Weeks'}</span></p>
@@ -2346,7 +2714,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         {/* Right Budget */}
                         <div className="text-right shrink-0">
                           <span className="font-extrabold text-slate-900 text-xl sm:text-2xl block">{formatCurrency(p.budget)}</span>
-                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Agreed Budget</span>
+                          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">Agreed Budget</span>
                         </div>
                       </div>
 
@@ -2362,7 +2730,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   setApplicationFilter('All');
                                   setActiveTab('applications');
                                 }}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
+                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
                               >
                                 <span>📋</span>
                                 <span>View Applications ({pApplicantCount})</span>
@@ -2370,7 +2738,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                               <button 
                                 onClick={() => setSelectedManageProject(p)}
-                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
+                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                               >
                                 <span>⚙️</span>
                                 <span>Manage Project</span>
@@ -2378,7 +2746,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                               <button 
                                 onClick={() => handleClosePosting(p)}
-                                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
                               >
                                 <span>🔒</span>
                                 <span>Close Posting</span>
@@ -2388,7 +2756,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             <>
                               <button 
                                 onClick={() => setSelectedProjectDetailView(p)}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
+                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
                               >
                                 <span>👁️</span>
                                 <span>View Project Details</span>
@@ -2397,7 +2765,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               {linkedContract && (
                                 <button 
                                   onClick={() => setSelectedContractDetail(linkedContract)}
-                                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
+                                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                                 >
                                   <span>📄</span>
                                   <span>View Contract ({contractCode})</span>
@@ -2406,7 +2774,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                               <button 
                                 onClick={() => { setSelectedKanbanProject(p.title); setActiveTab('kanban'); }}
-                                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5"
+                                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1.5"
                               >
                                 <span>📌</span>
                                 <span>Sprint Task Board</span>
@@ -2440,7 +2808,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Project Applications ({proposals.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
                   Review incoming freelancer bids, inspect cover letters, and hire candidates.
                 </p>
               </div>
@@ -2451,7 +2819,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <button
                     key={f}
                     onClick={() => setApplicationFilter(f)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                       applicationFilter === f 
                         ? 'bg-[#2563eb] text-white shadow-xs' 
                         : 'text-slate-600 hover:bg-slate-100'
@@ -2470,7 +2838,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     👥
                   </div>
                   <h3 className="font-extrabold text-lg text-slate-900">No pending applications</h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto">
                     Applications submitted by freelancers for your posted projects will appear here for review.
                   </p>
                 </div>
@@ -2503,7 +2871,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               <div className="flex items-center space-x-2 flex-wrap">
                                 <h4 className="font-extrabold text-lg text-slate-900 leading-snug">{pr.freelancer}</h4>
                                 {isAccepted && (
-                                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-extrabold text-[10px] rounded-full border border-emerald-200">
+                                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-extrabold text-xs rounded-full border border-emerald-200">
                                     ✓ Hired & Active Contract
                                   </span>
                                 )}
@@ -2511,7 +2879,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               <p className="text-xs font-bold text-[#2563eb] mt-0.5">
                                 {pr.title} • <span className="text-amber-500 font-extrabold">★ {pr.rating}</span>
                               </p>
-                              <p className="text-xs text-slate-500 font-semibold mt-1">
+                              <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold mt-1">
                                 Applied for: <span className="text-slate-900 font-extrabold">{pr.projectTitle || pr.project}</span>
                               </p>
                             </div>
@@ -2519,7 +2887,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                           <div className="text-right shrink-0">
                             <span className="text-xl font-extrabold text-slate-900 block">{pr.bid || pr.bidAmount}</span>
-                            <span className="text-xs font-semibold text-slate-500 block">{pr.delivery || pr.deliveryTime} Delivery</span>
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">{pr.delivery || pr.deliveryTime} Delivery</span>
                           </div>
                         </div>
 
@@ -2530,7 +2898,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
                           <button 
                             onClick={() => { setSelectedChat(pr.freelancer); setActiveTab('messages'); }} 
-                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1"
+                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
                           >
                             <span>💬</span>
                             <span>Send Message</span>
@@ -2540,7 +2908,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             <>
                               <button 
                                 onClick={() => setActiveTab('freelancers')}
-                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
                               >
                                 <span>👥 View in Hired Roster ➔</span>
                               </button>
@@ -2551,7 +2919,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   setActiveTab('kanban'); 
                                   window.dispatchEvent(new Event('freematch_kanban_event'));
                                 }}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
+                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
                               >
                                 <span>📌 Track Sprint Task</span>
                               </button>
@@ -2563,14 +2931,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   setProposals(prev => prev.filter(item => item.id !== pr.id));
                                   setToast({ message: `Proposal from ${pr.freelancer} rejected.`, type: 'info' });
                                 }} 
-                                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
                               >
                                 Reject Proposal
                               </button>
 
                               <button 
                                 onClick={() => handleAcceptProposal(pr)} 
-                                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center space-x-1.5"
+                                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold transition-all shadow-xs cursor-pointer flex items-center space-x-1.5"
                               >
                                 <span>✓</span>
                                 <span>Hire Freelancer Now</span>
@@ -2593,7 +2961,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Hired Freelancers Roster ({hiredFreelancers.length})
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
                 Active contracts, performance tracking, and direct communication.
               </p>
             </div>
@@ -2606,7 +2974,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-lg text-slate-900">No freelancers hired yet</h3>
-                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 max-w-md mx-auto">
                       When you accept a freelancer proposal, your hired talent roster will be displayed here.
                     </p>
                   </div>
@@ -2642,7 +3010,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       {/* Metadata Rows: Active Project, Hourly Rate, Hired Date */}
                       <div className="pt-4 border-t border-slate-100 space-y-2.5">
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                             Active Project:
                           </span>
                           <span className="text-xs font-extrabold text-slate-900 text-right">
@@ -2651,7 +3019,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                             Hourly Rate:
                           </span>
                           <span className="text-xs font-extrabold text-emerald-600">
@@ -2660,7 +3028,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                             Hired Date:
                           </span>
                           <span className="text-xs font-semibold text-slate-700">
@@ -2674,7 +3042,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-2.5 pt-2">
                       <button 
                         onClick={() => setSelectedProfileFreelancer(hf)} 
-                        className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
+                        className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-sm font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
                       >
                         <span>👤</span>
                         <span>View Profile & Reviews</span>
@@ -2683,14 +3051,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <div className="grid grid-cols-2 gap-2.5">
                         <button 
                           onClick={() => { setSelectedChat(hf.name); setActiveTab('messages'); }} 
-                          className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1"
+                          className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1"
                         >
                           <span>💬 Chat</span>
                         </button>
 
                         <button 
                           onClick={() => { setSelectedKanbanProject(hf.project || 'All'); setActiveTab('kanban'); }} 
-                          className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1"
+                          className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1"
                         >
                           <span>📌 Tasks</span>
                         </button>
@@ -2711,7 +3079,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Contracts & Milestone Agreements ({contracts.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
                   Legal escrow hold agreements, terms of service, and freelancer contract documents.
                 </p>
               </div>
@@ -2722,7 +3090,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <button
                     key={f}
                     onClick={() => setContractFilter(f)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                       contractFilter === f 
                         ? 'bg-[#2563eb] text-white shadow-xs' 
                         : 'text-slate-600 hover:bg-slate-100'
@@ -2741,7 +3109,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     📋
                   </div>
                   <h3 className="font-extrabold text-lg text-slate-900">No active contracts yet</h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto">
                     Contracts are automatically created when you accept a freelancer's proposal.
                   </p>
                 </div>
@@ -2750,8 +3118,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   const cId = c.contractId || c.id;
                   const cProject = c.projectName || c.project;
                   const cFreelancer = c.freelancerName || c.freelancer;
-                  const cAmount = c.agreedAmount || c.amount;
-                  const cEscrow = c.escrowBalance || c.escrow;
+                  const cAmount = formatCurrency(c.agreedAmount || c.agreed_amount || c.amount);
+                  const cEscrow = formatCurrency(c.escrowBalance || c.escrow || c.amount);
                   const cDate = c.startDate || 'Aug 10, 2026';
 
                   return (
@@ -2778,7 +3146,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </span>
                         </div>
 
-                        <div className="flex items-center space-x-4 text-xs font-semibold text-slate-600 pt-1 flex-wrap gap-y-1">
+                        <div className="flex items-center space-x-4 text-sm font-semibold text-slate-700 pt-1 flex-wrap gap-y-1">
                           <p>Freelancer: <span className="text-slate-900 font-extrabold">{cFreelancer}</span></p>
                           <p>•</p>
                           <p>Start Date: <span className="text-slate-800 font-bold">{cDate}</span></p>
@@ -2790,12 +3158,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <div className="flex items-center space-x-3 shrink-0 flex-wrap gap-2">
                         <div className="text-right mr-2 hidden lg:block">
                           <span className="font-extrabold text-slate-900 text-lg block">{cAmount}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Agreed Budget</span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">Agreed Budget</span>
                         </div>
 
                         <button 
                           onClick={() => handleDownloadContractPDF(c)}
-                          className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-1"
+                          className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1"
                         >
                           <span>📄</span>
                           <span>Download Contract PDF</span>
@@ -2803,7 +3171,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                         <button 
                           onClick={() => setSelectedContractDetail(c)}
-                          className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1"
+                          className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1"
                         >
                           <span>👁️</span>
                           <span>View Contract</span>
@@ -2811,7 +3179,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                         <button 
                           onClick={() => handleRemoveContract(c)}
-                          className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                          className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
                           title="Remove contract agreement"
                         >
                           <span>🗑️</span>
@@ -2832,11 +3200,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Saved Freelancers ({savedFreelancers.length})</h2>
-                <p className="text-xs text-slate-500 font-medium mt-1">
+                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-1">
                   Manage your bookmarked talent, view candidate profiles, and hire freelancers directly into active projects.
                 </p>
               </div>
-              <button onClick={() => setActiveTab('applications')} className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-xs font-extrabold cursor-pointer border border-blue-200">
+              <button onClick={() => setActiveTab('applications')} className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-sm font-extrabold cursor-pointer border border-blue-200">
                 Explore Candidates →
               </button>
             </div>
@@ -2846,7 +3214,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <div className="col-span-full p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mx-auto">⭐</div>
                   <h3 className="font-extrabold text-slate-900 text-base">No Saved Freelancers Yet</h3>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">Bookmark top talent from proposals or candidate search to quickly hire them for future projects.</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium">Bookmark top talent from proposals or candidate search to quickly hire them for future projects.</p>
                 </div>
               ) : (
                 savedFreelancers.map((sf, idx) => (
@@ -2863,11 +3231,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </div>
                         </div>
                         <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                          {sf.hourly_rate || '$85/hr'}
+                          {sf.hourly_rate || '₹85/hr'}
                         </span>
                       </div>
 
-                      <div className="flex items-center space-x-3 text-xs font-semibold text-slate-600">
+                      <div className="flex items-center space-x-3 text-sm font-semibold text-slate-700">
                         <span className="text-amber-500 flex items-center space-x-1">
                           <span>⭐</span>
                           <span>{sf.rating || 5.0} / 5.0</span>
@@ -2877,7 +3245,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       </div>
 
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">SKILLS & EXPERTISE</span>
+                        <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">SKILLS & EXPERTISE</span>
                         <p className="text-xs font-medium text-slate-700">{sf.skills || 'React, Python, Django'}</p>
                       </div>
                     </div>
@@ -2928,26 +3296,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           <div className="p-8 space-y-6">
             <div>
               <h2 className="text-2xl font-bold">Payments & Escrow Management</h2>
-              <p className="text-xs text-slate-400">Track milestone deposits, release funds to freelancers, and download tax invoices.</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">Track milestone deposits, release funds to freelancers, and download tax invoices.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className={`p-6 rounded-3xl border border-amber-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">ESCROW LOCKED BALANCE</p>
-                <p className="text-3xl font-extrabold text-amber-400 mt-2">$6,500.00</p>
-                <p className="text-xs text-slate-400 mt-2">Held securely in milestone escrow</p>
+                <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">ESCROW LOCKED BALANCE</p>
+                <p className="text-3xl font-extrabold text-amber-400 mt-2">₹6,500</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Held securely in milestone escrow</p>
               </div>
 
               <div className={`p-6 rounded-3xl border border-emerald-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">TOTAL RELEASED PAYMENTS</p>
-                <p className="text-3xl font-extrabold text-emerald-400 mt-2">$36,000.00</p>
-                <p className="text-xs text-slate-400 mt-2">Successfully paid to freelancers</p>
+                <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">TOTAL RELEASED PAYMENTS</p>
+                <p className="text-3xl font-extrabold text-emerald-400 mt-2">₹36,000</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Successfully paid to freelancers</p>
               </div>
 
               <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">CONNECTED GATEWAY</p>
+                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">CONNECTED GATEWAY</p>
                 <p className={`text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Stripe & Razorpay</p>
-                <p className="text-xs text-slate-400 mt-2">Auto-escrow verification active</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Auto-escrow verification active</p>
               </div>
             </div>
 
@@ -2957,7 +3325,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+                    <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-600 dark:text-slate-300' : 'border-slate-200 text-slate-700 dark:text-slate-300'}`}>
                       <th className="pb-3 font-bold">Invoice ID</th>
                       <th className="pb-3 font-bold">Date</th>
                       <th className="pb-3 font-bold">Project & Milestone</th>
@@ -2970,15 +3338,15 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     {payments.map(py => (
                       <tr key={py.id} className="hover:bg-slate-800/30 transition-colors">
                         <td className="py-3 font-bold text-blue-400">{py.id}</td>
-                        <td className="py-3 text-slate-400">{py.date}</td>
+                        <td className="py-3 text-slate-600 dark:text-slate-300">{py.date}</td>
                         <td className="py-3">
                           <p className="font-bold">{py.project}</p>
-                          <p className="text-[10px] text-slate-400">{py.milestone}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">{py.milestone}</p>
                         </td>
                         <td className={`py-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{py.type}</td>
-                        <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{py.amount}</td>
+                        <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(py.amount)}</td>
                         <td className="py-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
                             py.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                           }`}>
                             {py.status}
@@ -2997,29 +3365,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {activeTab === 'reviews' && (
           <div className="p-8 space-y-6">
             <div>
-              <h2 className="text-2xl font-bold">Reviews & Performance Feedback</h2>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Rate completed freelancer deliverables, update database performance metrics, and inspect review history.</p>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900">Reviews & Performance Feedback</h2>
+              <p className="text-sm font-semibold text-slate-700 mt-1">Rate completed freelancer deliverables, update database performance metrics, and inspect review history.</p>
             </div>
 
             {/* 1. Review Submission Form with Target Candidate Selector */}
-            <div className={`p-6 sm:p-8 rounded-3xl border space-y-6 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/40 pb-4">
+            <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
                 <div>
-                  <h3 className="font-bold text-base">Leave Performance Rating for Completed Contract</h3>
-                  <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Submitted ratings feed into freelancer public profiles and AI matching algorithms.</p>
+                  <h3 className="font-black text-lg text-slate-900">Leave Performance Rating for Completed Contract</h3>
+                  <p className="text-sm font-semibold text-slate-700 mt-0.5">Submitted ratings feed into freelancer public profiles and AI matching algorithms.</p>
                 </div>
 
                 <div className="w-full sm:w-auto">
-                  <label className={`block text-[10px] font-bold uppercase mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>SELECT COMPLETED FREELANCER / PROJECT</label>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-900 mb-1.5">SELECT COMPLETED FREELANCER / PROJECT</label>
                   <select
                     value={selectedCandidate.id}
                     onChange={(e) => {
                       const found = REVIEWABLE_CANDIDATES.find(c => c.id === e.target.value);
                       if (found) setSelectedCandidate(found);
                     }}
-                    className={`w-full sm:w-auto p-2.5 border rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 ${
-                      isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                    }`}
+                    className="w-full sm:w-auto p-3 border rounded-xl text-sm font-extrabold focus:outline-none focus:border-blue-500 bg-slate-50 border-slate-300 text-slate-900 shadow-2xs cursor-pointer"
                   >
                     {REVIEWABLE_CANDIDATES.map(cand => (
                       <option key={cand.id} value={cand.id}>
@@ -3031,86 +3397,82 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </div>
 
               {/* Target Candidate Preview Banner */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-                isDark ? 'bg-blue-950/20 border-blue-500/30' : 'bg-blue-50/80 border-blue-200'
-              }`}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-md">
+              <div className="p-4.5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 shadow-2xs">
+                <div className="flex items-center space-x-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-base shadow-md">
                     {selectedCandidate.avatar}
                   </div>
                   <div>
-                    <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedCandidate.freelancer}</h4>
-                    <p className="text-xs text-blue-600 font-bold">Project: {selectedCandidate.projectTitle}</p>
+                    <h4 className="font-black text-base text-slate-900">{selectedCandidate.freelancer}</h4>
+                    <p className="text-sm text-blue-700 font-extrabold mt-0.5">Project: {selectedCandidate.projectTitle}</p>
                   </div>
                 </div>
-                <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Agreed Rate: {selectedCandidate.rate}</span>
+                <span className="text-sm font-black text-slate-900 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">Agreed Rate: {formatHourlyRate(selectedCandidate.rate)}</span>
               </div>
 
               <form onSubmit={handleAddReview} className="space-y-5">
                 
                 {/* 4. Granular Category Ratings */}
-                <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl border ${
-                  isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-100 border-slate-200'
-                }`}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 p-5 rounded-2xl border bg-slate-100/90 border-slate-300 shadow-2xs">
                   
                   {/* Communication */}
-                  <div className="space-y-1">
-                    <label className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>💬 Communication</label>
-                    <div className="flex items-center space-x-1 text-amber-500 text-base">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-black block text-slate-900">💬 Communication</label>
+                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
                       {[1, 2, 3, 4, 5].map(s => (
                         <button 
                           type="button" 
                           key={s} 
                           onClick={() => setCommRating(s)}
-                          className={`cursor-pointer ${commRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          className={`cursor-pointer transition-transform hover:scale-110 ${commRating >= s ? 'opacity-100' : 'opacity-30'}`}
                         >
                           ★
                         </button>
                       ))}
-                      <span className={`text-[10px] font-bold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{commRating}/5</span>
+                      <span className="text-sm font-black text-slate-900 ml-2">{commRating}/5</span>
                     </div>
                   </div>
 
                   {/* Code Quality */}
-                  <div className="space-y-1">
-                    <label className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>💻 Code Quality</label>
-                    <div className="flex items-center space-x-1 text-amber-500 text-base">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-black block text-slate-900">💻 Code Quality</label>
+                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
                       {[1, 2, 3, 4, 5].map(s => (
                         <button 
                           type="button" 
                           key={s} 
                           onClick={() => setCodeRating(s)}
-                          className={`cursor-pointer ${codeRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          className={`cursor-pointer transition-transform hover:scale-110 ${codeRating >= s ? 'opacity-100' : 'opacity-30'}`}
                         >
                           ★
                         </button>
                       ))}
-                      <span className={`text-[10px] font-bold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{codeRating}/5</span>
+                      <span className="text-sm font-black text-slate-900 ml-2">{codeRating}/5</span>
                     </div>
                   </div>
 
                   {/* Deadline Adherence */}
-                  <div className="space-y-1">
-                    <label className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>⏱️ Deadline Adherence</label>
-                    <div className="flex items-center space-x-1 text-amber-500 text-base">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-black block text-slate-900">⏱️ Deadline Adherence</label>
+                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
                       {[1, 2, 3, 4, 5].map(s => (
                         <button 
                           type="button" 
                           key={s} 
                           onClick={() => setDeadlineRating(s)}
-                          className={`cursor-pointer ${deadlineRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          className={`cursor-pointer transition-transform hover:scale-110 ${deadlineRating >= s ? 'opacity-100' : 'opacity-30'}`}
                         >
                           ★
                         </button>
                       ))}
-                      <span className={`text-[10px] font-bold ml-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{deadlineRating}/5</span>
+                      <span className="text-sm font-black text-slate-900 ml-2">{deadlineRating}/5</span>
                     </div>
                   </div>
 
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-emerald-600">
+                  <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xs">
                     Overall Computed Score: {Math.round((commRating + codeRating + deadlineRating) / 3.0)} / 5 Stars ★
                   </span>
                 </div>
@@ -3121,12 +3483,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   value={commentInput}
                   onChange={(e) => setCommentInput(e.target.value)}
                   placeholder={`Write detailed evaluation for ${selectedCandidate.freelancer} regarding sprint deliverables, unit testing, and communication...`}
-                  className={`w-full p-3.5 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                    isDark ? 'bg-[#081024] text-white border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-300 placeholder:text-slate-400'
-                  }`}
+                  className="w-full p-4 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-900 border-slate-300 placeholder:text-slate-500 shadow-2xs"
                 ></textarea>
 
-                <button type="submit" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer">
+                <button type="submit" className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black shadow-md cursor-pointer transition-all">
                   Submit Review & Boost AI Match Score
                 </button>
               </form>
@@ -3134,26 +3494,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             {/* 3. Separate Given vs Received Filter Tabs */}
             <div className="space-y-4 pt-4">
-              <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
-                <h3 className="font-bold text-base">Review History</h3>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 className="font-black text-xl text-slate-900">Review History</h3>
 
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setReviewTab('given')}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer ${
                       reviewTab === 'given' 
                         ? 'bg-blue-600 text-white shadow-xs' 
-                        : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
                     Reviews Given ({reviews.filter(r => r.type === 'given').length})
                   </button>
                   <button
                     onClick={() => setReviewTab('received')}
-                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer ${
                       reviewTab === 'received' 
                         ? 'bg-blue-600 text-white shadow-xs' 
-                        : isDark ? 'bg-slate-800/60 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
                     Reviews Received ({reviews.filter(r => r.type === 'received').length})
@@ -3162,35 +3522,33 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </div>
 
               {/* 2. Review History Cards with Project Context */}
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {reviews.filter(r => r.type === reviewTab).map(rv => (
-                  <div key={rv.id} className={`p-5 rounded-2xl border space-y-2.5 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
+                  <div key={rv.id} className="p-5 sm:p-6 rounded-2xl border space-y-3 bg-white border-slate-200 shadow-xs">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2 flex-wrap">
-                        <span className={`font-bold text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>{rv.reviewer}</span>
-                        <span className="text-slate-400 text-xs">➔</span>
-                        <span className="text-blue-600 text-xs font-bold">{rv.reviewee}</span>
+                        <span className="font-black text-base text-slate-900">{rv.reviewer}</span>
+                        <span className="text-slate-600 font-extrabold text-sm mx-1">➔</span>
+                        <span className="text-blue-700 text-base font-black">{rv.reviewee}</span>
                         {/* Project Context */}
-                        <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                          (Project: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{rv.projectTitle}</span>)
+                        <span className="text-sm font-bold text-slate-700">
+                          (Project: <span className="font-black text-slate-900">{rv.projectTitle}</span>)
                         </span>
                       </div>
-                      <div className="text-amber-500 text-xs font-bold flex items-center space-x-1">
+                      <div className="text-amber-500 text-base font-black flex items-center space-x-1">
                         <span>{'★'.repeat(rv.rating)}</span>
-                        <span className={`font-mono text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>({rv.rating}/5)</span>
+                        <span className="font-mono text-sm font-black text-slate-800">({rv.rating}/5)</span>
                       </div>
                     </div>
 
-                    <p className={`text-xs italic p-3 rounded-xl border font-medium ${
-                      isDark ? 'bg-[#040919] border-slate-800 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-800'
-                    }`}>
+                    <p className="text-sm font-semibold italic p-4 rounded-xl border bg-slate-100/90 border-slate-300 text-slate-900 shadow-2xs leading-relaxed">
                       "{rv.comment}"
                     </p>
 
-                    <div className={`flex items-center justify-between text-[10px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
+                    <div className="flex items-center justify-between text-sm font-bold text-slate-700">
                       <span>Posted: {rv.date}</span>
                       {rv.comm && (
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-700'}>
+                        <span className="text-slate-900 font-extrabold">
                           💬 Comm: {rv.comm}★ • 💻 Quality: {rv.code}★ • ⏱️ Deadline: {rv.deadline}★
                         </span>
                       )}
@@ -3246,15 +3604,15 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-xl font-bold">Edit Client Profile</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Update public company profile and display credentials.</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">Update public company profile and display credentials.</p>
               </div>
-              <button onClick={() => setShowEditProfileModal(false)} className="text-slate-400 hover:text-white text-lg">✕</button>
+              <button onClick={() => setShowEditProfileModal(false)} className="text-slate-600 dark:text-slate-300 hover:text-white text-lg">✕</button>
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               {/* PROFILE PICTURE CONTROLS */}
               <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#040919] border-slate-800' : 'bg-slate-50 border-slate-200'} space-y-3`}>
-                <label className="block text-xs font-bold text-blue-500 uppercase">Profile Picture</label>
+                <label className="block text-sm font-extrabold text-blue-500 uppercase">Profile Picture</label>
                 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   {/* Current / Preview Avatar */}
@@ -3273,7 +3631,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                   <div className="space-y-2 flex-1 w-full sm:w-auto">
                     <div className="flex flex-wrap items-center gap-2">
-                      <label className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all inline-flex items-center space-x-1 shadow-xs">
+                      <label className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold cursor-pointer transition-all inline-flex items-center space-x-1 shadow-xs">
                         <span>📤</span>
                         <span>{editAvatarUrl || clientAvatarPreview ? 'Change Profile Picture' : 'Upload Profile Picture'}</span>
                         <input 
@@ -3288,7 +3646,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <button
                           type="button"
                           onClick={confirmRemoveClientAvatar}
-                          className="px-3 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1"
+                          className="px-3 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
                         >
                           <span>🗑️</span>
                           <span>Remove Picture</span>
@@ -3296,18 +3654,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       )}
                     </div>
 
-                    <p className="text-[10px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                       Supported formats: JPG, PNG, WEBP. Maximum file size: 5MB.
                     </p>
                     {clientAvatarError && (
-                      <p className="text-rose-400 text-[11px] font-extrabold">{clientAvatarError}</p>
+                      <p className="text-rose-400 text-xs font-extrabold">{clientAvatarError}</p>
                     )}
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Display Name</label>
+                <label className="block text-sm font-extrabold text-slate-600 dark:text-slate-300 mb-1 uppercase">Display Name</label>
                 <input
                   type="text"
                   required
@@ -3320,7 +3678,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Company Name</label>
+                <label className="block text-sm font-extrabold text-slate-600 dark:text-slate-300 mb-1 uppercase">Company Name</label>
                 <input
                   type="text"
                   required
@@ -3334,7 +3692,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Industry</label>
+                  <label className="block text-sm font-extrabold text-slate-600 dark:text-slate-300 mb-1 uppercase">Industry</label>
                   <input
                     type="text"
                     required
@@ -3346,7 +3704,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Website</label>
+                  <label className="block text-sm font-extrabold text-slate-600 dark:text-slate-300 mb-1 uppercase">Website</label>
                   <input
                     type="text"
                     required
@@ -3360,7 +3718,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Company Description / About Us</label>
+                <label className="block text-sm font-extrabold text-slate-600 dark:text-slate-300 mb-1 uppercase">Company Description / About Us</label>
                 <textarea
                   rows="4"
                   required
@@ -3376,13 +3734,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <button
                   type="button"
                   onClick={() => setShowEditProfileModal(false)}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md cursor-pointer"
                 >
                   Save Profile Changes
                 </button>
@@ -3393,214 +3751,516 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       )}
 
       {/* SECTION 2: POST PROJECT STEP-BY-STEP MODAL */}
-      {showPostProjectModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`p-6 sm:p-8 rounded-3xl max-w-xl w-full border shadow-2xl max-h-[90vh] overflow-y-auto ${
-            isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-          }`}>
-            <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-              <div>
-                <h3 className="text-xl font-bold">Post New Marketplace Project</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Define project scope, skills, budget, and payment milestones.</p>
-              </div>
-              <button onClick={() => setShowPostProjectModal(false)} className="text-slate-400 hover:text-white text-lg">✕</button>
-            </div>
+      {showPostProjectModal && (() => {
+        const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+        const numBudget = parseFloat(budget) || 0;
+        const isBudgetMatched = numBudget > 0 && Math.abs(totalMilestoneSum - numBudget) < 0.01;
+        const hasBudgetMismatch = numBudget > 0 && !isBudgetMatched;
 
-            <form onSubmit={handlePostProject} className="space-y-5">
+        return (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+            <div className={`max-w-5xl w-full max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+              isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
               
-              {/* Title & Category */}
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Project Title</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={projectTitle} 
-                  onChange={(e) => setProjectTitle(e.target.value)} 
-                  placeholder="e.g. Full Stack Web App / AI Search Engine" 
-                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`} 
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                    }`}
+              {/* FIXED MODAL HEADER */}
+              <div className={`shrink-0 border-b p-6 sm:px-8 space-y-4 ${
+                isDark ? 'bg-[#060e22]/90 border-slate-800' : 'bg-slate-50/80 border-slate-100'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-600 flex items-center justify-center shadow-2xs shrink-0">
+                      <FileText className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black tracking-tight text-slate-900">Post New Marketplace Project</h3>
+                      <p className="text-xs text-slate-700 font-semibold mt-0.5">
+                        Define your project requirements, budget, milestones, and deliverables.
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPostProjectModal(false)}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-200/80"
                   >
-                    <option value="Software Development">Software Development</option>
-                    <option value="Data Science & AI">Data Science & AI</option>
-                    <option value="UI/UX & Visual Design">UI/UX & Visual Design</option>
-                    <option value="Cybersecurity">Cybersecurity</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Required Skills</label>
-                  <input 
-                    type="text" 
-                    value={skillsReq} 
-                    onChange={(e) => setSkillsReq(e.target.value)} 
-                    placeholder="React, Django, Python" 
-                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                    }`} 
-                  />
-                </div>
-              </div>
-
-              {/* Budget & Timeline */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Total Budget ($ USD)</label>
-                  <input 
-                    type="number" 
-                    required 
-                    value={budget} 
-                    onChange={(e) => setBudget(e.target.value)} 
-                    placeholder="5000" 
-                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                    }`} 
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Estimated Duration</label>
-                  <input 
-                    type="text" 
-                    value={duration} 
-                    onChange={(e) => setDuration(e.target.value)} 
-                    placeholder="3 Weeks" 
-                    className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                      isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                    }`} 
-                  />
-                </div>
-              </div>
-
-              {/* Milestone Breakdown */}
-              <div className="space-y-2 border-t border-slate-800 pt-4">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-400 uppercase">Payment Milestone Breakdown</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMilestoneItems([...milestoneItems, { id: Date.now(), title: `Phase ${milestoneItems.length + 1}: Sprint Deliverable`, amount: '1000' }]);
-                    }}
-                    className="text-[10px] text-blue-400 font-bold hover:underline"
-                  >
-                    + Add Milestone Phase
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-                {milestoneItems.map((ms, idx) => (
-                  <div key={ms.id} className="flex items-center space-x-2">
-                    <input 
-                      type="text" 
-                      value={ms.title} 
-                      onChange={(e) => {
-                        const updated = [...milestoneItems];
-                        updated[idx].title = e.target.value;
-                        setMilestoneItems(updated);
-                      }}
-                      className={`flex-1 p-2.5 border rounded-xl text-xs ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50 border-slate-200'}`} 
-                    />
-                    <input 
-                      type="number" 
-                      value={ms.amount} 
-                      onChange={(e) => {
-                        const updated = [...milestoneItems];
-                        updated[idx].amount = e.target.value;
-                        setMilestoneItems(updated);
-                      }}
-                      className={`w-24 p-2.5 border rounded-xl text-xs ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50 border-slate-200'}`} 
-                    />
+
+                {/* STEP INDICATOR BAR */}
+                <div className="flex items-center justify-between border-t border-slate-200 pt-4 text-xs font-bold overflow-x-auto gap-2 scrollbar-none">
+                  <div className="flex items-center space-x-2 text-blue-700 bg-blue-50 border border-blue-200 px-3.5 py-1.5 rounded-full shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black">1</span>
+                    <span className="font-extrabold text-blue-700">Project Details</span>
                   </div>
-                ))}
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Project Scope & Description</label>
-                <textarea 
-                  rows="3" 
-                  required 
-                  value={description} 
-                  onChange={(e) => setDescription(e.target.value)} 
-                  placeholder="Outline core project requirements, deliverables, and expectations..." 
-                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`}
-                ></textarea>
-              </div>
-
-              {/* File & Image Attachment Upload Box */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-400 uppercase">Attach Abstract Document or Image Specs (Optional)</label>
-                  <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">Optional</span>
+                  <div className="text-slate-400 font-bold">──</div>
+                  <div className="flex items-center space-x-2 text-slate-700 px-3 py-1.5 shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black">2</span>
+                    <span className="font-bold text-slate-700">Budget & Timeline</span>
+                  </div>
+                  <div className="text-slate-400 font-bold">──</div>
+                  <div className="flex items-center space-x-2 text-slate-700 px-3 py-1.5 shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black">3</span>
+                    <span className="font-bold text-slate-700">Milestones</span>
+                  </div>
+                  <div className="text-slate-400 font-bold">──</div>
+                  <div className="flex items-center space-x-2 text-slate-700 px-3 py-1.5 shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black">4</span>
+                    <span className="font-bold text-slate-700">Additional Details</span>
+                  </div>
+                  <div className="text-slate-400 font-bold">──</div>
+                  <div className="flex items-center space-x-2 text-slate-700 px-3 py-1.5 shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-black">5</span>
+                    <span className="font-bold text-slate-700">Review & Publish</span>
+                  </div>
                 </div>
 
-                {attachedFile ? (
-                  <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-blue-950/40 border-blue-500/40 text-white' : 'bg-blue-50 border-blue-200 text-slate-900'}`}>
-                    <div className="flex items-center space-x-3.5">
-                      <div className="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-xl shadow-inner shrink-0">
-                        {attachedFile.isImage ? '🖼️' : '📄'}
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs">{attachedFile.name}</p>
-                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">{attachedFile.size} • Attached for Freelancers</p>
+                {/* SAVED DRAFT RESUME BANNER */}
+                {savedDraftsList.length > 0 && (
+                  <div className="mt-3 p-3.5 rounded-2xl bg-amber-100/90 border border-amber-300 flex items-center justify-between gap-3 text-xs shadow-2xs">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <FileText className="w-4 h-4 text-amber-800 shrink-0" />
+                      <div className="truncate">
+                        <span className="font-black text-amber-950 truncate block text-xs">
+                          Saved Draft Available: "{savedDraftsList[0].projectTitle || 'Untitled Project Draft'}"
+                        </span>
+                        <span className="text-xs text-amber-900 block font-bold mt-0.5">
+                          Saved: {savedDraftsList[0].savedAt || 'Recently'}
+                        </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setAttachedFile(null)}
-                      className="text-xs text-rose-400 hover:text-rose-300 font-bold px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl cursor-pointer transition-all"
-                    >
-                      ✕ Remove File
-                    </button>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleResumeDraft(savedDraftsList[0])}
+                        className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
+                      >
+                        Resume Draft
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <label className={`w-full p-5 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
-                    isDark ? 'border-slate-800 hover:border-blue-500 bg-[#060e22]' : 'border-slate-300 hover:border-blue-500 bg-slate-50'
-                  }`}>
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg mb-2">
-                      📁
-                    </div>
-                    <span className="text-xs font-bold text-blue-400">Click or Drag & Drop to Upload File / Image Specs</span>
-                    <span className="text-[10px] text-slate-400 mt-1">Supports PDF, DOCX, PNG, JPG, Architecture Diagrams (Max 25MB)</span>
-                    <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-                  </label>
                 )}
               </div>
 
-              {/* Optional Text Notes */}
-              <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1.5 uppercase">Additional Technical Notes / GitHub Link (Optional)</label>
-                <input 
-                  type="text"
-                  value={projectAbstract} 
-                  onChange={(e) => setProjectAbstract(e.target.value)} 
-                  placeholder="e.g., https://github.com/techstream/ai-pipeline or notes on PyTorch 2.0 specs..." 
-                  className={`w-full p-3 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
-                    isDark ? 'bg-[#060e22] border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`}
-                />
-              </div>
+              {/* MODAL FORM WRAPPER */}
+              <form onSubmit={handlePostProject} className="flex-1 flex flex-col min-h-0">
+                
+                {/* SCROLLABLE CONTENT BODY */}
+                <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+                
+                {/* 1. PROJECT DETAILS SECTION */}
+                <div className={`p-6 rounded-2xl border space-y-5 ${
+                  isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/50 border-slate-200/80'
+                }`}>
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">PROJECT DETAILS</h4>
+                      <p className="text-xs text-slate-700 font-semibold">Tell us about your project and what you need</p>
+                    </div>
+                  </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-2">
-                <button type="button" onClick={() => setShowPostProjectModal(false)} className="px-4 py-2.5 text-xs text-slate-400 hover:text-white font-semibold">Cancel</button>
-                <button type="submit" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-lg">Publish Project to Marketplace</button>
-              </div>
-            </form>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Project Title */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-black text-slate-900">
+                        Project Title <span className="text-rose-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        required 
+                        value={projectTitle} 
+                        onChange={(e) => setProjectTitle(e.target.value)} 
+                        placeholder="e.g. AI-powered document analysis platform" 
+                        className="w-full p-3 border rounded-xl text-xs font-bold bg-white border-slate-300 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-2xs" 
+                      />
+                    </div>
+
+                    {/* Required Skills Chip Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-black text-slate-900">
+                        Required Skills <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="p-2 border rounded-xl flex flex-wrap items-center gap-1.5 min-h-[42px] bg-white border-slate-300 focus-within:border-blue-500 transition-all shadow-2xs">
+                        {currentSkillsList.map(skill => (
+                          <span key={skill} className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-extrabold">
+                            {skill}
+                            <button 
+                              type="button" 
+                              onClick={() => handleRemoveSkillTag(skill)} 
+                              className="hover:text-rose-500 ml-0.5 cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          value={skillTagInput}
+                          onChange={(e) => {
+                            if (e.target.value.includes(',')) {
+                              handleAddSkillTag(e.target.value);
+                            } else {
+                              setSkillTagInput(e.target.value);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault();
+                              handleAddSkillTag(skillTagInput);
+                            }
+                          }}
+                          onBlur={() => {
+                            if (skillTagInput.trim()) handleAddSkillTag(skillTagInput);
+                          }}
+                          placeholder={currentSkillsList.length === 0 ? "Add skills and press Enter (e.g. React, Python)" : "Add skill..."}
+                          className="flex-1 min-w-[120px] bg-transparent text-xs font-bold text-slate-900 focus:outline-none p-1 placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category Dropdown */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-black text-slate-900">
+                        Category <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          className="w-full p-3 pr-8 border rounded-xl text-xs font-bold bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 appearance-none transition-all shadow-2xs"
+                        >
+                          <option value="Software Development">Software Development</option>
+                          <option value="Data Science & AI">Data Science & AI</option>
+                          <option value="UI/UX & Visual Design">UI/UX & Visual Design</option>
+                          <option value="Cybersecurity">Cybersecurity</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-700 absolute right-3 top-3.5 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Estimated Duration */}
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-black text-slate-900">
+                        Estimated Duration <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={duration}
+                          onChange={(e) => setDuration(e.target.value)}
+                          className="w-full p-3 pr-8 border rounded-xl text-xs font-bold bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 appearance-none transition-all shadow-2xs"
+                        >
+                          <option value="1 Week">1 Week</option>
+                          <option value="2 Weeks">2 Weeks</option>
+                          <option value="3 Weeks">3 Weeks</option>
+                          <option value="1 Month">1 Month</option>
+                          <option value="2 Months">2 Months</option>
+                          <option value="3+ Months">3+ Months</option>
+                        </select>
+                        <Clock className="w-4 h-4 text-slate-700 absolute right-3 top-3.5 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2 & 3. BUDGET & TIMELINE + PAYMENT MILESTONES (2-COLUMN GRID) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* LEFT: BUDGET & TIMELINE */}
+                  <div className="lg:col-span-5 p-6 rounded-2xl border space-y-5 flex flex-col justify-between bg-slate-50/50 border-slate-200/80">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">BUDGET & TIMELINE</h4>
+                          <p className="text-xs text-slate-700 font-semibold">Set your budget and project duration</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-black text-slate-900">
+                          Total Budget (₹ INR) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-3 text-slate-900 font-black text-sm">₹</span>
+                          <input 
+                            type="number" 
+                            required 
+                            value={budget} 
+                            onChange={(e) => setBudget(e.target.value)} 
+                            placeholder="5,000" 
+                            className="w-full p-3 pl-8 border rounded-xl text-sm font-black bg-white border-slate-300 text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-2xs" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Escrow Notice Box */}
+                    <div className="p-4 rounded-xl border flex items-start space-x-3 bg-emerald-50/90 border-emerald-300 text-emerald-900">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                      <p className="text-xs font-bold leading-relaxed">
+                        Your payment will be securely held in escrow and released based on milestone completion.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: PAYMENT MILESTONES */}
+                  <div className={`lg:col-span-7 p-6 rounded-2xl border space-y-4 flex flex-col justify-between ${
+                    isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/50 border-slate-200/80'
+                  }`}>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                            <Milestone className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">PAYMENT MILESTONES</h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Break down your project into milestone phases</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMilestoneItems([
+                              ...milestoneItems, 
+                              { id: Date.now(), title: `Phase ${milestoneItems.length + 1}: Deliverable`, amount: '1000' }
+                            ]);
+                          }}
+                          className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                        >
+                          + Add Milestone
+                        </button>
+                      </div>
+
+                      {/* Milestone List Rows */}
+                      <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
+                        {milestoneItems.map((ms, idx) => (
+                          <div key={ms.id || idx} className="p-2.5 rounded-xl border flex items-center space-x-2.5 bg-white border-slate-300 shadow-2xs">
+                            <GripVertical className="w-4 h-4 text-slate-700 shrink-0 cursor-grab" />
+                            <input 
+                              type="text" 
+                              value={ms.title} 
+                              onChange={(e) => {
+                                const updated = [...milestoneItems];
+                                updated[idx].title = e.target.value;
+                                setMilestoneItems(updated);
+                              }}
+                              placeholder="Milestone Phase Title"
+                              className="flex-1 p-2 border rounded-lg text-xs font-bold text-slate-900 bg-slate-50 border-slate-300 focus:outline-none focus:border-blue-500" 
+                            />
+                            <div className="relative w-32 shrink-0">
+                              <span className="absolute left-2.5 top-2 text-slate-900 text-xs font-black">₹</span>
+                              <input 
+                                type="number" 
+                                value={ms.amount} 
+                                onChange={(e) => {
+                                  const updated = [...milestoneItems];
+                                  updated[idx].amount = e.target.value;
+                                  setMilestoneItems(updated);
+                                }}
+                                placeholder="1,000"
+                                className="w-full p-2 pl-6 border rounded-lg text-xs font-black text-slate-900 text-right bg-slate-50 border-slate-300 focus:outline-none focus:border-blue-500" 
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (milestoneItems.length > 1) {
+                                  setMilestoneItems(milestoneItems.filter((_, i) => i !== idx));
+                                }
+                              }}
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4 text-rose-600" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Milestone Footer Summary Bar */}
+                    <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2 mt-2 text-xs ${
+                      hasBudgetMismatch 
+                        ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold' 
+                        : 'bg-slate-100 border-slate-300 text-slate-900 font-bold'
+                    }`}>
+                      <div className="flex items-center space-x-4">
+                        <div>
+                          <span className="text-xs uppercase font-black text-slate-800 block">Total Budget</span>
+                          <span className="font-black text-blue-700 text-sm">₹{numBudget.toLocaleString('en-IN', { minimumFractionDigits: 0 })}</span>
+                        </div>
+                        <div className="border-l border-slate-300 pl-4">
+                          <span className="text-xs uppercase font-black text-slate-800 block">Allocated Milestones</span>
+                          <span className={`font-black text-sm ${hasBudgetMismatch ? 'text-amber-800' : 'text-emerald-700'}`}>
+                            ₹{totalMilestoneSum.toLocaleString('en-IN', { minimumFractionDigits: 0 })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        {isBudgetMatched ? (
+                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black rounded-lg flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Budget Matched
+                          </span>
+                        ) : hasBudgetMismatch ? (
+                          <span className="px-2.5 py-1 bg-amber-200 text-amber-950 border border-amber-400 text-xs font-black rounded-lg flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-900" /> Milestones total ₹{totalMilestoneSum.toLocaleString()} vs Budget ₹{numBudget.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* 4 & 5. SCOPE & DESCRIPTION + FILE ATTACHMENT (2-COLUMN GRID) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* LEFT: PROJECT SCOPE & DESCRIPTION */}
+                  <div className="p-6 rounded-2xl border space-y-3 flex flex-col justify-between bg-slate-50/50 border-slate-200/80">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">PROJECT SCOPE & DESCRIPTION</h4>
+                          <p className="text-xs text-slate-700 font-semibold">Describe your project goals, requirements, and expectations</p>
+                        </div>
+                      </div>
+
+                      <textarea 
+                        rows="5" 
+                        required 
+                        value={description} 
+                        onChange={(e) => setDescription(e.target.value)} 
+                        maxLength={2000}
+                        placeholder="Outline your project requirements, key deliverables, technical specifications, and expected outcomes..." 
+                        className="w-full p-3.5 border rounded-xl text-xs font-bold text-slate-900 bg-white border-slate-300 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-2xs"
+                      ></textarea>
+                    </div>
+
+                    <div className="text-right text-xs font-black text-slate-700">
+                      {(description || '').length} / 2000
+                    </div>
+                  </div>
+
+                  {/* RIGHT: ATTACH DOCUMENTS & SPECS */}
+                  <div className="p-6 rounded-2xl border space-y-3 flex flex-col justify-between bg-slate-50/50 border-slate-200/80">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                            <UploadCloud className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">ATTACH SPECS (OPTIONAL)</h4>
+                            <p className="text-xs text-slate-700 font-semibold">Upload project briefs or reference diagrams</p>
+                          </div>
+                        </div>
+                        <span className="text-xs text-blue-700 font-black bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">Optional</span>
+                      </div>
+
+                      {attachedFile ? (
+                        <div className="p-4 rounded-xl border flex items-center justify-between bg-blue-50/90 border-blue-200 text-slate-900">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-md shrink-0">
+                              {attachedFile.isImage ? 'IMG' : 'PDF'}
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-xs text-slate-900 truncate max-w-[180px]">{attachedFile.name}</p>
+                              <p className="text-xs text-slate-700 font-bold">{attachedFile.size}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAttachedFile(null)}
+                            className="p-1.5 text-slate-700 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full p-6 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white flex flex-col items-center justify-center cursor-pointer transition-all">
+                          <UploadCloud className="w-8 h-8 text-blue-600 mb-2" />
+                          <span className="text-xs font-extrabold text-blue-700">Drag & drop files here or click to browse</span>
+                          <span className="text-xs text-slate-700 font-semibold mt-1 text-center">Supports PDF, DOCX, PNG, JPG, Architecture Diagrams (Max 25MB)</span>
+                          <input type="file" accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* 6. ADDITIONAL TECHNICAL NOTES / GITHUB LINK */}
+                <div className="p-6 rounded-2xl border space-y-3 bg-slate-50/50 border-slate-200/80">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center">
+                      <Code className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">ADDITIONAL TECHNICAL NOTES / GITHUB LINK (OPTIONAL)</h4>
+                      <p className="text-xs text-slate-700 font-semibold">Share any technical notes, references, or GitHub repository link</p>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <LinkIcon className="w-4 h-4 text-slate-700 absolute left-3.5 top-3.5 pointer-events-none" />
+                    <input 
+                      type="text"
+                      value={projectAbstract} 
+                      onChange={(e) => setProjectAbstract(e.target.value)} 
+                      placeholder="e.g., https://github.com/username/project or additional technical requirements..." 
+                      className="w-full p-3 pl-10 border rounded-xl text-xs font-bold text-slate-900 bg-white border-slate-300 placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                </div>
+
+                {/* FIXED MODAL FOOTER */}
+                <div className="shrink-0 border-t p-4 sm:px-8 flex items-center justify-between bg-slate-100/90 border-slate-200">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPostProjectModal(false)}
+                    className="px-5 py-2.5 text-xs font-black text-slate-900 hover:text-black rounded-xl hover:bg-slate-200/90 transition-all cursor-pointer border border-slate-300"
+                  >
+                    Cancel
+                  </button>
+
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      type="button" 
+                      onClick={handleSaveDraft}
+                      className="px-5 py-2.5 rounded-xl text-xs font-extrabold border bg-white hover:bg-slate-50 text-slate-800 border-slate-300 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                    >
+                      <FileText className="w-4 h-4 text-slate-700" /> Save Draft
+                    </button>
+
+                    <button 
+                      type="submit" 
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all cursor-pointer flex items-center gap-2"
+                    >
+                      <Send className="w-4 h-4" /> Publish Project to Marketplace
+                    </button>
+                  </div>
+                </div>
+
+              </form>
+
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* FREELANCER PUBLIC PROFILE & REVIEWS MODAL */}
       {selectedProfileFreelancer && (() => {
@@ -3617,14 +4277,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               title: 'Senior PyTorch & React Architect',
               headline: 'Senior PyTorch & React Architect',
               location: 'San Francisco, CA',
-              hourlyRate: rawObj.rate || rawObj.hourly_rate || '$75/hr',
+              hourlyRate: rawObj.rate || rawObj.hourly_rate || '₹75/hr',
               availabilityStatus: 'Available for Work',
               availableHours: '40 hrs/week',
               yearsExperience: '7+',
               projectsCompleted: '18',
               jobSuccessRate: '100%',
               onTimeDelivery: '99%',
-              lifetimeEarnings: '$34,500',
+              lifetimeEarnings: '₹34,500',
               bio: 'Senior PyTorch & React Engineer specializing in low-latency deep learning inference engines, real-time WebGL/D3.js data visualization, and scalable Python microservices.',
               skills: ['PyTorch ML', 'React.js', 'FastAPI', 'Python', 'CUDA', 'TensorRT', 'D3.js', 'PostgreSQL', 'Vector DB', 'Tailwind CSS'],
               portfolioProjects: [
@@ -3648,14 +4308,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               title: 'Senior React, PyTorch & Django Architect',
               headline: 'Senior React, PyTorch & Django Architect',
               location: 'San Francisco, CA',
-              hourlyRate: rawObj.rate || rawObj.hourly_rate || '$75/hr',
+              hourlyRate: rawObj.rate || rawObj.hourly_rate || '₹75/hr',
               availabilityStatus: 'Available for Work',
               availableHours: '40 hrs/week',
               yearsExperience: '7+',
               projectsCompleted: '24',
               jobSuccessRate: '100%',
               onTimeDelivery: '98%',
-              lifetimeEarnings: '$28,900',
+              lifetimeEarnings: '₹2,89,000',
               bio: 'Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications.',
               skills: ['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'D3.js', 'REST API Architecture', 'OWASP Security', 'FastAPI'],
               portfolioProjects: [
@@ -3677,14 +4337,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               title: 'Senior AI Lead & Data Scientist',
               headline: 'Senior AI Lead & Data Scientist',
               location: 'Boston, MA',
-              hourlyRate: rawObj.rate || rawObj.hourly_rate || '$110/hr',
+              hourlyRate: rawObj.rate || rawObj.hourly_rate || '₹110/hr',
               availabilityStatus: 'Available for Work',
               availableHours: '30 hrs/week',
               yearsExperience: '8+',
               projectsCompleted: '22',
               jobSuccessRate: '100%',
               onTimeDelivery: '97%',
-              lifetimeEarnings: '$42,000',
+              lifetimeEarnings: '₹42,000',
               bio: 'Lead Data Scientist & AI Architect focused on NLP models, medical imaging DICOM analysis, and Graph Neural Networks.',
               skills: ['PyTorch', 'LangChain', 'Transformers', 'spaCy', 'Python', 'FastAPI', 'Neo4j', 'PostgreSQL'],
               portfolioProjects: [
@@ -3705,14 +4365,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             title: rawObj.title || 'Senior Software Engineer',
             headline: rawObj.title || 'Senior Software Engineer & AI Specialist',
             location: rawObj.location || 'San Francisco, CA',
-            hourlyRate: rawObj.rate || rawObj.hourly_rate || '$75/hr',
+            hourlyRate: rawObj.rate || rawObj.hourly_rate || '₹75/hr',
             availabilityStatus: 'Available for Work',
             availableHours: '40 hrs/week',
             yearsExperience: '5+',
             projectsCompleted: rawObj.completedProjects || '12',
             jobSuccessRate: '100%',
             onTimeDelivery: '98%',
-            lifetimeEarnings: rawObj.earnings || '$25,000',
+            lifetimeEarnings: rawObj.earnings || '₹25,000',
             bio: rawObj.bio || `${targetName} is a verified professional freelancer on FreeMatch AI with expertise in modern web stack and cloud solutions.`,
             skills: rawObj.skills ? (Array.isArray(rawObj.skills) ? rawObj.skills : String(rawObj.skills).split(',').map(s=>s.trim())) : ['React.js', 'Python', 'Django', 'PostgreSQL', 'REST API'],
             portfolioProjects: [],
@@ -3770,7 +4430,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </div>
               <button 
                 onClick={() => setSelectedContractDetail(null)} 
-                className="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer"
+                className="text-slate-600 dark:text-slate-300 hover:text-slate-700 text-xl font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -3779,37 +4439,37 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             {/* Grid 1: Client & Freelancer Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Client Information</p>
+                <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Client Information</p>
                 <p className="font-extrabold text-slate-900 text-base">{selectedContractDetail.clientName || selectedContractDetail.client || 'Abhilash K K'}</p>
-                <p className="text-xs text-slate-500">Account ID: {selectedContractDetail.clientId || 'client_1'}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.clientId || 'client_1'}</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Freelancer Information</p>
+                <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Freelancer Information</p>
                 <p className="font-extrabold text-[#2563eb] text-base">{selectedContractDetail.freelancerName || selectedContractDetail.freelancer || 'Alex Mercer'}</p>
-                <p className="text-xs text-slate-500">Account ID: {selectedContractDetail.freelancerId || 'fl_1'}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.freelancerId || 'fl_1'}</p>
               </div>
             </div>
 
             {/* Grid 2: Financial Terms */}
             <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/80 space-y-3">
-              <p className="text-[11px] font-extrabold text-[#2563eb] uppercase tracking-wider">Financial Terms & Escrow Status</p>
+              <p className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">Financial Terms & Escrow Status</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Agreed Budget</span>
-                  <span className="text-base font-extrabold text-slate-900 block">{selectedContractDetail.agreedAmount || selectedContractDetail.amount}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300 uppercase font-bold block">Agreed Budget</span>
+                  <span className="text-base font-extrabold text-slate-900 block">{formatCurrency(selectedContractDetail.agreedAmount || selectedContractDetail.agreed_amount || selectedContractDetail.amount)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Escrow Funded</span>
-                  <span className="text-base font-extrabold text-emerald-600 block">{selectedContractDetail.escrowBalance || selectedContractDetail.escrow}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300 uppercase font-bold block">Escrow Funded</span>
+                  <span className="text-base font-extrabold text-emerald-600 block">{formatCurrency(selectedContractDetail.escrowBalance || selectedContractDetail.escrow)}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Payment Type</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300 uppercase font-bold block">Payment Type</span>
                   <span className="text-xs font-bold text-slate-800 block">{selectedContractDetail.paymentType || 'Fixed Price'}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-500 uppercase font-bold block">Hourly Rate</span>
-                  <span className="text-xs font-bold text-slate-800 block">{selectedContractDetail.hourlyRate || '$75/hr'}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300 uppercase font-bold block">Hourly Rate</span>
+                  <span className="text-xs font-bold text-slate-800 block">{formatHourlyRate(selectedContractDetail.hourlyRate || selectedContractDetail.hourly_rate || '₹75/hr')}</span>
                 </div>
               </div>
             </div>
@@ -3823,11 +4483,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div key={m.id || m.number} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
                       <div>
                         <p className="font-extrabold text-slate-900">Phase {m.number}: {m.title}</p>
-                        <p className="text-slate-500 text-[11px] mt-0.5">{m.description || 'Milestone deliverable'}</p>
+                        <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">{m.description || 'Milestone deliverable'}</p>
                       </div>
                       <div className="text-right">
-                        <span className="font-extrabold text-emerald-600 text-sm block">{m.amount}</span>
-                        <span className="text-[10px] font-bold text-slate-400 block">{m.status}</span>
+                        <span className="font-extrabold text-emerald-600 text-sm block">{formatCurrency(m.amount)}</span>
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block">{m.status}</span>
                       </div>
                     </div>
                   ))
@@ -3835,11 +4495,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
                     <div>
                       <p className="font-extrabold text-slate-900">Phase 1: Full Implementation & Escrow Release</p>
-                      <p className="text-slate-500 text-[11px] mt-0.5">Core project milestone deliverable</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">Core project milestone deliverable</p>
                     </div>
                     <div className="text-right">
-                      <span className="font-extrabold text-emerald-600 text-sm block">{selectedContractDetail.agreedAmount || selectedContractDetail.amount}</span>
-                      <span className="text-[10px] font-bold text-slate-400 block">In Progress</span>
+                      <span className="font-extrabold text-emerald-600 text-sm block">{formatCurrency(selectedContractDetail.agreedAmount || selectedContractDetail.agreed_amount || selectedContractDetail.amount)}</span>
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block">In Progress</span>
                     </div>
                   </div>
                 )}
@@ -3872,11 +4532,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900">Manage Project Details</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Edit project scope, required skills, budget, or duration.</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5">Edit project scope, required skills, budget, or duration.</p>
               </div>
               <button 
                 onClick={() => setSelectedManageProject(null)}
-                className="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer"
+                className="text-slate-600 dark:text-slate-300 hover:text-slate-700 text-xl font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -4019,7 +4679,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
                 <button 
                   onClick={() => setSelectedProjectDetailView(null)} 
-                  className="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer"
+                  className="text-slate-600 dark:text-slate-300 hover:text-slate-700 text-xl font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -4028,14 +4688,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               {/* Grid 1: Project Overview */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
-                  <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">Project Overview</p>
+                  <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Project Overview</p>
                   <p className="text-slate-800 font-medium">Category: <span className="text-[#2563eb] font-bold">{p.category}</span></p>
                   <p className="text-slate-800 font-medium">Duration: <span className="font-bold">{p.duration || '3 Weeks'}</span></p>
                   <p className="text-slate-800 font-medium">Agreed Budget: <span className="text-slate-900 font-extrabold">{formatCurrency(p.budget)}</span></p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/80 space-y-1.5">
-                  <p className="text-[11px] font-extrabold text-[#2563eb] uppercase tracking-wider">Hired Freelancer & Escrow</p>
+                  <p className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">Hired Freelancer & Escrow</p>
                   <p className="text-slate-900 font-extrabold text-sm">{hiredName}</p>
                   <p className="text-slate-600 font-medium">Contract ID: <span className="text-emerald-600 font-bold">{contractCode}</span></p>
                   <p className="text-slate-600 font-medium">Escrow Funded: <span className="text-emerald-600 font-extrabold">{formatCurrency(p.budget)}</span></p>
@@ -4063,25 +4723,25 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900">1. Proposal Accepted & Freelancer Hired</p>
-                      <p className="text-slate-500 text-[11px]">{hiredName} was assigned to project deliverables.</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-xs">{hiredName} was assigned to project deliverables.</p>
                     </div>
-                    <span className="text-emerald-600 font-bold text-[11px]">Completed</span>
+                    <span className="text-emerald-600 font-bold text-xs">Completed</span>
                   </div>
 
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900">2. Contract Created & Escrow Locked</p>
-                      <p className="text-slate-500 text-[11px]">Contract {contractCode} generated in database with funded escrow.</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-xs">Contract {contractCode} generated in database with funded escrow.</p>
                     </div>
-                    <span className="text-emerald-600 font-bold text-[11px]">Completed</span>
+                    <span className="text-emerald-600 font-bold text-xs">Completed</span>
                   </div>
 
                   <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                     <div>
                       <p className="font-bold text-slate-900">3. Sprint Task Development</p>
-                      <p className="text-slate-500 text-[11px]">Active task development on Kanban Board ({pProgPct}% progress).</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-xs">Active task development on Kanban Board ({pProgPct}% progress).</p>
                     </div>
-                    <span className={`font-bold text-[11px] ${pProgPct === 100 ? 'text-emerald-600' : 'text-[#2563eb]'}`}>
+                    <span className={`font-bold text-xs ${pProgPct === 100 ? 'text-emerald-600' : 'text-[#2563eb]'}`}>
                       {pProgPct === 100 ? 'Completed' : 'In Progress'}
                     </span>
                   </div>
@@ -4121,7 +4781,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             </div>
             <div>
               <h3 className="font-extrabold text-lg text-slate-900">Are you sure you want to logout?</h3>
-              <p className="text-xs text-slate-500 mt-1">You will be signed out of your account session.</p>
+              <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">You will be signed out of your account session.</p>
             </div>
 
             <div className="flex items-center justify-center space-x-3 pt-2">

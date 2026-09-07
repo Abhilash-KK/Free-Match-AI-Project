@@ -80,18 +80,36 @@ export default function FreelancerProfileView({
   const loadReviewsData = useCallback(async () => {
     let combined = Array.isArray(reviews) ? [...reviews] : [];
 
-    // 1. Fetch from backend REST API
+    // 1. Fetch from backend REST API with user ID query
     try {
-      const res = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
-      if (res.ok) {
-        const apiData = await res.json();
-        if (Array.isArray(apiData)) {
-          combined = [...combined, ...apiData];
-        }
+      const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+      if (resUser.ok) {
+        const apiData = await resUser.json();
+        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
       }
     } catch (e) {}
 
-    // 2. Scan LocalStorage keys for reviews submitted by Clients
+    // 2. Fetch from backend REST API with display name query
+    if (initialFreelancerData?.name && initialFreelancerData.name !== authUsername) {
+      try {
+        const resName = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(initialFreelancerData.name)}`);
+        if (resName.ok) {
+          const apiData = await resName.json();
+          if (Array.isArray(apiData)) combined = [...combined, ...apiData];
+        }
+      } catch (e) {}
+    }
+
+    // 3. Fallback: Fetch all reviews endpoint
+    try {
+      const resAll = await fetch(`http://localhost:8000/api/reviews/`);
+      if (resAll.ok) {
+        const apiData = await resAll.json();
+        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
+      }
+    } catch (e) {}
+
+    // 4. Scan LocalStorage keys for reviews submitted by Clients
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -121,7 +139,7 @@ export default function FreelancerProfileView({
     });
 
     setFetchedReviews(Array.from(uniqueMap.values()));
-  }, [reviews, authUsername]);
+  }, [reviews, authUsername, initialFreelancerData]);
 
   useEffect(() => {
     loadReviewsData();
@@ -163,7 +181,7 @@ export default function FreelancerProfileView({
             title: initialFreelancerData.title || 'Senior React, PyTorch & Django Architect',
             headline: initialFreelancerData.headline || 'Senior React, PyTorch & Django Architect',
             location: initialFreelancerData.location || 'San Francisco, CA',
-            hourly_rate: initialFreelancerData.hourlyRate || '$75/hr',
+            hourly_rate: initialFreelancerData.hourlyRate || '₹4,000/hr',
             raw_hourly_rate: 75.0,
             availability_status: 'Available for Work',
             available_hours: '40 hrs/week',
@@ -195,7 +213,7 @@ export default function FreelancerProfileView({
             title: 'Freelancer Specialist',
             headline: 'Full Stack & AI Specialist',
             location: 'San Francisco, CA',
-            hourly_rate: '$65/hr',
+            hourly_rate: '₹4,000/hr',
             raw_hourly_rate: 65.0,
             availability_status: 'Available for Work',
             available_hours: '40 hrs/week',
@@ -273,7 +291,7 @@ export default function FreelancerProfileView({
       title: profile.title || '',
       headline: profile.headline || profile.title || '',
       location: profile.location || 'San Francisco, CA',
-      hourly_rate: profile.hourly_rate ? String(profile.hourly_rate).replace('$', '').replace('/hr', '').trim() : '75',
+      hourly_rate: profile.hourly_rate ? String(profile.hourly_rate).replace('$', '').replace('₹', '').replace('/hr', '').trim() : '4000',
       availability_status: profile.availability_status || 'Available for Work',
       available_hours: profile.available_hours || '40 hrs/week',
       years_experience: profile.years_experience || '7+',
@@ -366,7 +384,7 @@ export default function FreelancerProfileView({
         title: trimmedTitle,
         headline: payload.headline,
         location: payload.location,
-        hourly_rate: `$${rateNum}`,
+        hourly_rate: `₹${rateNum}/hr`,
         raw_hourly_rate: rateNum,
         availability_status: payload.availability_status,
         available_hours: payload.available_hours,
@@ -841,7 +859,7 @@ export default function FreelancerProfileView({
   // Helper variables
   if (loading || !profile) {
     return (
-      <div className="w-full py-16 text-center text-slate-400 font-bold space-y-3">
+      <div className="w-full py-16 text-center text-slate-600 dark:text-slate-300 font-bold space-y-3">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         <p className="text-xs uppercase tracking-wider">Syncing Profile with PostgreSQL DB...</p>
       </div>
@@ -852,7 +870,7 @@ export default function FreelancerProfileView({
   const title = profile.title || 'Senior Software Engineer';
   const headline = profile.headline || title;
   const location = profile.location || 'San Francisco, CA';
-  const hourlyRate = profile.hourly_rate || '$75/hr';
+  const hourlyRate = profile.hourly_rate || '₹4,000/hr';
   const availabilityStatus = profile.availability_status || 'Available for Work';
   const availableHours = profile.available_hours || '40 hrs/week';
   const bio = profile.bio || 'Professional Software Engineer specializing in modern full-stack web and AI systems.';
@@ -870,10 +888,12 @@ export default function FreelancerProfileView({
 
     const matchesName = cleanName && (target === cleanName || target.includes(cleanName) || cleanName.includes(target));
     const matchesUser = cleanUser && (target === cleanUser || target.includes(cleanUser) || cleanUser.includes(target));
-    const firstWord = cleanName.split(' ')[0];
-    const matchesFirstWord = firstWord && firstWord.length > 2 && target.includes(firstWord.toLowerCase());
+    const firstName = cleanName.split(' ')[0];
+    const firstUser = cleanUser.split('@')[0].split('.')[0];
+    const matchesFirstName = firstName && firstName.length > 2 && target.includes(firstName.toLowerCase());
+    const matchesFirstUser = firstUser && firstUser.length > 2 && target.includes(firstUser.toLowerCase());
 
-    return matchesName || matchesUser || matchesFirstWord;
+    return matchesName || matchesUser || matchesFirstName || matchesFirstUser;
   });
   const hasReviews = filteredReviews.length > 0;
   const avgRating = hasReviews 
@@ -907,7 +927,7 @@ export default function FreelancerProfileView({
         <div className="flex justify-between items-center pb-2 border-b border-slate-700/50">
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
               Verified Freelancer Profile View
             </span>
           </div>
@@ -941,19 +961,19 @@ export default function FreelancerProfileView({
               ></div>
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
-              <span className={`text-xs font-bold flex items-center space-x-1 ${profile.name && profile.title ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-bold flex items-center space-x-1 ${profile.name && profile.title ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /><span>Basic Information</span>
               </span>
-              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.skills || []).length > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.skills || []).length > 0 ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /><span>Skills & Stack</span>
               </span>
-              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.portfolio || []).length > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.portfolio || []).length > 0 ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /><span>Portfolio Projects</span>
               </span>
-              <span className={`text-xs font-bold flex items-center space-x-1 ${profile.resume_name ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-bold flex items-center space-x-1 ${profile.resume_name ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /><span>Resume & Bio</span>
               </span>
-              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.certifications || []).length > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+              <span className={`text-xs font-bold flex items-center space-x-1 ${(profile.certifications || []).length > 0 ? 'text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`}>
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /><span>Certifications</span>
               </span>
             </div>
@@ -962,14 +982,14 @@ export default function FreelancerProfileView({
           <div className="flex flex-wrap gap-2 shrink-0">
             <button 
               onClick={openEditProfileModal} 
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
             >
               <Pencil className="w-3.5 h-3.5" />
               <span>Edit Profile</span>
             </button>
             <button 
               onClick={() => setActiveModal('edit_skills')} 
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-extrabold transition-all cursor-pointer shadow-sm flex items-center space-x-1.5"
             >
               <Zap className="w-3.5 h-3.5" />
               <span>Edit Skills</span>
@@ -1002,7 +1022,7 @@ export default function FreelancerProfileView({
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{name}</h1>
-                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-extrabold rounded-full flex items-center space-x-1">
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-extrabold rounded-full flex items-center space-x-1">
                   <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 mr-1" />
                   <span>Verified Freelancer Pro</span>
                 </span>
@@ -1013,15 +1033,15 @@ export default function FreelancerProfileView({
               </p>
 
               {/* Status & Sub-meta */}
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-semibold pt-1">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300 font-semibold pt-1">
                 <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-extrabold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                   <span>{availabilityStatus}</span>
                 </span>
                 <span>•</span>
-                <span className="flex items-center space-x-1"><Clock className="w-3.5 h-3.5 text-slate-400 mr-1" /><span>{availableHours}</span></span>
+                <span className="flex items-center space-x-1"><Clock className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 mr-1" /><span>{availableHours}</span></span>
                 <span>•</span>
-                <span className="flex items-center space-x-1"><MapPin className="w-3.5 h-3.5 text-slate-400 mr-1" /><span>{location}</span></span>
+                <span className="flex items-center space-x-1"><MapPin className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300 mr-1" /><span>{location}</span></span>
                 <span>•</span>
                 <span className="text-emerald-400 font-extrabold flex items-center space-x-1"><Wallet className="w-3.5 h-3.5 text-emerald-400 mr-1" /><span>{hourlyRate}</span></span>
               </div>
@@ -1052,28 +1072,28 @@ export default function FreelancerProfileView({
               <div className="flex flex-wrap gap-2.5 w-full sm:w-auto">
                 <button 
                   onClick={openEditProfileModal} 
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span>Edit Profile</span>
                 </button>
                 <button 
                   onClick={() => setActiveModal('edit_skills')} 
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <Zap className="w-3.5 h-3.5" />
                   <span>Edit Skills</span>
                 </button>
                 <button 
                   onClick={() => openAddPortfolioModal()} 
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <FolderKanban className="w-3.5 h-3.5" />
                   <span>Portfolio</span>
                 </button>
                 <button 
                   onClick={() => setActiveModal('resume')} 
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Resume</span>
@@ -1089,43 +1109,43 @@ export default function FreelancerProfileView({
          ================================================== */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
         <div className={`p-4 sm:p-5 rounded-2xl border text-center space-y-1 transition-all ${subCardBg}`}>
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center space-x-1">
-            <Briefcase className="w-3 h-3 text-slate-400 mr-1" /><span>Experience</span>
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
+            <Briefcase className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Experience</span>
           </span>
           <p className="text-xl sm:text-2xl font-black text-blue-400">{profile.years_experience || '7+'}</p>
-          <span className="text-[10px] text-slate-500 font-bold block">Years Experience</span>
+          <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Years Experience</span>
         </div>
 
         <div className={`p-4 sm:p-5 rounded-2xl border text-center space-y-1 transition-all ${subCardBg}`}>
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center space-x-1">
-            <FolderKanban className="w-3 h-3 text-slate-400 mr-1" /><span>Completed</span>
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
+            <FolderKanban className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Completed</span>
           </span>
           <p className="text-xl sm:text-2xl font-black text-indigo-400">{(profile.portfolio || []).length || '24'}</p>
-          <span className="text-[10px] text-slate-500 font-bold block">Projects Completed</span>
+          <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Projects Completed</span>
         </div>
 
         <div className={`p-4 sm:p-5 rounded-2xl border text-center space-y-1 transition-all ${subCardBg}`}>
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center space-x-1">
-            <BadgeCheck className="w-3 h-3 text-slate-400 mr-1" /><span>Job Success</span>
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
+            <BadgeCheck className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Job Success</span>
           </span>
           <p className="text-xl sm:text-2xl font-black text-emerald-400">100%</p>
-          <span className="text-[10px] text-slate-500 font-bold block">Job Success Rate</span>
+          <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Job Success Rate</span>
         </div>
 
         <div className={`p-4 sm:p-5 rounded-2xl border text-center space-y-1 transition-all ${subCardBg}`}>
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center space-x-1">
-            <Clock className="w-3 h-3 text-slate-400 mr-1" /><span>On-Time</span>
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
+            <Clock className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>On-Time</span>
           </span>
           <p className="text-xl sm:text-2xl font-black text-amber-400">98%</p>
-          <span className="text-[10px] text-slate-500 font-bold block">On-Time Delivery</span>
+          <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">On-Time Delivery</span>
         </div>
 
         <div className={`p-4 sm:p-5 rounded-2xl border text-center space-y-1 transition-all col-span-2 sm:col-span-1 ${subCardBg}`}>
-          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center space-x-1">
-            <Wallet className="w-3 h-3 text-slate-400 mr-1" /><span>Earnings</span>
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
+            <Wallet className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Earnings</span>
           </span>
-          <p className="text-xl sm:text-2xl font-black text-emerald-400">{profile.total_earnings || '$28,900'}</p>
-          <span className="text-[10px] text-slate-500 font-bold block">Total Client Payouts</span>
+          <p className="text-xl sm:text-2xl font-black text-emerald-400">{profile.total_earnings || '₹2,89,000'}</p>
+          <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Total Client Payouts</span>
         </div>
       </div>
 
@@ -1159,7 +1179,7 @@ export default function FreelancerProfileView({
             <h2 className="text-xl font-extrabold tracking-tight">Technical Skills</h2>
           </div>
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-bold text-slate-400">
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
               {rawSkills.length} Verified Skills
             </span>
             {viewMode === 'freelancer' && (
@@ -1186,7 +1206,7 @@ export default function FreelancerProfileView({
                     {viewMode === 'freelancer' && (
                       <button 
                         onClick={() => confirmRemoveSkill(skill)} 
-                        className="text-slate-500 hover:text-rose-400 text-xs font-bold ml-1 cursor-pointer"
+                        className="text-slate-700 dark:text-slate-300 hover:text-rose-400 text-xs font-bold ml-1 cursor-pointer"
                         title="Remove skill"
                       >
                         <X className="w-3 h-3" />
@@ -1210,7 +1230,7 @@ export default function FreelancerProfileView({
             <h2 className="text-xl font-extrabold tracking-tight">Portfolio & Recent Projects</h2>
           </div>
           <div className="flex items-center space-x-3">
-            <span className="text-xs font-bold text-slate-400">
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
               {(profile.portfolio || []).length} Projects
             </span>
             {viewMode === 'freelancer' && (
@@ -1223,7 +1243,7 @@ export default function FreelancerProfileView({
 
         {(profile.portfolio || []).length === 0 ? (
           <div className={`p-8 text-center rounded-2xl border ${subCardBg}`}>
-            <p className="text-sm font-bold text-slate-400">No portfolio projects added yet.</p>
+            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No portfolio projects added yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1235,7 +1255,7 @@ export default function FreelancerProfileView({
                 <div className="space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-extrabold text-base text-blue-400 leading-snug">{proj.title}</h3>
-                    <span className={`px-2.5 py-0.5 text-[10px] font-extrabold rounded-full shrink-0 ${
+                    <span className={`px-2.5 py-0.5 text-xs font-extrabold rounded-full shrink-0 ${
                       proj.status === 'Completed' 
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                         : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -1250,7 +1270,7 @@ export default function FreelancerProfileView({
 
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {(proj.skills || []).map((tech, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-blue-500/10 text-blue-300 text-[10px] font-semibold rounded-md">
+                      <span key={idx} className="px-2 py-0.5 bg-blue-500/10 text-blue-300 text-xs font-semibold rounded-md">
                         {tech}
                       </span>
                     ))}
@@ -1261,7 +1281,7 @@ export default function FreelancerProfileView({
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => setProjectDetailModal(proj)}
-                      className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1"
+                      className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
                     >
                       <Eye className="w-3.5 h-3.5 mr-1" />
                       <span>View Project</span>
@@ -1302,7 +1322,7 @@ export default function FreelancerProfileView({
         </div>
 
         {(profile.experience || []).length === 0 ? (
-          <p className="text-xs text-slate-400 italic">No work experience listed yet.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 italic">No work experience listed yet.</p>
         ) : (
           <div className="relative pl-6 border-l-2 border-blue-500/30 space-y-8 my-4">
             {(profile.experience || []).map((exp, idx) => (
@@ -1324,7 +1344,7 @@ export default function FreelancerProfileView({
                   </div>
                 </div>
 
-                <p className="text-xs font-bold text-slate-400">{exp.organization}</p>
+                <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{exp.organization}</p>
                 <p className="text-xs text-slate-300 leading-relaxed font-medium">{exp.description}</p>
               </div>
             ))}
@@ -1354,7 +1374,7 @@ export default function FreelancerProfileView({
               )}
             </div>
             {(profile.education || []).length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No formal education listed.</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 italic">No formal education listed.</p>
             ) : (
               (profile.education || []).map((edu, idx) => (
                 <div key={idx} className="space-y-0.5 border-b border-slate-800/30 pb-2 last:border-b-0">
@@ -1362,12 +1382,12 @@ export default function FreelancerProfileView({
                     <p className="font-extrabold text-sm text-slate-200">{edu.degree}</p>
                     {viewMode === 'freelancer' && (
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => openAddEduModal(edu)} className="text-[10px] text-blue-400 hover:underline">Edit</button>
-                        <button onClick={() => confirmDeleteEducation(edu)} className="text-[10px] text-rose-400 hover:underline">Delete</button>
+                        <button onClick={() => openAddEduModal(edu)} className="text-xs text-blue-400 hover:underline">Edit</button>
+                        <button onClick={() => confirmDeleteEducation(edu)} className="text-xs text-rose-400 hover:underline">Delete</button>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-semibold">{edu.institution} • {edu.end_year}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">{edu.institution} • {edu.end_year}</p>
                 </div>
               ))
             )}
@@ -1385,7 +1405,7 @@ export default function FreelancerProfileView({
               )}
             </div>
             {(profile.certifications || []).length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No certifications added yet.</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300 italic">No certifications added yet.</p>
             ) : (
               (profile.certifications || []).map((cert, idx) => (
                 <div key={idx} className="space-y-0.5 border-b border-slate-800/30 pb-2 last:border-b-0">
@@ -1393,12 +1413,12 @@ export default function FreelancerProfileView({
                     <p className="font-extrabold text-sm text-emerald-400">{cert.name}</p>
                     {viewMode === 'freelancer' && (
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => openAddCertModal(cert)} className="text-[10px] text-blue-400 hover:underline">Edit</button>
-                        <button onClick={() => confirmDeleteCert(cert)} className="text-[10px] text-rose-400 hover:underline">Delete</button>
+                        <button onClick={() => openAddCertModal(cert)} className="text-xs text-blue-400 hover:underline">Edit</button>
+                        <button onClick={() => confirmDeleteCert(cert)} className="text-xs text-rose-400 hover:underline">Delete</button>
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-semibold">{cert.organization} • {cert.issue_date}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">{cert.organization} • {cert.issue_date}</p>
                 </div>
               ))
             )}
@@ -1417,7 +1437,7 @@ export default function FreelancerProfileView({
             </div>
             <div>
               <h2 className="text-xl font-extrabold tracking-tight">Client Reviews & Performance Feedback</h2>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium mt-0.5">
                 Verified ratings and project feedback submitted by clients after completed deliverables.
               </p>
             </div>
@@ -1433,10 +1453,10 @@ export default function FreelancerProfileView({
         {!hasReviews ? (
           <div className={`p-8 text-center rounded-2xl border space-y-2 ${subCardBg}`}>
             <div className="w-12 h-12 rounded-2xl bg-slate-800/60 border border-slate-700/50 text-amber-400 flex items-center justify-center mx-auto mb-3">
-              <Star className="w-6 h-6 text-slate-400" />
+              <Star className="w-6 h-6 text-slate-600 dark:text-slate-300" />
             </div>
             <p className="text-base font-extrabold text-slate-200">No client reviews yet.</p>
-            <p className="text-xs text-slate-400 font-medium">
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
               Reviews from completed projects will appear here.
             </p>
           </div>
@@ -1454,7 +1474,7 @@ export default function FreelancerProfileView({
                   <p className="text-xs font-extrabold uppercase tracking-wider text-amber-400">Overall Rating</p>
                   <div className="flex items-baseline space-x-2 mt-0.5">
                     <span className="text-3xl font-black tracking-tight text-amber-400">⭐ {avgRating}</span>
-                    <span className="text-sm font-extrabold text-slate-400">/ 5.0</span>
+                    <span className="text-sm font-extrabold text-slate-600 dark:text-slate-300">/ 5.0</span>
                   </div>
                 </div>
               </div>
@@ -1480,7 +1500,7 @@ export default function FreelancerProfileView({
                       )}
                       <div>
                         <h4 className="font-extrabold text-sm text-slate-100">{rv.reviewer || 'Client'}</h4>
-                        <p className="text-xs text-slate-400 font-medium">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                           Client • <span className="font-bold text-amber-400/90">{rv.projectTitle || rv.project_title || 'Completed Project'}</span>
                         </p>
                       </div>
@@ -1493,7 +1513,7 @@ export default function FreelancerProfileView({
                         ))}
                       </div>
                       <span className="text-xs font-black text-amber-400">⭐ {Number(rv.rating || 5).toFixed(1)} / 5.0</span>
-                      {rv.date && <span className="text-[10px] text-slate-500 font-semibold ml-2">({rv.date})</span>}
+                      {rv.date && <span className="text-xs text-slate-700 dark:text-slate-300 font-semibold ml-2">({rv.date})</span>}
                     </div>
                   </div>
 
@@ -1525,7 +1545,7 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-2xl w-full border shadow-2xl space-y-6 ${cardBg}`}>
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-extrabold text-blue-400">Edit Freelancer Profile</h3>
-              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setActiveModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
@@ -1550,7 +1570,7 @@ export default function FreelancerProfileView({
 
                   <div className="space-y-2 flex-1 w-full sm:w-auto">
                     <div className="flex flex-wrap items-center gap-2">
-                      <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all inline-flex items-center space-x-1.5 shadow-sm">
+                      <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-extrabold cursor-pointer transition-all inline-flex items-center space-x-1.5 shadow-sm">
                         <Upload className="w-3.5 h-3.5 mr-1" />
                         <span>{profileForm.avatar_url || avatarPreview ? 'Change Profile Picture' : 'Upload Profile Picture'}</span>
                         <input 
@@ -1565,7 +1585,7 @@ export default function FreelancerProfileView({
                         <button
                           type="button"
                           onClick={confirmRemoveAvatar}
-                          className="px-3.5 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center space-x-1"
+                          className="px-3.5 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/30 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-1" />
                           <span>Remove Picture</span>
@@ -1573,11 +1593,11 @@ export default function FreelancerProfileView({
                       )}
                     </div>
 
-                    <p className="text-[10px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                       Supported formats: JPG, PNG, WEBP. Maximum file size: 5MB.
                     </p>
                     {avatarError && (
-                      <p className="text-rose-400 text-[11px] font-extrabold">{avatarError}</p>
+                      <p className="text-rose-400 text-xs font-extrabold">{avatarError}</p>
                     )}
                   </div>
                 </div>
@@ -1591,7 +1611,7 @@ export default function FreelancerProfileView({
                   onChange={e => setProfileForm({ ...profileForm, name: e.target.value })} 
                   className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"
                 />
-                {formErrors.name && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.name}</p>}
+                {formErrors.name && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.name}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1603,11 +1623,11 @@ export default function FreelancerProfileView({
                     onChange={e => setProfileForm({ ...profileForm, title: e.target.value })} 
                     className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"
                   />
-                  {formErrors.title && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.title}</p>}
+                  {formErrors.title && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.title}</p>}
                 </div>
 
                 <div>
-                  <label className="text-xs font-extrabold block mb-1">Hourly Rate ($ USD / hr) *</label>
+                  <label className="text-xs font-extrabold block mb-1">Hourly Rate (₹ INR / hr) *</label>
                   <input 
                     type="number" 
                     step="0.01"
@@ -1615,7 +1635,7 @@ export default function FreelancerProfileView({
                     onChange={e => setProfileForm({ ...profileForm, hourly_rate: e.target.value })} 
                     className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"
                   />
-                  {formErrors.hourly_rate && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.hourly_rate}</p>}
+                  {formErrors.hourly_rate && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.hourly_rate}</p>}
                 </div>
               </div>
 
@@ -1657,7 +1677,7 @@ export default function FreelancerProfileView({
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-xs font-extrabold block">Professional Bio *</label>
-                  <span className="text-[10px] text-slate-400 font-bold">{profileForm.bio.length} / 5000 chars</span>
+                  <span className="text-xs text-slate-600 dark:text-slate-300 font-bold">{profileForm.bio.length} / 5000 chars</span>
                 </div>
                 <textarea 
                   rows="4" 
@@ -1665,21 +1685,21 @@ export default function FreelancerProfileView({
                   onChange={e => setProfileForm({ ...profileForm, bio: e.target.value })} 
                   className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs leading-relaxed"
                 ></textarea>
-                {formErrors.bio && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.bio}</p>}
+                {formErrors.bio && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.bio}</p>}
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
                 <button 
                   type="button" 
                   onClick={() => setActiveModal(null)} 
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   disabled={saving}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-extrabold cursor-pointer"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-extrabold cursor-pointer"
                 >
                   {saving ? 'Saving...' : 'Save Profile Changes'}
                 </button>
@@ -1695,7 +1715,7 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-lg w-full border shadow-2xl space-y-5 ${cardBg}`}>
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-extrabold text-blue-400">Edit Technical Skills</h3>
-              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setActiveModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleAddSkill} className="flex gap-2">
@@ -1717,14 +1737,14 @@ export default function FreelancerProfileView({
             </form>
 
             <div className="space-y-2">
-              <p className="text-xs font-bold text-slate-400 uppercase">Current Skills List ({rawSkills.length})</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">Current Skills List ({rawSkills.length})</p>
               <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-2 rounded-xl bg-slate-900/60 border border-slate-800">
                 {rawSkills.map((s, idx) => (
                   <span key={idx} className="px-3 py-1.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold rounded-xl flex items-center space-x-2">
                     <span>{s}</span>
                     <button 
                       onClick={() => confirmRemoveSkill(s)} 
-                      className="text-slate-400 hover:text-rose-400 text-xs font-bold ml-1"
+                      className="text-slate-600 dark:text-slate-300 hover:text-rose-400 text-xs font-bold ml-1"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -1746,7 +1766,7 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-xl w-full border shadow-2xl space-y-5 ${cardBg}`}>
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-extrabold text-blue-400">{portfolioForm.id ? 'Edit Portfolio Project' : 'Add Portfolio Project'}</h3>
-              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setActiveModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSavePortfolio} className="space-y-4">
@@ -1758,7 +1778,7 @@ export default function FreelancerProfileView({
                   onChange={e => setPortfolioForm({ ...portfolioForm, title: e.target.value })}
                   className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"
                 />
-                {formErrors.title && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.title}</p>}
+                {formErrors.title && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.title}</p>}
               </div>
 
               <div>
@@ -1769,7 +1789,7 @@ export default function FreelancerProfileView({
                   onChange={e => setPortfolioForm({ ...portfolioForm, description: e.target.value })}
                   className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"
                 ></textarea>
-                {formErrors.description && <p className="text-rose-400 text-[10px] font-bold mt-1">{formErrors.description}</p>}
+                {formErrors.description && <p className="text-rose-400 text-xs font-bold mt-1">{formErrors.description}</p>}
               </div>
 
               <div>
@@ -1809,8 +1829,8 @@ export default function FreelancerProfileView({
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold">Cancel</button>
-                <button type="submit" disabled={saving} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-extrabold">
+                <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold">Cancel</button>
+                <button type="submit" disabled={saving} className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-extrabold">
                   {saving ? 'Saving...' : portfolioForm.id ? 'Update Project' : 'Save Project'}
                 </button>
               </div>
@@ -1825,7 +1845,7 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-lg w-full border shadow-2xl space-y-5 ${cardBg}`}>
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-extrabold text-blue-400">Resume & CV Management</h3>
-              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setActiveModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             {profile.resume_name ? (
@@ -1834,7 +1854,7 @@ export default function FreelancerProfileView({
                   <FileText className="w-8 h-8 text-emerald-400 shrink-0" />
                   <div>
                     <p className="font-extrabold text-sm text-emerald-400">{profile.resume_name}</p>
-                    <p className="text-xs text-slate-400 font-semibold">{profile.resume_size} • Uploaded & Verified</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold">{profile.resume_size} • Uploaded & Verified</p>
                   </div>
                 </div>
 
@@ -1860,12 +1880,12 @@ export default function FreelancerProfileView({
               </div>
             ) : (
               <div className="p-6 border-2 border-dashed border-slate-700 rounded-2xl text-center space-y-3 bg-slate-900/40">
-                <Upload className="w-10 h-10 text-slate-400 mx-auto" />
+                <Upload className="w-10 h-10 text-slate-600 dark:text-slate-300 mx-auto" />
                 <div>
                   <p className="font-extrabold text-sm text-slate-200">Upload Professional Resume</p>
-                  <p className="text-xs text-slate-400 mt-1">Supported formats: PDF, DOCX (Max size: 5 MB)</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Supported formats: PDF, DOCX (Max size: 5 MB)</p>
                 </div>
-                <label className="inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-extrabold cursor-pointer">
+                <label className="inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-extrabold cursor-pointer">
                   <span>Browse File</span>
                   <input type="file" accept=".pdf,.docx,.doc" onChange={handleFileUpload} className="hidden" />
                 </label>
@@ -1885,7 +1905,7 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-md w-full border shadow-2xl space-y-5 ${cardBg}`}>
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="text-xl font-extrabold text-emerald-400">{certForm.id ? 'Edit Certification' : 'Add Certification'}</h3>
-              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setActiveModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSaveCertification} className="space-y-4">
@@ -1931,8 +1951,8 @@ export default function FreelancerProfileView({
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold">Cancel</button>
-                <button type="submit" disabled={saving} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-xs font-extrabold">Save Certification</button>
+                <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold">Cancel</button>
+                <button type="submit" disabled={saving} className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-sm font-extrabold">Save Certification</button>
               </div>
             </form>
           </div>
@@ -1950,7 +1970,7 @@ export default function FreelancerProfileView({
               <input type="text" placeholder="Graduation Year (e.g. 2019)" value={eduForm.end_year} onChange={e => setEduForm({ ...eduForm, end_year: e.target.value })} className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs" />
               <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Save Education</button>
+                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold">Save Education</button>
               </div>
             </form>
           </div>
@@ -1971,7 +1991,7 @@ export default function FreelancerProfileView({
               <textarea rows="3" placeholder="Job description & achievements..." value={expForm.description} onChange={e => setExpForm({ ...expForm, description: e.target.value })} className="w-full p-3 rounded-xl border border-slate-700 bg-slate-900 text-white text-xs"></textarea>
               <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" onClick={() => setActiveModal(null)} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Save Experience</button>
+                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold">Save Experience</button>
               </div>
             </form>
           </div>
@@ -2014,18 +2034,18 @@ export default function FreelancerProfileView({
           <div className={`p-6 sm:p-8 rounded-3xl max-w-xl w-full border shadow-2xl space-y-5 ${cardBg}`}>
             <div className="flex items-start justify-between border-b border-slate-800 pb-3">
               <div>
-                <span className="px-2.5 py-0.5 text-[10px] font-extrabold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="px-2.5 py-0.5 text-xs font-extrabold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   {projectDetailModal.status}
                 </span>
                 <h3 className="text-xl font-extrabold text-blue-400 mt-1">{projectDetailModal.title}</h3>
               </div>
-              <button onClick={() => setProjectDetailModal(null)} className="text-slate-400 hover:text-white text-lg font-bold"><X className="w-5 h-5" /></button>
+              <button onClick={() => setProjectDetailModal(null)} className="text-slate-600 dark:text-slate-300 hover:text-white text-lg font-bold"><X className="w-5 h-5" /></button>
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">{projectDetailModal.description}</p>
 
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Technologies & Stack Used</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">Technologies & Stack Used</span>
               <div className="flex flex-wrap gap-1.5">
                 {(projectDetailModal.skills || []).map((s, i) => (
                   <span key={i} className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold rounded-xl">
@@ -2035,7 +2055,7 @@ export default function FreelancerProfileView({
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-slate-800 bg-black/20 text-xs font-bold text-slate-400 flex justify-between">
+            <div className="p-3.5 rounded-xl border border-slate-800 bg-black/20 text-xs font-bold text-slate-600 dark:text-slate-300 flex justify-between">
               <span>Status: {projectDetailModal.status}</span>
               <span>{projectDetailModal.completion_info}</span>
             </div>

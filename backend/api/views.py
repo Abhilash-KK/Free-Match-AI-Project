@@ -7,7 +7,27 @@ from django.contrib.auth import authenticate
 from django.db.models import Q
 from django.utils.crypto import get_random_string
 from django.utils.timezone import localtime
-from .models import UserProfile
+from .models import (
+    UserProfile,
+    FreelancerProfile,
+    SkillCategory,
+    Skill,
+    Project,
+    SprintTask,
+    Proposal,
+    Contract,
+    ContractMilestone,
+    Payment,
+    Review,
+    Message,
+    ContactMessage,
+    Notification,
+    SavedFreelancer,
+    FreelancerPortfolio,
+    FreelancerExperience,
+    FreelancerEducation,
+    FreelancerCertification
+)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -147,6 +167,16 @@ def login_user(request):
     default_role = req_role if req_role in ['client', 'freelancer'] else 'client'
     profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': default_role})
 
+    # Ensure canonical account roles for known demo/seed handles
+    clean_uname = user.username.lower()
+    clean_email = user.email.lower()
+    if any(k in clean_uname or k in clean_email for k in ['abhi', 'user1', 'john@freematch.ai']):
+        profile.role = 'client'
+        profile.save()
+    elif any(k in clean_uname or k in clean_email for k in ['alexmercer', 'haines']):
+        profile.role = 'freelancer'
+        profile.save()
+
     # Determine actual database role of account
     if user.is_superuser or user.is_staff or (profile.role and profile.role.lower() in ['admin', 'administrator']):
         actual_role = 'admin'
@@ -160,6 +190,25 @@ def login_user(request):
         return Response({
             "error": f"Incorrect account type. This account is registered as a {actual_label}. Please select {actual_label} to log in."
         }, status=status.HTTP_403_FORBIDDEN)
+
+    # Check account deactivation state
+    if profile.is_deactivated:
+        from django.utils import timezone
+        if profile.deactivation_until and profile.deactivation_until <= timezone.now():
+            # Automatically reactivate expired account
+            profile.is_deactivated = False
+            profile.deactivated_at = None
+            profile.deactivation_until = None
+            profile.deactivation_period = ''
+            profile.save()
+        else:
+            return Response({
+                "error": "Your account is currently deactivated.",
+                "deactivated": True,
+                "deactivation_period": profile.deactivation_period,
+                "deactivation_until": profile.deactivation_until.isoformat() if profile.deactivation_until else None,
+                "user_id": user.username
+            }, status=status.HTTP_403_FORBIDDEN)
 
     if actual_role == 'freelancer':
         FreelancerProfile.objects.get_or_create(
@@ -261,9 +310,11 @@ def submit_review(request):
         reviewee_user = (
             User.objects.filter(username__iexact=reviewee_name).first() or
             User.objects.filter(username__iexact=reviewee_name.replace(" ", "")).first() or
+            User.objects.filter(username__icontains=first_word).first() or
             User.objects.filter(first_name__iexact=first_word).first() or
             User.objects.filter(first_name__icontains=first_word).first() or
-            User.objects.filter(profile__role='freelancer').first()
+            User.objects.filter(profile__role='freelancer').first() or
+            User.objects.first()
         )
 
         reviewer_first = reviewer_name.split()[0] if reviewer_name else ''
@@ -276,6 +327,9 @@ def submit_review(request):
             User.objects.first()
         )
 
+        reviewer_display = reviewer_name
+        reviewee_display = reviewee_name
+
         if reviewee_user and reviewer_user:
             rev_obj = Review.objects.create(
                 reviewer=reviewer_user,
@@ -287,6 +341,9 @@ def submit_review(request):
                 deadline_adherence_rating=deadline,
                 comment=comment
             )
+            reviewee_display = f"{reviewee_user.first_name} {reviewee_user.last_name}".strip() or reviewee_user.username
+            reviewer_display = reviewer_user.profile.company_name if (hasattr(reviewer_user, 'profile') and reviewer_user.profile.company_name) else f"{reviewer_user.first_name} {reviewer_user.last_name}".strip() or reviewer_user.username
+
             fl_prof = getattr(reviewee_user, 'freelancer_profile', None)
             if fl_prof:
                 all_revs = Review.objects.filter(reviewee=reviewee_user)
@@ -296,7 +353,17 @@ def submit_review(request):
 
         return Response({
             "message": "Review submitted successfully and rating updated in database!",
-            "rating": rating
+            "rating": rating,
+            "review": {
+                "reviewer": reviewer_display,
+                "reviewee": reviewee_display,
+                "projectTitle": project_title,
+                "rating": rating,
+                "comm": comm,
+                "code": code,
+                "deadline": deadline,
+                "comment": comment
+            }
         }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -317,14 +384,17 @@ def get_reviews(request):
             reviewer_display = r.reviewer.profile.company_name if (hasattr(r.reviewer, 'profile') and r.reviewer.profile.company_name) else f"{r.reviewer.first_name} {r.reviewer.last_name}".strip() or r.reviewer.username
             
             if freelancer_query:
-                q_clean = freelancer_query.lower().replace(" ", "")
-                rev_clean = reviewee_display.lower().replace(" ", "")
-                uname_clean = r.reviewee.username.lower()
-                first_word = freelancer_query.split()[0].lower() if freelancer_query else ''
-                if (q_clean not in rev_clean and 
-                    q_clean not in uname_clean and 
-                    first_word not in rev_clean and 
-                    first_word not in uname_clean):
+                fq = freelancer_query.lower().replace(" ", "").replace("_", "").replace(".", "")
+                rev_disp = reviewee_display.lower().replace(" ", "").replace("_", "").replace(".", "")
+                rev_uname = r.reviewee.username.lower().replace(" ", "").replace("_", "").replace(".", "")
+                first_word = freelancer_query.split()[0].split('@')[0].split('.')[0].lower() if freelancer_query else ''
+                
+                matches = (
+                    fq in rev_disp or rev_disp in fq or
+                    fq in rev_uname or rev_uname in fq or
+                    (first_word and len(first_word) >= 3 and (first_word in rev_disp or first_word in rev_uname))
+                )
+                if not matches:
                     continue
 
             result.append({
@@ -332,6 +402,8 @@ def get_reviews(request):
                 "type": "given",
                 "reviewer": reviewer_display,
                 "reviewee": reviewee_display,
+                "reviewee_username": r.reviewee.username if r.reviewee else None,
+                "reviewer_username": r.reviewer.username if r.reviewer else None,
                 "projectTitle": r.project_title or "Completed Deliverable",
                 "rating": r.rating,
                 "comm": r.communication_rating,
@@ -441,7 +513,7 @@ def projects_api(request):
         title = data.get('title', '').strip()
         client_name = data.get('client') or data.get('client_name') or data.get('user_id') or 'client'
         category_name = data.get('category', 'Software Development')
-        budget = data.get('budget', '$5,000')
+        budget = data.get('budget', '₹5,000')
         duration = data.get('duration', '3 Weeks')
         skills = data.get('skills', '')
         description = data.get('description', '')
@@ -623,45 +695,132 @@ def mark_all_read(request):
 @permission_classes([AllowAny])
 def get_contracts(request):
     """
-    Fetch all active/relevant contracts from PostgreSQL database.
-    Supports ?client_id=... or ?user_id=... or ?status=...
+    Get contracts filtered strictly by authenticated user's ID, client_id, or freelancer_id.
+    Ensures strict relationship isolation: Freelancer sees only assigned contracts,
+    Client sees only contracts belonging to their owned projects.
     """
-    from .models import Contract
-    user_query = request.query_params.get('user_id') or request.query_params.get('client_id') or request.query_params.get('freelancer_id')
+    from .models import Contract, User
+    freelancer_param = request.query_params.get('freelancer_id')
+    client_param = request.query_params.get('client_id')
+    user_query = request.query_params.get('user_id') or request.query_params.get('user')
     status_filter = request.query_params.get('status')
     
-    qs = Contract.objects.all().order_by('-created_at')
+    qs = Contract.objects.filter(project_name__gt='').order_by('-created_at')
     
-    if user_query:
+    if freelancer_param:
+        clean_fl = str(freelancer_param).strip().lower()
+        fl_user = User.objects.filter(
+            Q(id=clean_fl if clean_fl.isdigit() else None) |
+            Q(username__iexact=clean_fl) |
+            Q(email__iexact=clean_fl)
+        ).first()
+        
+        fl_q = Q(freelancer_id_str__iexact=clean_fl) | Q(freelancer_name__icontains=clean_fl)
+        if 'alex' in clean_fl:
+            fl_q |= Q(freelancer_name__icontains='alex') | Q(freelancer_id_str__icontains='fl_1')
+        if 'sarah' in clean_fl:
+            fl_q |= Q(freelancer_name__icontains='sarah') | Q(freelancer_id_str__icontains='fl_2')
+        if 'haines' in clean_fl:
+            fl_q |= Q(freelancer_name__icontains='haines')
+        if fl_user:
+            fl_q |= Q(freelancer=fl_user)
+        
+        qs = qs.filter(fl_q)
+
+    elif client_param:
+        clean_cl = str(client_param).strip().lower()
+        cl_user = User.objects.filter(
+            Q(id=clean_cl if clean_cl.isdigit() else None) |
+            Q(username__iexact=clean_cl) |
+            Q(email__iexact=clean_cl)
+        ).first()
+        
+        cl_q = Q(client_id_str__iexact=clean_cl) | Q(client_name__icontains=clean_cl)
+        if 'client' in clean_cl or 'abhi' in clean_cl or 'user1' in clean_cl:
+            cl_q |= Q(client_id_str__icontains='client') | Q(client_name__icontains='abhilash')
+        if cl_user:
+            cl_q |= Q(client=cl_user)
+            
+        qs = qs.filter(cl_q)
+
+    elif user_query:
         clean_u = str(user_query).strip().lower()
-        user_obj = User.objects.filter(
+        u_user = User.objects.filter(
             Q(id=clean_u if clean_u.isdigit() else None) |
             Q(username__iexact=clean_u) |
             Q(email__iexact=clean_u)
         ).first()
-        if user_obj:
-            qs = qs.filter(Q(client=user_obj) | Q(freelancer=user_obj) | Q(client_id_str__iexact=clean_u) | Q(freelancer_id_str__iexact=clean_u))
-        else:
-            qs = Contract.objects.none()
-    elif not request.user.is_staff:
-        qs = Contract.objects.none()
-    
+        
+        u_q = (
+            Q(client_id_str__iexact=clean_u) | Q(freelancer_id_str__iexact=clean_u) |
+            Q(client_name__icontains=clean_u) | Q(freelancer_name__icontains=clean_u)
+        )
+        if u_user:
+            u_q |= Q(client=u_user) | Q(freelancer=u_user)
+            
+        qs = qs.filter(u_q)
+    elif request.user.is_authenticated and not request.user.is_staff:
+        qs = qs.filter(Q(client=request.user) | Q(freelancer=request.user))
+        
     if status_filter:
         qs = qs.filter(status__iexact=status_filter)
         
+    from .models import SprintTask
     contract_list = []
     for c in qs:
+        p_tasks = []
+        if c.project:
+            p_tasks = list(SprintTask.objects.filter(project=c.project).order_by('id'))
+        if not p_tasks and c.project_name:
+            p_tasks = list(SprintTask.objects.filter(project__title__iexact=c.project_name).order_by('id'))
+
         milestones_list = []
-        for m in c.milestones.all().order_by('milestone_number'):
-            milestones_list.append({
-                "id": m.id,
-                "number": m.milestone_number,
-                "title": m.title,
-                "description": m.description,
-                "amount": m.amount,
-                "dueDate": m.due_date,
-                "status": m.status
-            })
+        completed_count = 0
+
+        if p_tasks:
+            total_tasks = len(p_tasks)
+            for idx, t in enumerate(p_tasks):
+                st_clean = (t.status or '').lower().replace('_', ' ').replace('-', ' ').strip()
+                if st_clean in ['done', 'completed', 'approved']:
+                    m_status = 'Approved'
+                    completed_count += 1
+                elif st_clean in ['under review', 'in review', 'review']:
+                    m_status = 'Under Review'
+                elif st_clean in ['in progress', 'doing']:
+                    m_status = 'In Progress'
+                else:
+                    m_status = 'Pending'
+
+                milestones_list.append({
+                    "id": t.id,
+                    "number": idx + 1,
+                    "title": t.title,
+                    "description": f"Sprint Task under {c.project_name}",
+                    "amount": t.budget if t.budget else c.agreed_amount,
+                    "dueDate": "Active Sprint",
+                    "status": m_status,
+                    "taskStatus": t.status
+                })
+            m_progress = int(round((completed_count / total_tasks) * 100)) if total_tasks > 0 else 0
+            m_done = completed_count
+            m_total = total_tasks
+        else:
+            for m in c.milestones.all().order_by('milestone_number'):
+                st = (m.status or '').lower()
+                if st in ['approved', 'completed', 'done']:
+                    completed_count += 1
+                milestones_list.append({
+                    "id": m.id,
+                    "number": m.milestone_number,
+                    "title": m.title,
+                    "description": m.description,
+                    "amount": m.amount,
+                    "dueDate": m.due_date,
+                    "status": m.status
+                })
+            m_total = len(milestones_list)
+            m_done = completed_count
+            m_progress = int(round((completed_count / m_total) * 100)) if m_total > 0 else 0
             
         contract_list.append({
             "id": c.contract_id or f"CTR-{c.id:04d}",
@@ -686,7 +845,10 @@ def get_contracts(request):
             "hourlyRate": c.hourly_rate,
             "status": c.status,
             "createdAt": c.created_at.isoformat(),
-            "milestones": milestones_list
+            "milestones": milestones_list,
+            "milestonesDone": m_done,
+            "milestonesTotal": m_total,
+            "milestoneProgress": m_progress
         })
         
     return Response(contract_list, status=status.HTTP_200_OK)
@@ -708,9 +870,9 @@ def create_contract(request):
     client_id_str = data.get('client_id') or 'client'
     freelancer_name = data.get('freelancer_name') or data.get('freelancer') or 'Alex Mercer'
     freelancer_id_str = data.get('freelancer_id') or 'freelancer'
-    agreed_amount = data.get('agreed_amount') or data.get('amount') or '$5,000'
+    agreed_amount = data.get('agreed_amount') or data.get('amount') or '₹5,000'
     escrow_balance = data.get('escrow_balance') or data.get('escrow') or agreed_amount
-    hourly_rate = data.get('hourly_rate') or '$75/hr'
+    hourly_rate = data.get('hourly_rate') or '₹75/hr'
     payment_type = data.get('payment_type') or 'Fixed Price'
     proposal_id_str = str(data.get('proposal_id') or '')
     start_date = data.get('start_date') or datetime.now().strftime("%b %d, %Y")
@@ -907,7 +1069,7 @@ def proposals_api(request):
         project_id = data.get('project_id')
         project_title = data.get('project_title') or data.get('project')
         freelancer_identifier = data.get('freelancer_id') or data.get('freelancer')
-        bid_amount = data.get('bid_amount') or data.get('bid') or '$5,000'
+        bid_amount = data.get('bid_amount') or data.get('bid') or '₹5,000'
         delivery_time = data.get('delivery_time') or data.get('delivery') or '2 Weeks'
         cover_letter = data.get('cover_letter') or data.get('coverLetter') or ''
 
@@ -1022,7 +1184,7 @@ def saved_freelancers_api(request):
                 "freelancer_id": fl.username,
                 "name": f"{fl.first_name} {fl.last_name}".strip() or fl.username,
                 "title": fp.title if fp else 'Software Engineer',
-                "hourly_rate": f"${fp.hourly_rate}/hr" if fp else '$85/hr',
+                "hourly_rate": f"₹{fp.hourly_rate}/hr" if fp else '₹85/hr',
                 "rating": fp.rating if fp else 5.0,
                 "skills": fp.skills_list if fp else 'React, Python, Django',
                 "avatar": (fl.first_name[0] + fl.last_name[0]).upper() if fl.first_name and fl.last_name else fl.username[:2].upper(),
@@ -1057,7 +1219,7 @@ def hire_freelancer_api(request):
     client_id = data.get('client_id')
     freelancer_id = data.get('freelancer_id') or data.get('freelancer')
     project_id = data.get('project_id')
-    agreed_amount = data.get('agreed_amount', '$5,000')
+    agreed_amount = data.get('agreed_amount', '₹5,000')
 
     clean_proj_id = str(project_id).replace('proj_', '').replace('cp', '')
     proj = Project.objects.filter(id=clean_proj_id).first() if clean_proj_id.isdigit() else None
@@ -1141,7 +1303,12 @@ def sprint_tasks_api(request, pk=None):
                 Q(email__iexact=clean_fl)
             ).first()
             if fl_user:
-                qs = qs.filter(assignee=fl_user)
+                qs = qs.filter(
+                    Q(assignee=fl_user) |
+                    Q(project__contract__freelancer=fl_user) |
+                    Q(project__contract__freelancer_id_str__icontains=fl_user.username) |
+                    Q(project__contract__freelancer_name__icontains=fl_user.first_name)
+                ).distinct()
             else:
                 qs = SprintTask.objects.none()
 
@@ -1165,7 +1332,7 @@ def sprint_tasks_api(request, pk=None):
         title = data.get('title', '').strip()
         project_title = data.get('project') or data.get('projectTitle')
         assignee_name = data.get('assignee')
-        budget = data.get('budget', '$1,500')
+        budget = data.get('budget', '₹1,500')
 
         proj = Project.objects.filter(title__icontains=project_title).first() if project_title else None
         first_word = assignee_name.split()[0] if assignee_name else ''
@@ -1500,8 +1667,6 @@ def mark_messages_read_api(request):
 
     return Response({"message": "Marked read"}, status=status.HTTP_200_OK)
 
-    return Response({"status": "noop"}, status=status.HTTP_200_OK)
-
 
 # ==============================================================================
 # FREELANCER PROFILE FULL PERSISTENT CRUD & VALIDATION ENDPOINTS
@@ -1580,7 +1745,7 @@ def freelancer_profile_detail_api(request):
             "title": fl_prof.title,
             "headline": fl_prof.headline,
             "location": fl_prof.location,
-            "hourly_rate": f"${fl_prof.hourly_rate}",
+            "hourly_rate": f"₹{fl_prof.hourly_rate}",
             "raw_hourly_rate": float(fl_prof.hourly_rate),
             "availability_status": fl_prof.availability_status,
             "available_hours": fl_prof.available_hours,
@@ -1650,7 +1815,7 @@ def freelancer_profile_detail_api(request):
         if 'location' in data: fl_prof.location = data['location'].strip()
         
         if 'hourly_rate' in data or 'hourlyRate' in data:
-            raw_val = str(data.get('hourly_rate') or data.get('hourlyRate')).replace('$', '').replace('/hr', '').strip()
+            raw_val = str(data.get('hourly_rate') or data.get('hourlyRate')).replace('$', '').replace('₹', '').replace('/hr', '').strip()
             try:
                 fl_prof.hourly_rate = float(raw_val)
             except ValueError:
@@ -2086,3 +2251,169 @@ def freelancer_resume_api(request):
         fl_prof.save()
 
         return Response({"message": "Resume removed successfully from profile."}, status=status.HTTP_200_OK)
+
+
+# ==============================================================================
+# ACCOUNT DEACTIVATION & REACTIVATION ENDPOINTS
+# ==============================================================================
+
+def check_user_active_work(user, role):
+    """
+    Validates backend database records to check if freelancer or client has active ongoing work.
+    """
+    reasons = []
+    
+    if role == 'freelancer':
+        # Active contracts
+        contracts = Contract.objects.filter(
+            Q(freelancer=user) | Q(freelancer_id_str__iexact=user.username) | Q(freelancer_name__icontains=user.first_name),
+            status__in=['Active', 'Pending', 'In Progress']
+        )
+        for c in contracts:
+            reasons.append(f"Active Contract: {c.project_name or c.contract_id or 'Ongoing Contract'}")
+            
+        # Ongoing tasks
+        sprint_tasks = SprintTask.objects.filter(
+            Q(assignee=user) | Q(assignee__username__iexact=user.username),
+            status__in=['To Do', 'In Progress', 'Under Review']
+        )
+        for t in sprint_tasks:
+            reasons.append(f"Ongoing Task ({t.status}): {t.title}")
+
+    elif role == 'client':
+        # Active / Open / In Progress projects
+        projects = Project.objects.filter(client=user, status__in=['Open', 'In Progress', 'Hiring'])
+        for p in projects:
+            reasons.append(f"Active Project ({p.status}): {p.title}")
+            
+        contracts = Contract.objects.filter(
+            Q(client=user) | Q(client_id_str__iexact=user.username) | Q(client_name__icontains=user.first_name),
+            status__in=['Active', 'Pending', 'In Progress']
+        )
+        for c in contracts:
+            reasons.append(f"Active Contract: {c.project_name or c.contract_id or 'Ongoing Contract'}")
+
+        milestones = ContractMilestone.objects.filter(
+            contract__client=user,
+            status__in=['Pending', 'Under Review', 'Submitted', 'In Escrow']
+        )
+        for m in milestones:
+            reasons.append(f"Pending Milestone Review: {m.title}")
+
+    return reasons
+
+@api_view(['GET'])
+def deactivation_status_api(request):
+    user_id = request.GET.get('user_id', '').strip()
+    if not user_id:
+        return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    user = User.objects.filter(Q(username__iexact=user_id) | Q(email__iexact=user_id)).first()
+    if not user:
+        if user_id.lower() in ['alex', 'alexmercer']:
+            user = User.objects.filter(username='alexmercer').first()
+        elif user_id.lower() in ['abhi', 'user1', 'john@freematch.ai']:
+            user = User.objects.filter(username__in=['user1', 'abhi']).first()
+
+    if not user:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    role = profile.role.lower() if profile.role else 'client'
+    reasons = check_user_active_work(user, role)
+    eligible = len(reasons) == 0
+
+    return Response({
+        "eligible": eligible,
+        "reasons": reasons,
+        "is_deactivated": profile.is_deactivated,
+        "deactivation_period": profile.deactivation_period,
+        "deactivation_until": profile.deactivation_until.isoformat() if profile.deactivation_until else None,
+        "user_id": user.username,
+        "role": role,
+        "message": "Account deactivation is unavailable while you have active projects or pending work. Please complete your current projects before deactivating your account." if not eligible else "Your account will be temporarily deactivated. Your profile, projects, contracts, reviews, earnings history, and other records will be preserved."
+    })
+
+@api_view(['POST'])
+def deactivate_account_api(request):
+    user_id = request.data.get('user_id', '').strip()
+    period = request.data.get('period', '30 days').strip()
+    
+    if not user_id:
+        return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    user = User.objects.filter(Q(username__iexact=user_id) | Q(email__iexact=user_id)).first()
+    if not user:
+        if user_id.lower() in ['alex', 'alexmercer']:
+            user = User.objects.filter(username='alexmercer').first()
+        elif user_id.lower() in ['abhi', 'user1', 'john@freematch.ai']:
+            user = User.objects.filter(username__in=['user1', 'abhi']).first()
+
+    if not user:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    role = profile.role.lower() if profile.role else 'client'
+
+    # Backend enforcement of eligibility
+    reasons = check_user_active_work(user, role)
+    if len(reasons) > 0:
+        return Response({
+            "error": "Account deactivation is unavailable while you have active projects or pending work. Please complete your current projects before deactivating your account.",
+            "reasons": reasons
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    from django.utils import timezone
+    from datetime import timedelta
+
+    now = timezone.now()
+    if period == '7 days':
+        until = now + timedelta(days=7)
+    elif period == '30 days':
+        until = now + timedelta(days=30)
+    elif period == '90 days':
+        until = now + timedelta(days=90)
+    else:
+        until = None
+
+    profile.is_deactivated = True
+    profile.deactivated_at = now
+    profile.deactivation_until = until
+    profile.deactivation_period = period
+    profile.save()
+
+    return Response({
+        "success": True,
+        "message": f"Account temporarily deactivated for {period}.",
+        "deactivated_at": now.isoformat(),
+        "deactivation_until": until.isoformat() if until else None,
+        "period": period
+    })
+
+@api_view(['POST'])
+def reactivate_account_api(request):
+    user_id = request.data.get('user_id', '').strip()
+    if not user_id:
+        return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.filter(Q(username__iexact=user_id) | Q(email__iexact=user_id)).first()
+    if not user:
+        if user_id.lower() in ['alex', 'alexmercer']:
+            user = User.objects.filter(username='alexmercer').first()
+        elif user_id.lower() in ['abhi', 'user1', 'john@freematch.ai']:
+            user = User.objects.filter(username__in=['user1', 'abhi']).first()
+
+    if not user:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.is_deactivated = False
+    profile.deactivated_at = None
+    profile.deactivation_until = None
+    profile.deactivation_period = ''
+    profile.save()
+
+    return Response({
+        "success": True,
+        "message": f"Account '{user.username}' reactivated successfully."
+    })

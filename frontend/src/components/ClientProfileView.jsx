@@ -105,9 +105,20 @@ const ClientProfileView = ({
   // Persist state to local storage and sync across windows
   const persistState = (updatedProfile) => {
     setProfile(updatedProfile);
-    localStorage.setItem(profileStorageKey, JSON.stringify(updatedProfile));
+    const keyVariants = [
+      profileStorageKey,
+      `freematch_user_${authUsername}_profile`,
+      `freematch_client_${authUsername}_profile`,
+      `freematch_profile_${authUsername}`,
+      `freematch_user_user1_profile`,
+      `freematch_user_abhi_profile`
+    ];
+    keyVariants.forEach(k => {
+      try { localStorage.setItem(k, JSON.stringify(updatedProfile)); } catch (e) {}
+    });
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('freematch_profile_event'));
+    window.dispatchEvent(new Event('freematch_user_avatar_event'));
   };
 
   // ---------------------------------------------------------------------------
@@ -322,7 +333,7 @@ const ClientProfileView = ({
               ✓
             </span>
           </h2>
-          <p className="text-xs font-medium text-slate-400 mt-1">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mt-1">
             Manage your enterprise marketplace identity, company credentials, posted projects, and verified reputation.
           </p>
         </div>
@@ -332,7 +343,7 @@ const ClientProfileView = ({
           isDark ? 'bg-[#081a18] border-slate-800' : 'bg-white border-slate-200/80 shadow-xs'
         }`}>
           <div className="text-right">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">PROFILE COMPLETION</span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 block">PROFILE COMPLETION</span>
             <span className="text-xs font-black text-emerald-500">{completionPercentage}%</span>
           </div>
           <div className="w-16 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -368,7 +379,7 @@ const ClientProfileView = ({
               {/* UPLOAD / CAMERA ICON OVERLAY */}
               <label 
                 htmlFor="client-avatar-file-input" 
-                className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center text-white text-[10px] font-bold cursor-pointer backdrop-blur-xs"
+                className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center text-white text-xs font-bold cursor-pointer backdrop-blur-xs"
                 title="Change Profile Picture"
               >
                 <Camera className="w-5 h-5 mb-0.5" />
@@ -394,29 +405,29 @@ const ClientProfileView = ({
                 <h3 className={`text-2xl sm:text-3xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {profile.displayName || currentUserName}
                 </h3>
-                <span className="px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[11px] font-extrabold flex items-center space-x-1">
+                <span className="px-3 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-extrabold flex items-center space-x-1">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Verified Client</span>
                 </span>
-                <span className="px-3 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 text-[11px] font-extrabold flex items-center space-x-1">
+                <span className="px-3 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 text-xs font-extrabold flex items-center space-x-1">
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Client / Enterprise</span>
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-400 font-medium">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
                 <span className="flex items-center space-x-1.5 text-slate-300 font-semibold">
                   <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
                   <span>{profile.companyName || `${profile.displayName || currentUserName}'s Enterprise`}</span>
                 </span>
                 <span className="text-slate-600 dark:text-slate-700">•</span>
                 <span className="flex items-center space-x-1.5">
-                  <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                  <MapPin className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
                   <span>{profile.location || 'Location Not Specified'}</span>
                 </span>
                 <span className="text-slate-600 dark:text-slate-700">•</span>
                 <span className="flex items-center space-x-1.5">
-                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
                   <span>Joined {profile.joinedDate || 'August 2026'}</span>
                 </span>
               </div>
@@ -426,7 +437,7 @@ const ClientProfileView = ({
                 <div className="pt-1 flex items-center space-x-3">
                   <button 
                     onClick={confirmRemoveAvatar}
-                    className="text-[11px] font-bold text-red-500 hover:text-red-600 flex items-center space-x-1 cursor-pointer"
+                    className="text-xs font-bold text-red-500 hover:text-red-600 flex items-center space-x-1 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Remove Profile Picture</span>
@@ -483,7 +494,7 @@ const ClientProfileView = ({
               <FolderKanban className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">PROJECTS POSTED</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">PROJECTS POSTED</span>
               <span className={`text-2xl font-black mt-0.5 block ${isDark ? 'text-white' : 'text-slate-900'}`}>{projectsPostedCount}</span>
             </div>
           </div>
@@ -494,7 +505,7 @@ const ClientProfileView = ({
               <UsersRound className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">FREELANCERS HIRED</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">FREELANCERS HIRED</span>
               <span className={`text-2xl font-black mt-0.5 block ${isDark ? 'text-white' : 'text-slate-900'}`}>{freelancersHiredCount}</span>
             </div>
           </div>
@@ -505,7 +516,7 @@ const ClientProfileView = ({
               <CircleCheck className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">COMPLETED PROJECTS</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">COMPLETED PROJECTS</span>
               <span className={`text-2xl font-black mt-0.5 block ${isDark ? 'text-white' : 'text-slate-900'}`}>{completedProjectsCount}</span>
             </div>
           </div>
@@ -516,7 +527,7 @@ const ClientProfileView = ({
               <Star className="w-5 h-5 fill-amber-500" />
             </div>
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">REPUTATION SCORE</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">REPUTATION SCORE</span>
               <span className={`text-lg font-black mt-0.5 block ${isDark ? 'text-white' : 'text-slate-900'}`}>{reputationScoreStr}</span>
             </div>
           </div>
@@ -543,29 +554,29 @@ const ClientProfileView = ({
             </button>
           </div>
 
-          <p className="text-xs text-slate-400 leading-relaxed font-medium">
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
             {profile.description || 'No company description added yet. Click Edit Profile to add company overview.'}
           </p>
 
           {/* QUICK COMPANY META CHIPS */}
           <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">INDUSTRY</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">INDUSTRY</span>
               <span className="text-xs font-bold text-blue-500">{profile.industry || 'Not specified'}</span>
             </div>
             <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">OFFICIAL WEBSITE</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">OFFICIAL WEBSITE</span>
               {profile.website ? (
                 <a href={profile.website} target="_blank" rel="noreferrer" className="text-xs font-bold text-emerald-500 hover:underline flex items-center space-x-1">
                   <span className="truncate">{profile.website.replace('https://', '').replace('http://', '')}</span>
                   <ExternalLink className="w-3 h-3 shrink-0" />
                 </a>
               ) : (
-                <span className="text-xs font-bold text-slate-400">Not specified</span>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Not specified</span>
               )}
             </div>
             <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">CONTACT EMAIL</span>
+              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">CONTACT EMAIL</span>
               <span className="text-xs font-bold text-slate-300 truncate block">{profile.contactEmail}</span>
             </div>
           </div>
@@ -584,7 +595,7 @@ const ClientProfileView = ({
             <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
               isDark ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'
             }`}>
-              <span className="text-xs font-bold text-slate-400">Client Rating</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Client Rating</span>
               <span className="text-xs font-black text-emerald-500 flex items-center space-x-1">
                 <span>{reputationScoreStr}</span>
                 {reputationScoreStr.includes('5.0') && <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />}
@@ -594,21 +605,21 @@ const ClientProfileView = ({
             <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
               isDark ? 'bg-blue-500/10 border-blue-500/20' : 'bg-blue-50 border-blue-100'
             }`}>
-              <span className="text-xs font-bold text-slate-400">Total Posted Projects</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Posted Projects</span>
               <span className="text-xs font-black text-blue-500">{projectsPostedCount}</span>
             </div>
 
             <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
               isDark ? 'bg-purple-500/10 border-purple-500/20' : 'bg-purple-50 border-purple-100'
             }`}>
-              <span className="text-xs font-bold text-slate-400">Active Hired Team</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Active Hired Team</span>
               <span className="text-xs font-black text-purple-500">{freelancersHiredCount}</span>
             </div>
 
             <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${
               isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-100'
             }`}>
-              <span className="text-xs font-bold text-slate-400">Active Contracts</span>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Active Contracts</span>
               <span className="text-xs font-black text-amber-500">{activeContractsCount}</span>
             </div>
           </div>
@@ -632,7 +643,7 @@ const ClientProfileView = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <Building2 className="w-3.5 h-3.5 text-blue-500" />
               <span>INDUSTRY</span>
             </span>
@@ -640,7 +651,7 @@ const ClientProfileView = ({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <Globe className="w-3.5 h-3.5 text-emerald-500" />
               <span>OFFICIAL WEBSITE</span>
             </span>
@@ -652,7 +663,7 @@ const ClientProfileView = ({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <Mail className="w-3.5 h-3.5 text-indigo-500" />
               <span>CONTACT EMAIL</span>
             </span>
@@ -660,7 +671,7 @@ const ClientProfileView = ({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <MapPin className="w-3.5 h-3.5 text-red-500" />
               <span>LOCATION</span>
             </span>
@@ -668,7 +679,7 @@ const ClientProfileView = ({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <Calendar className="w-3.5 h-3.5 text-amber-500" />
               <span>MEMBER SINCE</span>
             </span>
@@ -676,7 +687,7 @@ const ClientProfileView = ({
           </div>
 
           <div className="space-y-1">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-teal-500" />
               <span>VERIFICATION STATUS</span>
             </span>
@@ -702,7 +713,7 @@ const ClientProfileView = ({
 
           {clientProjects.length === 0 ? (
             <div className="p-8 text-center rounded-2xl border border-dashed border-slate-700">
-              <p className="text-xs font-bold text-slate-400">No projects posted yet.</p>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No projects posted yet.</p>
               <button 
                 onClick={() => onNavigateTab('post-job')} 
                 className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl cursor-pointer"
@@ -719,7 +730,7 @@ const ClientProfileView = ({
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{p.title}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
                         p.status === 'In Progress' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                         p.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
                         'bg-blue-500/10 text-blue-500 border border-blue-500/20'
@@ -727,13 +738,13 @@ const ClientProfileView = ({
                         {p.status || 'Open'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 font-medium">
-                      Category: <span className="font-bold text-slate-300">{p.category || 'Engineering'}</span> • Budget: <span className="font-bold text-emerald-400">{p.budget || '$5,000'}</span>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                      Category: <span className="font-bold text-slate-300">{p.category || 'Engineering'}</span> • Budget: <span className="font-bold text-emerald-400">{p.budget || '₹5,000'}</span>
                     </p>
                   </div>
                   <button 
                     onClick={() => onNavigateTab('my-projects')} 
-                    className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 border border-blue-500/20 rounded-xl text-xs font-extrabold shrink-0 cursor-pointer"
+                    className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 border border-blue-500/20 rounded-xl text-sm font-extrabold shrink-0 cursor-pointer"
                   >
                     View Project
                   </button>
@@ -757,7 +768,7 @@ const ClientProfileView = ({
                 <Pencil className="w-5 h-5 text-blue-500" />
                 <span>Edit Client Enterprise Profile</span>
               </h3>
-              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setActiveModal(null)} className="p-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -766,7 +777,7 @@ const ClientProfileView = ({
               
               {/* DISPLAY NAME */}
               <div>
-                <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                   Full Name / Contact Person *
                 </label>
                 <input
@@ -778,12 +789,12 @@ const ClientProfileView = ({
                   }`}
                   placeholder="e.g. Abhilash K K"
                 />
-                {formErrors.displayName && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.displayName}</p>}
+                {formErrors.displayName && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.displayName}</p>}
               </div>
 
               {/* COMPANY NAME */}
               <div>
-                <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                   Company Name *
                 </label>
                 <input
@@ -795,13 +806,13 @@ const ClientProfileView = ({
                   }`}
                   placeholder="e.g. TechStream Enterprises"
                 />
-                {formErrors.companyName && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.companyName}</p>}
+                {formErrors.companyName && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.companyName}</p>}
               </div>
 
               {/* ROW: INDUSTRY & LOCATION */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                     Industry
                   </label>
                   <input
@@ -813,11 +824,11 @@ const ClientProfileView = ({
                     }`}
                     placeholder="e.g. Software Technology"
                   />
-                  {formErrors.industry && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.industry}</p>}
+                  {formErrors.industry && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.industry}</p>}
                 </div>
 
                 <div>
-                  <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                     Location
                   </label>
                   <input
@@ -829,14 +840,14 @@ const ClientProfileView = ({
                     }`}
                     placeholder="e.g. San Francisco, CA"
                   />
-                  {formErrors.location && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.location}</p>}
+                  {formErrors.location && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.location}</p>}
                 </div>
               </div>
 
               {/* ROW: WEBSITE & CONTACT EMAIL */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                     Official Website
                   </label>
                   <input
@@ -848,11 +859,11 @@ const ClientProfileView = ({
                     }`}
                     placeholder="e.g. https://freematch.ai"
                   />
-                  {formErrors.website && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.website}</p>}
+                  {formErrors.website && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.website}</p>}
                 </div>
 
                 <div>
-                  <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                  <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                     Contact Email
                   </label>
                   <input
@@ -864,13 +875,13 @@ const ClientProfileView = ({
                     }`}
                     placeholder="e.g. abhi@freematch.ai"
                   />
-                  {formErrors.contactEmail && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.contactEmail}</p>}
+                  {formErrors.contactEmail && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.contactEmail}</p>}
                 </div>
               </div>
 
               {/* COMPANY DESCRIPTION */}
               <div>
-                <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block mb-1">
+                <label className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">
                   About Company & Mission
                 </label>
                 <textarea
@@ -882,7 +893,7 @@ const ClientProfileView = ({
                   }`}
                   placeholder="Describe your company, technical focus, and mission..."
                 />
-                {formErrors.description && <p className="text-[11px] font-bold text-red-500 mt-1">{formErrors.description}</p>}
+                {formErrors.description && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.description}</p>}
               </div>
 
               {/* MODAL FOOTER BUTTONS */}
@@ -890,7 +901,7 @@ const ClientProfileView = ({
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
-                  className="px-5 py-2.5 rounded-xl text-xs font-extrabold border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-sm font-extrabold border border-slate-700 text-slate-600 dark:text-slate-300 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -919,13 +930,13 @@ const ClientProfileView = ({
               <AlertTriangle className="w-6 h-6 shrink-0" />
               <h3 className="text-base font-black">Remove Profile Picture?</h3>
             </div>
-            <p className="text-xs text-slate-400 font-medium">
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
               Are you sure you want to remove your profile picture? Your profile will revert to the initial-based avatar fallback.
             </p>
             <div className="pt-2 flex items-center justify-end space-x-3">
               <button 
                 onClick={() => setActiveModal(null)} 
-                className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-700 text-slate-400 hover:text-white cursor-pointer"
+                className="px-4 py-2 rounded-xl text-sm font-bold border border-slate-700 text-slate-600 dark:text-slate-300 hover:text-white cursor-pointer"
               >
                 Cancel
               </button>
