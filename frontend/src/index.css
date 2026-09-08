@@ -170,3 +170,35 @@ html:not(.dark) ::-webkit-scrollbar-thumb {
 html:not(.dark) ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* =========================================================
+   GLOBAL TEXT VISIBILITY & CONTRAST ENHANCEMENTS
+   ========================================================= */
+
+/* High-contrast form placeholders */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: #475569 !important; /* slate-600 */
+  opacity: 1 !important;
+}
+
+/* Form disabled states: ensure high contrast and clear readability */
+input:disabled,
+textarea:disabled,
+select:disabled,
+button:disabled {
+  color: #334155 !important; /* slate-700 */
+  -webkit-text-fill-color: #334155 !important;
+  opacity: 0.9 !important;
+}
+
+/* Ensure all form labels have strong readability */
+label {
+  color: #1e293b; /* slate-800 default for labels */
+}
+
+/* Protect against accidental faint text on light surfaces */
+html:not(.dark) .text-faint-fix {
+  color: #334155 !important;
+}

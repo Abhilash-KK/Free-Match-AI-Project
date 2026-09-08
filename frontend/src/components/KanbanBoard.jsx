@@ -1514,32 +1514,32 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
             <div className="space-y-4 text-xs">
               <div>
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">TASK TITLE</span>
+                <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>TASK TITLE</span>
                 <h4 className="text-sm font-black mt-0.5">{selectedTaskDetail.title}</h4>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div className={`grid grid-cols-2 gap-3 p-3.5 rounded-2xl border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                 <div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">PROJECT</span>
-                  <p className="font-bold text-blue-500">{selectedTaskDetail.project || selectedTaskDetail.projectTitle || 'Enterprise Project'}</p>
+                  <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>PROJECT</span>
+                  <p className="font-bold text-blue-600 dark:text-blue-400">{selectedTaskDetail.project || selectedTaskDetail.projectTitle || 'Enterprise Project'}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">STATUS & PROGRESS</span>
-                  <p className="font-bold text-emerald-500">{selectedTaskDetail.status} ({selectedTaskDetail.status === 'Done' ? '100%' : selectedTaskDetail.status === 'Under Review' ? '60%' : selectedTaskDetail.status === 'In Progress' ? '30%' : '0%'})</p>
+                  <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>STATUS & PROGRESS</span>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400">{selectedTaskDetail.status} ({selectedTaskDetail.status === 'Done' ? '100%' : selectedTaskDetail.status === 'Under Review' ? '60%' : selectedTaskDetail.status === 'In Progress' ? '30%' : '0%'})</p>
                 </div>
                 <div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">ASSIGNED FREELANCER</span>
-                  <p className="font-bold text-slate-800 dark:text-slate-200">{selectedTaskDetail.assignee || 'Unassigned'}</p>
+                  <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>ASSIGNED FREELANCER</span>
+                  <p className="font-bold text-slate-900 dark:text-slate-200">{selectedTaskDetail.assignee || 'Unassigned'}</p>
                 </div>
                 <div>
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">BUDGET / ESCROW</span>
+                  <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>BUDGET / ESCROW</span>
                   <p className="font-bold text-blue-600 dark:text-blue-400">{selectedTaskDetail.budget || '₹1,500'}</p>
                 </div>
               </div>
 
               <div>
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">WORK ITEM DESCRIPTION</span>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-medium leading-relaxed mt-1">
+                <span className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>WORK ITEM DESCRIPTION</span>
+                <p className={`p-3 rounded-xl border font-medium leading-relaxed mt-1 ${isDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
                   Task deliverable requirements for "{selectedTaskDetail.title}". Deliverable status is synchronized in real-time between Client Oversight and Freelancer Execution workspaces.
                 </p>
               </div>
@@ -1613,7 +1613,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
             <form onSubmit={handleSaveNewTask} className="space-y-4 text-left">
               <div>
-                <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Task Title *</label>
+                <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Task Title *</label>
                 <input
                   type="text"
                   required
@@ -1625,7 +1625,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               </div>
 
               <div>
-                <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Select Project</label>
+                <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Select Project</label>
                 <select
                   value={newTaskProject}
                   onChange={(e) => setNewTaskProject(e.target.value)}
@@ -1639,7 +1639,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Assignee / Freelancer</label>
+                  <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Assignee / Freelancer</label>
                   <select
                     value={newTaskAssignee}
                     onChange={(e) => setNewTaskAssignee(e.target.value)}
@@ -1652,7 +1652,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold mb-1 text-slate-400 uppercase tracking-wider">Task Budget (₹ INR)</label>
+                  <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Task Budget (₹ INR)</label>
                   <input
                     type="text"
                     placeholder="₹1,500"

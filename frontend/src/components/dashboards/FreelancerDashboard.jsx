@@ -694,12 +694,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-bold text-base">{job.title}</h4>
-                      <p className="text-xs text-slate-600 dark:text-slate-300">{job.client} • {job.posted || job.postedDate}</p>
+                      <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>{job.client} • {job.posted || job.postedDate}</p>
                     </div>
                     <span className="bg-blue-500/10 text-blue-400 font-extrabold text-xs px-3 py-1 rounded-xl">{job.budget}</span>
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed">{job.description}</p>
+                  <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>{job.description}</p>
 
                   {/* Attached Document or Architecture Image */}
                   {job.attachedFile && (
@@ -1817,10 +1817,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                             <p className="text-xs font-bold text-slate-600">
                               Client: <span className="text-slate-900 font-extrabold">{c.clientName || c.client || 'Enterprise Client'}</span>
                             </p>
-                            <p className="text-xs text-slate-500 font-medium pt-0.5">
-                              Start Date: <strong className="text-slate-700">{c.startDate || 'Aug 11, 2026'}</strong>
-                              <span className="mx-1 text-slate-300">•</span>
-                              Deadline: <strong className="text-slate-700">{c.deadline || 'Aug 30, 2026'}</strong>
+                            <p className="text-xs text-slate-700 font-semibold pt-0.5">
+                              Start Date: <strong className="text-slate-900">{c.startDate || 'Aug 11, 2026'}</strong>
+                              <span className="mx-1 text-slate-400">•</span>
+                              Deadline: <strong className="text-slate-900">{c.deadline || 'Aug 30, 2026'}</strong>
                             </p>
                           </div>
                         </div>
@@ -1828,12 +1828,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                         {/* Middle: Contract Value & Milestones Progress */}
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 shrink-0">
                           <div>
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-0.5">CONTRACT VALUE</span>
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 block mb-0.5">CONTRACT VALUE</span>
                             <span className="text-lg font-black text-slate-900">{String(c.amount || c.agreedAmount || '₹1,50,000').replace(/\$/g, '₹')}</span>
                           </div>
 
                           <div>
-                            <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+                            <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-slate-700 mb-1">
                               <span>MILESTONES</span>
                               <span className="text-slate-700 font-black">{c.milestonesDone ?? (isCompleted ? 3 : isPending ? 0 : 2)} / {c.milestonesTotal ?? (isCompleted ? 3 : isPending ? 3 : 4)}</span>
                             </div>
@@ -1986,25 +1986,25 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase text-slate-400">CLIENT</span>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-700">CLIENT</span>
                   <p className="font-extrabold text-slate-900 text-sm">{selectedContractDetail.clientName || selectedContractDetail.client || 'Enterprise Client'}</p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase text-slate-400">CONTRACT VALUE (₹)</span>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-700">CONTRACT VALUE (₹)</span>
                   <p className="font-extrabold text-[#2563eb] text-sm">{selectedContractDetail.amount || selectedContractDetail.agreedAmount || '₹1,50,000'}</p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase text-slate-400">START DATE</span>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-700">START DATE</span>
                   <p className="font-extrabold text-slate-900">{selectedContractDetail.startDate || 'Aug 11, 2026'}</p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase text-slate-400">ESCROW STATUS</span>
+                  <span className="text-[10px] font-extrabold uppercase text-slate-700">ESCROW STATUS</span>
                   <p className="font-extrabold text-emerald-600">Funded & Protected</p>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Agreed Milestone Breakdown</h4>
+                <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Agreed Milestone Breakdown</h4>
                 <div className="space-y-2">
                   {(selectedContractDetail.milestones && selectedContractDetail.milestones.length > 0) ? (
                     selectedContractDetail.milestones.map((m, idx) => (
@@ -2014,7 +2014,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                             {m.title || `Phase ${idx + 1}: Milestone Task`}
                           </h5>
                           {m.description && (
-                            <p className="text-xs text-slate-500 font-medium">{m.description}</p>
+                            <p className="text-xs text-slate-700 font-medium">{m.description}</p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
@@ -2024,7 +2024,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                               ? 'text-emerald-600'
                               : (m.status || '').toLowerCase() === 'in progress'
                               ? 'text-blue-600'
-                              : 'text-slate-400'
+                              : 'text-slate-600 font-bold'
                           }`}>
                             {m.status || 'Pending'}
                           </span>
@@ -2036,7 +2036,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                       <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
                         <div className="space-y-0.5">
                           <h5 className="font-extrabold text-slate-900 text-sm">Phase 1: Model Setup & Data Ingestion</h5>
-                          <p className="text-xs text-slate-500 font-medium">PyTorch model pipeline architecture</p>
+                          <p className="text-xs text-slate-700 font-medium">PyTorch model pipeline architecture</p>
                         </div>
                         <div className="text-right shrink-0">
                           <span className="font-black text-emerald-600 text-sm block">₹750</span>

@@ -224,7 +224,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+            <span className="text-xs font-bold text-slate-700">
               System Health: <span className="text-emerald-600 font-extrabold">PostgreSQL Healthy (99.98% Uptime)</span>
             </span>
           </div>
@@ -342,7 +342,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             {/* Header Banner */}
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Platform Management Console</h2>
-              <p className={`text-sm ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700'}`}>
+              <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>
                 Monitor user verification requests, ecosystem governance, and security audit logs.
               </p>
             </div>

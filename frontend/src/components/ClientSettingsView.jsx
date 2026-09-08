@@ -1023,7 +1023,7 @@ const ClientSettingsView = ({
                   <div className="flex justify-end pt-1">
                     <button
                       disabled
-                      className="px-5 py-2.5 bg-slate-300 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl text-xs cursor-not-allowed border border-slate-300 dark:border-slate-700"
+                      className="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold rounded-xl text-xs cursor-not-allowed border border-slate-300 dark:border-slate-700"
                     >
                       Deactivation Unavailable
                     </button>

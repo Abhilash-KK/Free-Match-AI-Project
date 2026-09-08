@@ -415,19 +415,19 @@ const ClientProfileView = ({
                 </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                <span className="flex items-center space-x-1.5 text-slate-300 font-semibold">
-                  <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span className="flex items-center space-x-1.5 text-slate-900 font-extrabold">
+                  <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>{profile.companyName || `${profile.displayName || currentUserName}'s Enterprise`}</span>
                 </span>
-                <span className="text-slate-600 dark:text-slate-700">•</span>
-                <span className="flex items-center space-x-1.5">
-                  <MapPin className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
+                <span className="text-slate-400">•</span>
+                <span className="flex items-center space-x-1.5 text-slate-700">
+                  <MapPin className="w-4 h-4 text-slate-500 shrink-0" />
                   <span>{profile.location || 'Location Not Specified'}</span>
                 </span>
-                <span className="text-slate-600 dark:text-slate-700">•</span>
-                <span className="flex items-center space-x-1.5">
-                  <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 shrink-0" />
+                <span className="text-slate-400">•</span>
+                <span className="flex items-center space-x-1.5 text-slate-700">
+                  <Calendar className="w-4 h-4 text-slate-500 shrink-0" />
                   <span>Joined {profile.joinedDate || 'August 2026'}</span>
                 </span>
               </div>

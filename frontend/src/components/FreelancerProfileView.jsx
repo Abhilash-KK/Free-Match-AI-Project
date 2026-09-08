@@ -1264,7 +1264,7 @@ export default function FreelancerProfileView({
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                  <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     {proj.description}
                   </p>
 
@@ -1345,7 +1345,7 @@ export default function FreelancerProfileView({
                 </div>
 
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{exp.organization}</p>
-                <p className="text-xs text-slate-300 leading-relaxed font-medium">{exp.description}</p>
+                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{exp.description}</p>
               </div>
             ))}
           </div>
@@ -1499,7 +1499,7 @@ export default function FreelancerProfileView({
                         </div>
                       )}
                       <div>
-                        <h4 className="font-extrabold text-sm text-slate-100">{rv.reviewer || 'Client'}</h4>
+                        <h4 className={`font-extrabold text-sm ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{rv.reviewer || 'Client'}</h4>
                         <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                           Client • <span className="font-bold text-amber-400/90">{rv.projectTitle || rv.project_title || 'Completed Project'}</span>
                         </p>
@@ -1518,14 +1518,18 @@ export default function FreelancerProfileView({
                   </div>
 
                   {(rv.comm || rv.code || rv.deadline) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border border-slate-800/50 bg-black/20 text-xs font-semibold">
+                    <div className={`grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-xl border text-xs font-semibold ${isDark ? 'border-slate-800/50 bg-black/20 text-slate-200' : 'border-slate-200 bg-slate-100/80 text-slate-800'}`}>
                       {rv.comm && <div className="flex items-center space-x-1.5"><MessageCircle className="w-3.5 h-3.5 text-amber-400" /><span>Communication: <span className="text-amber-400 font-bold">{rv.comm}/5 ★</span></span></div>}
                       {rv.code && <div className="flex items-center space-x-1.5"><Code2 className="w-3.5 h-3.5 text-amber-400" /><span>Work Quality: <span className="text-amber-400 font-bold">{rv.code}/5 ★</span></span></div>}
                       {rv.deadline && <div className="flex items-center space-x-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /><span>Deadline Adherence: <span className="text-amber-400 font-bold">{rv.deadline}/5 ★</span></span></div>}
                     </div>
                   )}
 
-                  <p className="text-xs italic p-4 rounded-xl border border-amber-500/20 bg-amber-950/10 text-slate-200 leading-relaxed font-medium">
+                  <p className={`text-xs italic p-4 rounded-xl border leading-relaxed font-semibold ${
+                    isDark 
+                      ? 'border-amber-500/30 bg-amber-950/20 text-slate-100' 
+                      : 'border-amber-300 bg-amber-50/90 text-slate-900 shadow-2xs'
+                  }`}>
                     "{rv.comment}"
                   </p>
                 </div>

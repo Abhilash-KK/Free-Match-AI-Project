@@ -698,7 +698,7 @@ export default function FreelancerEarningsView({
               </div>
               <button
                 onClick={() => setShowWithdrawModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -706,11 +706,11 @@ export default function FreelancerEarningsView({
 
             <form onSubmit={handleExecuteWithdrawal} className="space-y-4">
               <div>
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 block mb-1">
+                <label className={`text-xs font-extrabold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Available Balance: <strong className="text-blue-600 dark:text-blue-400">{financialData.totalBalance}</strong>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400">₹</span>
+                  <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-black ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>₹</span>
                   <input
                     type="number"
                     value={withdrawAmount}
@@ -725,7 +725,7 @@ export default function FreelancerEarningsView({
               </div>
 
               <div>
-                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300 block mb-1">
+                <label className={`text-xs font-extrabold uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Target Bank Account
                 </label>
                 <select

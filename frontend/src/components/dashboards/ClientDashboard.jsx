@@ -63,11 +63,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const [description, setDescription] = useState('');
   const [projectAbstract, setProjectAbstract] = useState('');
   const [attachedFile, setAttachedFile] = useState(null);
-  const [milestoneItems, setMilestoneItems] = useState([
-    { id: 1, title: 'Phase 1: Architecture & UI Wireframes', amount: '1000' },
-    { id: 2, title: 'Phase 2: Core Development & APIs', amount: '2500' },
-    { id: 3, title: 'Phase 3: QA & Final Escrow Release', amount: '1500' }
-  ]);
+  const [milestoneItems, setMilestoneItems] = useState([]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -1301,6 +1297,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     setDescription('');
     setProjectAbstract('');
     setAttachedFile(null);
+    setMilestoneItems([]);
     window.dispatchEvent(new Event('freematch_shared_event'));
   };
 
@@ -1532,7 +1529,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">WORKSPACE</p>
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                { id: 'post', label: 'Post Project', icon: PlusCircle, action: () => setShowPostProjectModal(true) },
+                { id: 'post', label: 'Post Project', icon: PlusCircle, action: () => { setMilestoneItems([]); setShowPostProjectModal(true); } },
                 { id: 'projects', label: 'My Projects', icon: FolderKanban, badge: clientProjects.length },
                 { id: 'applications', label: 'Project Applications', icon: Inbox, badge: proposals.length },
                 { id: 'freelancers', label: 'Hired Freelancers', icon: Users },
@@ -1675,7 +1672,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search projects by title, category, skills, freelancer, or contract ID..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
             />
             {searchQuery.trim() !== '' && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-50 p-3 space-y-3">
@@ -1898,13 +1895,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       return `${greeting}, ${firstName} 👋`;
                     })()}
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium mt-1">
+                  <p className="text-xs sm:text-sm text-slate-700 font-semibold mt-1">
                     Here's an overview of your projects, hiring activity, and payments.
                   </p>
                 </div>
 
                 <button 
-                  onClick={() => setShowPostProjectModal(true)}
+                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                   className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
                 >
                   <span>+</span>
@@ -1920,7 +1917,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-1">
                       <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{activeProjectsCount}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{inProgressCount} in progress</p>
+                      <p className="text-xs text-slate-700 font-semibold">{inProgressCount} in progress</p>
                       <div className="pt-2">
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 2 this month
@@ -1937,7 +1934,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-1">
                       <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{pendingAppsCount}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{pendingReviewCount} require your review</p>
+                      <p className="text-xs text-slate-700 font-semibold">{pendingReviewCount} require your review</p>
                       <div className="pt-2">
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 3 new
@@ -1954,7 +1951,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-1">
                       <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL PROJECT VALUE</p>
                       <p className="text-3xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Across all active projects</p>
+                      <p className="text-xs text-slate-700 font-semibold">Across all active projects</p>
                       <div className="pt-2">
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                           ↑ 12% this month
@@ -1971,7 +1968,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-1">
                       <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider">ESCROW BALANCE</p>
                       <p className="text-3xl font-extrabold text-slate-900">{formattedPendingEscrow}</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">₹2,400 available</p>
+                      <p className="text-xs text-slate-700 font-semibold">₹2,400 available</p>
                       <div className="pt-2">
                         <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
                           ↓ ₹300 this month
@@ -2012,7 +2009,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         Start by posting your first project to receive freelancer applications and AI matches.
                       </p>
                       <button 
-                        onClick={() => setShowPostProjectModal(true)}
+                        onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                         className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
                       >
                         <PlusCircle className="w-4 h-4" />
@@ -2050,7 +2047,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                             <div className="text-right">
                               <p className="text-sm font-extrabold text-slate-900">{formatCurrency(p.budget)}</p>
-                              <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">BUDGET</p>
+                              <p className="text-xs text-slate-700 font-extrabold uppercase">BUDGET</p>
                             </div>
                           </div>
 
@@ -2073,11 +2070,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-slate-800">{hiredFreelancer}</p>
-                                  <p className="text-xs text-slate-600 dark:text-slate-300">Hired Freelancer</p>
+                                  <p className="text-xs text-slate-600 font-semibold">Hired Freelancer</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Posted: {p.postedDate || 'Aug 10, 2026'}</p>
+                              <p className="text-xs text-slate-700 font-semibold">Posted: {p.postedDate || 'Aug 10, 2026'}</p>
                             )}
 
                             <div className="flex items-center space-x-4">
@@ -2085,11 +2082,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 <>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{getProjectApplicantCount(p)}</p>
-                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">APPLICANTS</p>
+                                    <p className="text-xs text-slate-700 font-extrabold">APPLICANTS</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">DURATION</p>
+                                    <p className="text-xs text-slate-700 font-extrabold">DURATION</p>
                                   </div>
                                   <button 
                                     onClick={() => { setApplicationFilter('All'); setActiveTab('applications'); }}
@@ -2102,11 +2099,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 <>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">Milestones</p>
-                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">ACTIVE</p>
+                                    <p className="text-xs text-slate-700 font-extrabold">ACTIVE</p>
                                   </div>
                                   <div className="text-center">
                                     <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold">REMAINING</p>
+                                    <p className="text-xs text-slate-700 font-extrabold">REMAINING</p>
                                   </div>
                                   <button 
                                     onClick={() => setSelectedManageProject(p)}
@@ -2418,7 +2415,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
 
                 <button 
-                  onClick={() => setShowPostProjectModal(true)}
+                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                   className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md shrink-0 cursor-pointer"
                 >
                   <span>+</span>
@@ -2478,7 +2475,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
               <div className="flex items-center space-x-3">
                 <button 
-                  onClick={() => setShowPostProjectModal(true)}
+                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                   className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
                 >
                   <span>+</span>
@@ -2548,7 +2545,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       </p>
                     </div>
                     <button 
-                      onClick={() => setShowPostProjectModal(true)}
+                      onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                       className="px-5 py-2.5 bg-[#2563eb] text-white font-extrabold text-xs rounded-xl shadow-xs hover:bg-blue-700 cursor-pointer"
                     >
                       + Create & Save Draft
@@ -2618,7 +2615,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">No marketplace projects match your selected filter or search query.</p>
                   </div>
                   <button 
-                    onClick={() => setShowPostProjectModal(true)}
+                    onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
                     className="px-5 py-2.5 bg-[#2563eb] text-white font-extrabold text-xs rounded-xl shadow-xs hover:bg-blue-700 cursor-pointer"
                   >
                     + Post New Project
@@ -3781,7 +3778,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => setShowPostProjectModal(false)}
+                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); }}
                     className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-200/80"
                   >
                     <X className="w-5 h-5" />
@@ -4021,7 +4018,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </div>
                           <div>
                             <h4 className="text-xs font-black uppercase tracking-wider text-blue-600">PAYMENT MILESTONES</h4>
-                            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Break down your project into milestone phases</p>
+                            <p className="text-xs text-slate-700 font-semibold">Break down your project into milestone phases</p>
                           </div>
                         </div>
 
@@ -4030,7 +4027,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           onClick={() => {
                             setMilestoneItems([
                               ...milestoneItems, 
-                              { id: Date.now(), title: `Phase ${milestoneItems.length + 1}: Deliverable`, amount: '1000' }
+                              { id: `${Date.now()}_${milestoneItems.length}`, title: '', amount: '' }
                             ]);
                           }}
                           className="px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
@@ -4072,9 +4069,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (milestoneItems.length > 1) {
-                                  setMilestoneItems(milestoneItems.filter((_, i) => i !== idx));
-                                }
+                                setMilestoneItems(milestoneItems.filter((_, i) => i !== idx));
                               }}
                               className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer shrink-0"
                             >
@@ -4230,7 +4225,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <div className="shrink-0 border-t p-4 sm:px-8 flex items-center justify-between bg-slate-100/90 border-slate-200">
                   <button 
                     type="button" 
-                    onClick={() => setShowPostProjectModal(false)}
+                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); }}
                     className="px-5 py-2.5 text-xs font-black text-slate-900 hover:text-black rounded-xl hover:bg-slate-200/90 transition-all cursor-pointer border border-slate-300"
                   >
                     Cancel

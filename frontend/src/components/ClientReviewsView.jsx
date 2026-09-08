@@ -251,8 +251,8 @@ export default function ClientReviewsView({
             <div className={`p-5 rounded-2xl border flex items-start justify-between ${cardBg}`}>
               <div>
                 <p className="text-xs font-extrabold text-amber-500 uppercase tracking-wider">OVERALL RATING</p>
-                <p className="text-3xl font-black text-amber-500 mt-1">⭐ {avgRating} <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">/ 5.0</span></p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Average rating score</p>
+                <p className="text-3xl font-black text-amber-500 mt-1">⭐ {avgRating} <span className={`text-xs font-extrabold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>/ 5.0</span></p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>Average rating score</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 font-bold">
                 <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
@@ -264,7 +264,7 @@ export default function ClientReviewsView({
               <div>
                 <p className="text-xs font-extrabold text-blue-500 uppercase tracking-wider">TOTAL REVIEWS</p>
                 <p className="text-3xl font-black text-blue-500 mt-1">{totalReviews}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Client reviews received</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>Client reviews received</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0 font-bold">
                 <MessageCircle className="w-5 h-5" />
@@ -276,7 +276,7 @@ export default function ClientReviewsView({
               <div>
                 <p className="text-xs font-extrabold text-emerald-500 uppercase tracking-wider">VERIFIED REVIEWS</p>
                 <p className="text-3xl font-black text-emerald-500 mt-1">{totalReviews}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Completed deliverables</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>Completed deliverables</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0 font-bold">
                 <ShieldCheck className="w-5 h-5" />
@@ -288,7 +288,7 @@ export default function ClientReviewsView({
               <div>
                 <p className="text-xs font-extrabold text-purple-500 uppercase tracking-wider">JOB SUCCESS RATE</p>
                 <p className="text-3xl font-black text-purple-500 mt-1">100%</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">On-time client delivery</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>On-time client delivery</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-500 flex items-center justify-center shrink-0 font-bold">
                 <TrendingUp className="w-5 h-5" />
@@ -331,7 +331,7 @@ export default function ClientReviewsView({
                   const pct = getPercentage(count);
                   return (
                     <div key={star} className="flex items-center space-x-3 text-xs font-semibold">
-                      <span className="w-14 font-extrabold flex items-center text-slate-600 dark:text-slate-300">
+                      <span className={`w-14 font-extrabold flex items-center ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                         {star} Stars
                       </span>
                       <div className="flex-1 h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden relative">
@@ -340,7 +340,7 @@ export default function ClientReviewsView({
                           style={{ width: `${pct}%` }}
                         ></div>
                       </div>
-                      <span className="w-16 text-right font-extrabold text-slate-700 dark:text-slate-300">
+                      <span className={`w-16 text-right font-extrabold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                         {count} ({pct}%)
                       </span>
                     </div>
@@ -356,7 +356,7 @@ export default function ClientReviewsView({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Filter Pills */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mr-1 flex items-center">
+              <span className={`text-xs font-extrabold uppercase tracking-wider mr-1 flex items-center ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> Filter:
               </span>
               {[
@@ -439,7 +439,7 @@ export default function ClientReviewsView({
                         ))}
                       </div>
                       <span className="text-sm font-black text-amber-500">⭐ {Number(rv.rating || 5).toFixed(1)} / 5.0</span>
-                      {rv.date && <span className="text-xs font-black text-slate-700 dark:text-slate-300 ml-2">({rv.date})</span>}
+                      {rv.date && <span className={`text-xs font-black ml-2 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>({rv.date})</span>}
                     </div>
                   </div>
 

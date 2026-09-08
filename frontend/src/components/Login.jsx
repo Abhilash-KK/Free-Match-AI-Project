@@ -746,7 +746,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <h2 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Reset Password
                 </h2>
-                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                <p className={`mt-2 text-xs sm:text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Enter your registered work email and your new password.
                 </p>
               </div>
@@ -876,7 +876,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                 <h2 className={`text-3xl font-extrabold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {mode === 'register' ? 'Create Account' : 'Welcome Back'}
                 </h2>
-                <p className={`mt-2 text-xs sm:text-sm font-normal ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                <p className={`mt-2 text-xs sm:text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {mode === 'register'
                     ? 'Join the elite network of professional matches.'
                     : 'Securely sign in using your Email ID or User ID.'}
