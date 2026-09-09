@@ -52,47 +52,69 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Sample System Data
-  const [verifications, setVerifications] = useState([
-    { id: 'v1', name: 'Sarah Chen', role: 'Senior UI/UX Architect', skills: 'Figma, React, Tailwind', docs: 'Passport_TaxID.pdf', date: 'Oct 29, 2023', status: 'Pending Verification' },
-    { id: 'v2', name: 'Lana Kim', role: 'Cybersecurity Specialist', skills: 'PenTesting, Python, OWASP', docs: 'SecurityCert_GovID.pdf', date: 'Aug 03, 2026', status: 'Pending Verification' }
-  ]);
+  // Live Platform Administrative Data
+  const [metrics, setMetrics] = useState({
+    platform_revenue: '₹0',
+    platform_revenue_num: 0,
+    total_escrow_volume: '₹0',
+    total_escrow_volume_num: 0,
+    active_contracts_count: 0,
+    total_projects_count: 0,
+    suspended_accounts_count: 0,
+    critical_vulnerabilities: 0,
+    total_transactions_count: 0
+  });
 
-  const [users, setUsers] = useState([
-    { id: 'u1', name: 'Alex Mercer', role: 'Freelancer', email: 'alex.m@system.net', status: 'Active', verified: true, joined: 'Aug 01, 2026' },
-    { id: 'u2', name: 'TechStream Corp', role: 'Client', email: 'contact@techstream.io', status: 'Active', verified: true, joined: 'Aug 01, 2026' },
-    { id: 'u3', name: 'Sarah Chen', role: 'Freelancer', email: 's.chen@cloudstack.io', status: 'Pending', verified: false, joined: 'Aug 04, 2026' },
-    { id: 'u4', name: 'David Wright', role: 'Freelancer', email: 'dwright@uxmasters.com', status: 'Suspended', verified: false, joined: 'Jul 25, 2026' }
-  ]);
+  const [verifications, setVerifications] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
 
-  const [categories, setCategories] = useState([
-    { id: 'c1', name: 'Software Engineering', activeSkills: 42, projects: 420 },
-    { id: 'c2', name: 'UI/UX & Visual Design', activeSkills: 28, projects: 215 },
-    { id: 'c3', name: 'Data Science & AI/ML', activeSkills: 35, projects: 140 },
-    { id: 'c4', name: 'Cybersecurity & Auditing', activeSkills: 19, projects: 115 }
-  ]);
+  const fetchAdminData = async () => {
+    try {
+      const res = await fetch('/api/admin-dashboard/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.metrics) setMetrics(data.metrics);
+        if (Array.isArray(data.verifications)) setVerifications(data.verifications);
+        if (Array.isArray(data.users)) setUsers(data.users);
+        if (Array.isArray(data.categories)) {
+          setCategories(data.categories);
+          if (data.categories.length > 0 && !selectedCategory) {
+            setSelectedCategory(data.categories[0].name);
+          }
+        }
+        if (Array.isArray(data.skills)) setSkills(data.skills);
+        if (Array.isArray(data.audit_logs)) setAuditLogs(data.audit_logs);
+      }
+    } catch (err) {
+      console.error('Failed to load admin dashboard data', err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
-  const [skills, setSkills] = useState([
-    { id: 's1', name: 'React.js', category: 'Frontend', demand: 'High' },
-    { id: 's2', name: 'Python Django', category: 'Backend', demand: 'High' },
-    { id: 's3', name: 'PostgreSQL', category: 'Database', demand: 'Medium' },
-    { id: 's4', name: 'PyTorch ML', category: 'AI/ML', demand: 'High' },
-    { id: 's5', name: 'Figma Design', category: 'Design', demand: 'Medium' }
-  ]);
-
-  const [auditLogs] = useState([
-    { id: 'log1', time: '10:42:15 AM', event: 'Identity Verified', details: 'Admin approved Alex Mercer tax verification', type: 'security' },
-    { id: 'log2', time: '10:35:00 AM', event: 'Escrow Locked', details: '₹8,000 locked for AI Pipeline Optimization milestone', type: 'financial' },
-    { id: 'log3', time: '09:12:44 AM', event: 'Account Suspended', details: 'User David Wright suspended due to terms violation', type: 'alert' }
-  ]);
+  useEffect(() => {
+    fetchAdminData();
+    const handleSync = () => fetchAdminData();
+    window.addEventListener('freematch_shared_event', handleSync);
+    window.addEventListener('freematch_notification_event', handleSync);
+    return () => {
+      window.removeEventListener('freematch_shared_event', handleSync);
+      window.removeEventListener('freematch_notification_event', handleSync);
+    };
+  }, []);
 
   // Real-time Notifications State
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     const loadLiveNotifs = async () => {
-      const list = await fetchNotifications(userSession?.user_id || userSession?.name || 'admin');
-      setNotifications(list);
+      const aUserId = (userSession?.user_id || userSession?.username || userSession?.email || userSession?.id || 'admin').toString().trim();
+      const list = await fetchNotifications(aUserId);
+      setNotifications(Array.isArray(list) ? list : []);
     };
     loadLiveNotifs();
 
@@ -104,34 +126,119 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
   const unreadNotifCount = notifications.filter(n => !n.is_read).length;
 
   // Handlers
-  const handleApproveVerification = (id) => {
-    setVerifications(prev => prev.filter(v => v.id !== id));
-    setToast({ message: 'Freelancer identity verified and trust badge awarded!', type: 'success' });
+  const handleApproveVerification = async (vObj) => {
+    const userId = typeof vObj === 'object' ? (vObj.user_id || vObj.id) : vObj;
+    try {
+      const res = await fetch('/api/admin-dashboard/verify/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, action: 'approve' })
+      });
+      if (res.ok) {
+        setVerifications(prev => prev.filter(v => (v.user_id || v.id) !== userId && v.id !== userId));
+        setToast({ message: 'Freelancer identity verified and trust badge awarded!', type: 'success' });
+        fetchAdminData();
+        window.dispatchEvent(new Event('freematch_shared_event'));
+      } else {
+        setToast({ message: 'Failed to approve verification application.', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error approving verification.', type: 'error' });
+    }
   };
 
-  const handleRejectVerification = (id) => {
-    setVerifications(prev => prev.filter(v => v.id !== id));
-    setToast({ message: 'Verification application rejected.', type: 'warning' });
+  const handleRejectVerification = async (vObj) => {
+    const userId = typeof vObj === 'object' ? (vObj.user_id || vObj.id) : vObj;
+    try {
+      const res = await fetch('/api/admin-dashboard/verify/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, action: 'reject' })
+      });
+      if (res.ok) {
+        setVerifications(prev => prev.filter(v => (v.user_id || v.id) !== userId && v.id !== userId));
+        setToast({ message: 'Verification application rejected.', type: 'warning' });
+        fetchAdminData();
+        window.dispatchEvent(new Event('freematch_shared_event'));
+      } else {
+        setToast({ message: 'Failed to reject verification application.', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error rejecting verification.', type: 'error' });
+    }
   };
 
-  const toggleUserStatus = (userId) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' } : u));
+  const toggleUserStatus = async (userObj) => {
+    const userId = typeof userObj === 'object' ? (userObj.user_id || userObj.id) : userObj;
+    try {
+      const res = await fetch('/api/admin-dashboard/toggle-user/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(prev => prev.map(u => ((u.user_id || u.id) === userId || u.id === userId) ? { ...u, status: data.status } : u));
+        setToast({ message: `User account status updated to ${data.status}.`, type: 'info' });
+        fetchAdminData();
+      } else {
+        setToast({ message: 'Failed to update user status.', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error updating user status.', type: 'error' });
+    }
   };
 
-  const handleAddCategory = (e) => {
+  const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
-    setCategories(prev => [...prev, { id: `c_${Date.now()}`, name: newCategoryName.trim(), activeSkills: 0, projects: 0 }]);
-    setNewCategoryName('');
-    setShowAddCategoryModal(false);
+    try {
+      const res = await fetch('/api/admin-dashboard/category/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategoryName.trim() })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.category) {
+          setCategories(prev => [...prev.filter(c => c.name !== data.category.name), data.category]);
+        }
+        setToast({ message: 'Skill category registered successfully!', type: 'success' });
+        setNewCategoryName('');
+        setShowAddCategoryModal(false);
+        fetchAdminData();
+      } else {
+        setToast({ message: 'Failed to add category.', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Network error creating category.', type: 'error' });
+    }
   };
 
-  const handleAddSkill = (e) => {
+  const handleAddSkill = async (e) => {
     e.preventDefault();
     if (!newSkillName.trim()) return;
-    setSkills(prev => [...prev, { id: `s_${Date.now()}`, name: newSkillName.trim(), category: selectedCategory, demand: 'Medium' }]);
-    setNewSkillName('');
-    setShowAddSkillModal(false);
+    try {
+      const res = await fetch('/api/admin-dashboard/skill/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSkillName.trim(), category: selectedCategory })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.skill) {
+          setSkills(prev => [...prev.filter(s => s.name !== data.skill.name), data.skill]);
+        }
+        setToast({ message: 'Skill tag registered successfully!', type: 'success' });
+        setNewSkillName('');
+        setShowAddSkillModal(false);
+        fetchAdminData();
+      } else {
+        setToast({ message: 'Failed to add skill tag.', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Network error creating skill tag.', type: 'error' });
+    }
   };
 
   return (
@@ -351,26 +458,26 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className={`p-5 rounded-2xl border border-emerald-500/40 ${isDark ? 'bg-emerald-950/20' : 'bg-emerald-50/50 shadow-xs'}`}>
                 <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">PLATFORM REVENUE (10% FEE)</p>
-                <p className="text-2xl font-extrabold text-emerald-600 mt-1">₹14,250</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">From ₹1,42,500 Total Escrow Volume</p>
+                <p className="text-2xl font-extrabold text-emerald-600 mt-1">{metrics.platform_revenue}</p>
+                <p className="text-xs text-slate-600 font-medium mt-1">From {metrics.total_escrow_volume} Total Escrow Volume</p>
               </div>
 
               <div className={`p-5 rounded-2xl border border-rose-500/40 ${isDark ? 'bg-rose-950/20' : 'bg-rose-50/50 shadow-xs'}`}>
                 <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">IDENTITY VERIFICATION QUEUE</p>
-                <p className="text-2xl font-extrabold text-rose-600 mt-1">{verifications.length} Applications</p>
+                <p className="text-2xl font-extrabold text-rose-600 mt-1">{verifications.length} Application{verifications.length === 1 ? '' : 's'}</p>
                 <p className="text-xs text-slate-600 font-medium mt-1">Pending Document & Tax Verification</p>
               </div>
 
               <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
                 <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">ACTIVE CONTRACTS</p>
-                <p className="text-2xl font-extrabold text-blue-600 mt-1">340 Contracts Running</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">Across 890 Total Projects</p>
+                <p className="text-2xl font-extrabold text-blue-600 mt-1">{metrics.active_contracts_count} Contract{metrics.active_contracts_count === 1 ? '' : 's'} Running</p>
+                <p className="text-xs text-slate-600 font-medium mt-1">Across {metrics.total_projects_count} Total Project{metrics.total_projects_count === 1 ? '' : 's'}</p>
               </div>
 
               <div className={`p-5 rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">SECURITY ALERTS</p>
-                <p className="text-2xl font-extrabold text-amber-600 mt-1">0 Critical Vulnerabilities</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">1 User Account Suspended</p>
+                <p className="text-2xl font-extrabold text-amber-600 mt-1">{metrics.critical_vulnerabilities} Critical Vulnerabilities</p>
+                <p className="text-xs text-slate-600 font-medium mt-1">{metrics.suspended_accounts_count} User Account{metrics.suspended_accounts_count === 1 ? '' : 's'} Suspended</p>
               </div>
             </div>
 
@@ -401,10 +508,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                         <p className="text-xs text-slate-600 font-medium">Docs Attached: <span className="font-bold text-slate-800">{v.docs}</span> • Submitted: {v.date}</p>
                       </div>
                       <div className="flex items-center space-x-2 shrink-0">
-                        <button onClick={() => handleApproveVerification(v.id)} className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer">
+                        <button onClick={() => handleApproveVerification(v)} className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer">
                           Approve & Award Badge
                         </button>
-                        <button onClick={() => handleRejectVerification(v.id)} className="px-3.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-extrabold text-xs rounded-xl border border-rose-200 cursor-pointer">
+                        <button onClick={() => handleRejectVerification(v)} className="px-3.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-extrabold text-xs rounded-xl border border-rose-200 cursor-pointer">
                           Reject
                         </button>
                       </div>
@@ -433,30 +540,36 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-semibold">
-                    {users.map(u => (
-                      <tr key={u.id}>
-                        <td className="py-3 font-extrabold text-slate-900">{u.name}</td>
-                        <td className="py-3 text-slate-700">{u.role}</td>
-                        <td className="py-3 text-slate-600">{u.email}</td>
-                        <td className="py-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
-                            u.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                          }`}>
-                            {u.status}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right">
-                          <button
-                            onClick={() => toggleUserStatus(u.id)}
-                            className={`px-3 py-1 rounded-xl text-xs font-extrabold cursor-pointer ${
-                              u.status === 'Active' ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                            }`}
-                          >
-                            {u.status === 'Active' ? 'Suspend' : 'Reactivate'}
-                          </button>
-                        </td>
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="py-6 text-center text-slate-500 text-xs font-semibold">No registered users found.</td>
                       </tr>
-                    ))}
+                    ) : (
+                      users.map(u => (
+                        <tr key={u.id}>
+                          <td className="py-3 font-extrabold text-slate-900">{u.name}</td>
+                          <td className="py-3 text-slate-700">{u.role}</td>
+                          <td className="py-3 text-slate-600">{u.email}</td>
+                          <td className="py-3">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                              u.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                            }`}>
+                              {u.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-right">
+                            <button
+                              onClick={() => toggleUserStatus(u)}
+                              className={`px-3 py-1 rounded-xl text-xs font-extrabold cursor-pointer ${
+                                u.status === 'Active' ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                              }`}
+                            >
+                              {u.status === 'Active' ? 'Suspend' : 'Reactivate'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -469,25 +582,31 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         {activeTab === 'verifications' && (
           <div className="p-8 space-y-6">
             <h2 className="text-2xl font-bold tracking-tight">Identity Verification Queue</h2>
-            <div className="space-y-4">
-              {verifications.map(v => (
-                <div key={v.id} className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex justify-between items-center">
-                  <div>
-                    <h3 className="font-extrabold text-base text-slate-900">{v.name}</h3>
-                    <p className="text-xs text-slate-600">{v.role} • Submitted: {v.date}</p>
-                    <p className="text-xs text-blue-600 font-bold mt-1">Document: {v.docs}</p>
+            {verifications.length === 0 ? (
+              <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 text-slate-500 font-semibold text-sm">
+                No pending identity verification applications in queue.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {verifications.map(v => (
+                  <div key={v.id} className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs flex justify-between items-center">
+                    <div>
+                      <h3 className="font-extrabold text-base text-slate-900">{v.name}</h3>
+                      <p className="text-xs text-slate-600">{v.role} • Submitted: {v.date}</p>
+                      <p className="text-xs text-blue-600 font-bold mt-1">Document: {v.docs}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button onClick={() => handleApproveVerification(v)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer">
+                        Approve Badge
+                      </button>
+                      <button onClick={() => handleRejectVerification(v)} className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 font-extrabold text-xs rounded-xl border border-rose-200 cursor-pointer">
+                        Reject
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => handleApproveVerification(v.id)} className="px-4 py-2 bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer">
-                      Approve Badge
-                    </button>
-                    <button onClick={() => handleRejectVerification(v.id)} className="px-4 py-2 bg-rose-50 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 cursor-pointer">
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -506,22 +625,30 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-bold">
-                  {users.map(u => (
-                    <tr key={u.id}>
-                      <td className="py-3 text-slate-900">{u.name}</td>
-                      <td className="py-3 text-slate-600">{u.role}</td>
-                      <td className="py-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs ${u.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right">
-                        <button onClick={() => toggleUserStatus(u.id)} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs cursor-pointer">
-                          Toggle Status
-                        </button>
-                      </td>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="py-6 text-center text-slate-500 text-xs font-semibold">No registered users found.</td>
                     </tr>
-                  ))}
+                  ) : (
+                    users.map(u => (
+                      <tr key={u.id}>
+                        <td className="py-3 text-slate-900">{u.name}</td>
+                        <td className="py-3 text-slate-600">{u.role}</td>
+                        <td className="py-3">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs ${u.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <button onClick={() => toggleUserStatus(u)} className={`px-3 py-1 rounded-xl text-xs cursor-pointer font-bold ${
+                            u.status === 'Active' ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                          }`}>
+                            {u.status === 'Active' ? 'Suspend' : 'Reactivate'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -538,14 +665,20 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {categories.map(c => (
-                <div key={c.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                  <h3 className="font-extrabold text-slate-900 text-sm">{c.name}</h3>
-                  <p className="text-xs text-slate-600 mt-1">{c.activeSkills} Skills • {c.projects} Active Projects</p>
-                </div>
-              ))}
-            </div>
+            {categories.length === 0 ? (
+              <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 text-slate-500 font-semibold text-sm">
+                No skill categories configured yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {categories.map(c => (
+                  <div key={c.id} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                    <h3 className="font-extrabold text-slate-900 text-sm">{c.name}</h3>
+                    <p className="text-xs text-slate-600 mt-1">{c.activeSkills} Skills • {c.projects} Active Projects</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -556,15 +689,15 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200">
                 <p className="text-xs font-bold text-emerald-600">TOTAL PLATFORM REVENUE</p>
-                <p className="text-3xl font-extrabold text-emerald-700 mt-1">₹14,250</p>
+                <p className="text-3xl font-extrabold text-emerald-700 mt-1">{metrics.platform_revenue}</p>
               </div>
               <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200">
                 <p className="text-xs font-bold text-blue-600">ACTIVE ESCROW HELD</p>
-                <p className="text-3xl font-extrabold text-blue-700 mt-1">₹1,42,500</p>
+                <p className="text-3xl font-extrabold text-blue-700 mt-1">{metrics.total_escrow_volume}</p>
               </div>
               <div className="p-5 rounded-2xl bg-purple-50 border border-purple-200">
                 <p className="text-xs font-bold text-purple-600">TOTAL TRANSACTIONS</p>
-                <p className="text-3xl font-extrabold text-purple-700 mt-1">1,240</p>
+                <p className="text-3xl font-extrabold text-purple-700 mt-1">{metrics.total_transactions_count}</p>
               </div>
             </div>
           </div>
@@ -575,15 +708,19 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           <div className="p-8 space-y-6">
             <h2 className="text-2xl font-bold tracking-tight">Security & Audit Logs</h2>
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-              {auditLogs.map(l => (
-                <div key={l.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-extrabold text-slate-900">{l.event}</span>
-                    <p className="text-slate-600 font-medium">{l.details}</p>
+              {auditLogs.length === 0 ? (
+                <p className="text-xs text-slate-500 font-semibold py-4 text-center">No recent security or audit activity recorded.</p>
+              ) : (
+                auditLogs.map(l => (
+                  <div key={l.id} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-extrabold text-slate-900">{l.event}</span>
+                      <p className="text-slate-600 font-medium">{l.details}</p>
+                    </div>
+                    <span className="text-slate-600 font-bold">{l.time}</span>
                   </div>
-                  <span className="text-slate-600 font-bold">{l.time}</span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -648,14 +785,31 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             <div className="p-6 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl">
               <h3 className="text-lg font-bold mb-4">Add New Skill Tag</h3>
               <form onSubmit={handleAddSkill} className="space-y-4">
-                <input
-                  type="text"
-                  required
-                  value={newSkillName}
-                  onChange={(e) => setNewSkillName(e.target.value)}
-                  placeholder="e.g. Next.js, Kubernetes"
-                  className="w-full p-3 border rounded-xl text-xs bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                />
+                {categories.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="w-full p-3 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                    >
+                      {categories.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Skill Tag Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newSkillName}
+                    onChange={(e) => setNewSkillName(e.target.value)}
+                    placeholder="e.g. Next.js, Kubernetes"
+                    className="w-full p-3 border border-slate-300 rounded-xl text-xs bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  />
+                </div>
                 <div className="flex justify-end space-x-3">
                   <button type="button" onClick={() => setShowAddSkillModal(false)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer">Cancel</button>
                   <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-extrabold cursor-pointer">Add Skill Tag</button>

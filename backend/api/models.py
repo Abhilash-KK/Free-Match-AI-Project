@@ -26,17 +26,17 @@ class UserProfile(models.Model):
 
 class FreelancerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='freelancer_profile')
-    title = models.CharField(max_length=100, default='Software Engineer')
-    headline = models.CharField(max_length=200, blank=True, default='Senior React, PyTorch & Django Architect')
-    location = models.CharField(max_length=150, blank=True, default='San Francisco, CA')
-    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, default=50.00, validators=[MinValueValidator(0.0)])
+    title = models.CharField(max_length=100, blank=True, default='')
+    headline = models.CharField(max_length=200, blank=True, default='')
+    location = models.CharField(max_length=150, blank=True, default='')
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, validators=[MinValueValidator(0.0)])
     availability_status = models.CharField(max_length=50, blank=True, default='Available for Work')
     available_hours = models.CharField(max_length=50, blank=True, default='40 hrs/week')
-    years_experience = models.CharField(max_length=20, blank=True, default='7+')
-    rating = models.FloatField(default=5.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
+    years_experience = models.CharField(max_length=20, blank=True, default='0')
+    rating = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
     total_earnings = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, validators=[MinValueValidator(0.0)])
     verified = models.BooleanField(default=False)
-    skills_list = models.TextField(blank=True, default='React, Python, Django')
+    skills_list = models.TextField(blank=True, default='')
     avatar_url = models.TextField(blank=True, default='')
     resume_name = models.CharField(max_length=255, blank=True, default='')
     resume_url = models.TextField(blank=True, default='')
@@ -68,6 +68,7 @@ class Project(models.Model):
         ('In Progress', 'In Progress'),
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
+        ('Closed', 'Closed'),
     )
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
     title = models.CharField(max_length=200)
@@ -80,6 +81,7 @@ class Project(models.Model):
     attached_file_name = models.CharField(max_length=255, blank=True, default='')
     attached_file_url = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
+    milestones_json = models.TextField(blank=True, default='[]')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_progress_percentage(self):
@@ -87,19 +89,23 @@ class Project(models.Model):
         if not tasks.exists():
             if self.status == 'Completed':
                 return 100
-            elif self.status == 'In Progress':
-                return 30
             return 0
-        statuses = set(t.status for t in tasks)
-        if all(s in ('Done', 'Completed') for s in statuses):
-            return 100
-        if 'Under Review' in statuses:
-            return 60
-        if 'In Progress' in statuses:
-            return 30
-        if any(s in ('Done', 'Completed') for s in statuses):
-            return 30
-        return 0
+        statuses = [t.status for t in tasks]
+        total = len(statuses)
+        if total == 0:
+            return 0
+        sum_pct = 0
+        for s in statuses:
+            s_clean = (s or '').lower().strip()
+            if s_clean in ('done', 'completed', 'approved'):
+                sum_pct += 100
+            elif s_clean in ('under review', 'in review', 'review'):
+                sum_pct += 60
+            elif s_clean in ('in progress', 'doing'):
+                sum_pct += 30
+            else:
+                sum_pct += 0  # To Do
+        return int(round(sum_pct / total))
 
     def __str__(self):
         return f"{self.title} ({self.status})"
@@ -219,6 +225,9 @@ class Review(models.Model):
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('reviewer', 'reviewee', 'project_title')
+
     def __str__(self):
         return f"Review ({self.rating}★) by {self.reviewer.username} -> {self.reviewee.username}"
 
@@ -252,6 +261,7 @@ class Notification(models.Model):
         ('project', 'Project Event'),
         ('task', 'Task & Sprint Event'),
         ('message', 'Message Event'),
+        ('contract', 'Contract Event'),
         ('general', 'General Notification'),
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -262,6 +272,8 @@ class Notification(models.Model):
     project_name = models.CharField(max_length=200, blank=True, default='')
     related_user_id = models.CharField(max_length=100, blank=True, default='')
     related_user_name = models.CharField(max_length=200, blank=True, default='')
+    source_id = models.CharField(max_length=100, blank=True, default='')
+    event_key = models.CharField(max_length=255, blank=True, default='', db_index=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -335,6 +347,22 @@ class FreelancerCertification(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.organization} ({self.freelancer.username})"
+
+class FreelancerWithdrawal(models.Model):
+    STATUS_CHOICES = (
+        ('Pending', 'Pending'),
+        ('Processing', 'Processing'),
+        ('Completed', 'Completed'),
+        ('Failed', 'Failed'),
+    )
+    freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='withdrawals')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    bank_account = models.CharField(max_length=100, default='HDFC Bank **** 4578')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='Completed')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Withdrawal ₹{self.amount} ({self.status}) by {self.freelancer.username}"
 
 
 

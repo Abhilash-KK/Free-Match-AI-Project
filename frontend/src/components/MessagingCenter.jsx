@@ -175,7 +175,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
     }
   };
 
-  const isDemoUser = ['user1', 'alex', 'mercer', 'haines', 'abhilash', 'john'].some(d => currentUserId.toLowerCase().includes(d));
+  const isDemoUser = currentUserId === 'demo_user';
 
   // Find active counterpart object
   const activeConversation = conversations.find(c => c.username.toLowerCase() === (selectedCounterpart || '').toLowerCase()) || conversations[0] || (isDemoUser ? {

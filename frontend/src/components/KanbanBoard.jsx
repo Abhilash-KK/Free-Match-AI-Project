@@ -50,12 +50,12 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       const sessionStr = localStorage.getItem('freematch_active_session');
       if (sessionStr) {
         const parsed = JSON.parse(sessionStr);
-        const uid = (parsed?.user_id || parsed?.email || parsed?.name || 'guest').toLowerCase().trim();
-        const isDemo = uid === 'user1' || uid === 'abhilash' || uid.includes('james') || uid.includes('alex') || uid.includes('mercer') || uid.includes('haines') || uid.includes('abhilash') || uid.includes('john@freematch.ai') || uid.includes('techstream');
+        const uid = (parsed?.username || parsed?.user_id || parsed?.email || 'guest').toLowerCase().trim();
+        const isDemo = uid === 'demo_client' || uid === 'demo_freelancer';
         return { uid, isDemo };
       }
     } catch (e) {}
-    return { uid: 'guest', isDemo: true };
+    return { uid: 'guest', isDemo: false };
   };
 
   const { uid: currentUserId, isDemo: isDemoUser } = getActiveUser();
@@ -65,20 +65,52 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const deduplicateTasks = (list) => {
     if (!Array.isArray(list)) return [];
-    const seen = new Map();
+    const seenById = new Map();
+    const seenByTitleProj = new Map();
+
     list.forEach(t => {
+      if (!t) return;
       const proj = t.project || t.projectTitle || t.project_name || 'Enterprise Project';
-      const key = (t.id || `${t.title || ''}_${proj}`).toString().toLowerCase().trim();
-      if (!key) return;
-      if (!seen.has(key)) {
-        seen.set(key, {
-          ...t,
-          project: proj,
-          assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
-        });
+      const cleanTitle = (t.title || '').trim();
+      if (!cleanTitle) return;
+
+      const titleProjKey = `${cleanTitle.toLowerCase()}_${proj.toLowerCase().trim()}`;
+      const idKey = t.id ? String(t.id).trim() : null;
+
+      // If already seen by unique ID, skip duplicate
+      if (idKey && seenById.has(idKey)) return;
+
+      // If already seen by (title + project):
+      // Prefer a numeric database ID over a temporary 't_' or string ID
+      if (seenByTitleProj.has(titleProjKey)) {
+        const existing = seenByTitleProj.get(titleProjKey);
+        const isExistingNumeric = typeof existing.id === 'number' || (!isNaN(Number(existing.id)) && !String(existing.id).startsWith('t_'));
+        const isCurrentNumeric = typeof t.id === 'number' || (!isNaN(Number(t.id)) && !String(t.id).startsWith('t_'));
+
+        if (!isExistingNumeric && isCurrentNumeric) {
+          if (existing.id) seenById.delete(String(existing.id));
+          const normalized = {
+            ...t,
+            project: proj,
+            assignee: t.assignee || t.assignee_name || existing.assignee || 'Assigned Freelancer'
+          };
+          seenById.set(idKey, normalized);
+          seenByTitleProj.set(titleProjKey, normalized);
+        }
+        return;
       }
+
+      const normalized = {
+        ...t,
+        project: proj,
+        assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
+      };
+
+      if (idKey) seenById.set(idKey, normalized);
+      seenByTitleProj.set(titleProjKey, normalized);
     });
-    return Array.from(seen.values());
+
+    return Array.from(seenByTitleProj.values());
   };
 
   const FREELANCER_DEFAULT_TASKS = {
@@ -105,44 +137,61 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
   };
 
   const getFreelancerDefaultTasks = React.useCallback((userName) => {
+    if (!isDemoUser) return [];
     const nameClean = (userName || '').toLowerCase();
     if (nameClean.includes('haines')) return FREELANCER_DEFAULT_TASKS.haines;
     if (nameClean.includes('sarah')) return FREELANCER_DEFAULT_TASKS.sarah;
-    if (nameClean.includes('alex') || nameClean.includes('user1') || nameClean.includes('abhilash')) return FREELANCER_DEFAULT_TASKS.alex;
+    if (nameClean.includes('alex')) return FREELANCER_DEFAULT_TASKS.alex;
     return [];
-  }, []);
+  }, [isDemoUser]);
 
   const getCombinedTasks = (currentTasks) => {
     let baseTasks = Array.isArray(currentTasks) ? [...currentTasks] : [];
 
-    // 0. Merge shared tasks assigned by Client
-    try {
-      const savedSharedTasks = localStorage.getItem('freematch_shared_tasks') || localStorage.getItem('freematch_kanban_tasks');
-      if (savedSharedTasks) {
-        const sharedArr = JSON.parse(savedSharedTasks);
-        if (Array.isArray(sharedArr) && sharedArr.length > 0) {
-          sharedArr.forEach(st => {
-            const assigneeClean = (st.assignee || st.freelancer || '').toLowerCase().trim();
-            const currentClean = (currentUserName || currentUserId || '').toLowerCase().trim();
-            const firstWordCurrent = currentClean.split('@')[0].split(' ')[0];
-            const firstWordAssignee = assigneeClean.split('@')[0].split(' ')[0];
+    // 0. Merge shared tasks assigned by Client (demo only)
+    if (isDemoUser) {
+      try {
+        const savedSharedTasks = localStorage.getItem('freematch_shared_tasks') || localStorage.getItem('freematch_kanban_tasks');
+        if (savedSharedTasks) {
+          const sharedArr = JSON.parse(savedSharedTasks);
+          if (Array.isArray(sharedArr) && sharedArr.length > 0) {
+            sharedArr.forEach(st => {
+              const assigneeClean = (st.assignee || st.freelancer || '').toLowerCase().trim();
+              const currentClean = (currentUserName || currentUserId || '').toLowerCase().trim();
+              const firstWordCurrent = currentClean.split('@')[0].split(' ')[0];
+              const firstWordAssignee = assigneeClean.split('@')[0].split(' ')[0];
 
-            const matchesUser = role === 'client' ||
-              assigneeClean.includes(currentClean) ||
-              currentClean.includes(assigneeClean) ||
-              (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent)) ||
-              (firstWordAssignee.length > 2 && currentClean.includes(firstWordAssignee));
+              const matchesUser = role === 'client' ||
+                (assigneeClean && (
+                  assigneeClean === currentClean ||
+                  assigneeClean.includes(currentClean) ||
+                  currentClean.includes(assigneeClean) ||
+                  (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent)) ||
+                  (firstWordAssignee.length > 2 && currentClean.includes(firstWordAssignee))
+                ));
 
-            if (matchesUser) {
-              const key = (st.id || `${st.title}_${st.project}`).toString().toLowerCase().trim();
-              if (!baseTasks.some(bt => (bt.id || `${bt.title}_${bt.project}`).toString().toLowerCase().trim() === key)) {
-                baseTasks.unshift(st);
+              if (matchesUser) {
+                const stIdStr = st.id ? String(st.id).trim().toLowerCase() : '';
+                const stTitleClean = (st.title || '').replace(/^deliverable:\s*/i, '').trim().toLowerCase();
+                const stProjClean = (st.project || st.projectTitle || '').trim().toLowerCase();
+
+                const alreadyExists = baseTasks.some(bt => {
+                  const btIdStr = bt.id ? String(bt.id).trim().toLowerCase() : '';
+                  if (stIdStr && btIdStr && stIdStr === btIdStr) return true;
+                  const btTitleClean = (bt.title || '').replace(/^deliverable:\s*/i, '').trim().toLowerCase();
+                  const btProjClean = (bt.project || bt.projectTitle || '').trim().toLowerCase();
+                  return stTitleClean && btTitleClean && stTitleClean === btTitleClean && (!stProjClean || !btProjClean || stProjClean === btProjClean);
+                });
+
+                if (!alreadyExists) {
+                  baseTasks.unshift(st);
+                }
               }
-            }
-          });
+            });
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
 
     // Parse projects first to check project statuses
     let projectMap = new Map();
@@ -158,117 +207,102 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       } catch (e) {}
     }
     
-    // 1. Read proposals (both client-scoped & shared across workspace)
-    let parsedProps = [];
-    try {
-      const savedSharedProps = localStorage.getItem('freematch_shared_proposals');
-      if (savedSharedProps) {
-        const p = JSON.parse(savedSharedProps);
-        if (Array.isArray(p)) parsedProps.push(...p);
-      }
-      const savedLocalProps = localStorage.getItem(proposalStorageKey);
-      if (savedLocalProps) {
-        const p = JSON.parse(savedLocalProps);
-        if (Array.isArray(p)) parsedProps.push(...p);
-      }
-    } catch (e) {}
-
-    if (parsedProps.length > 0) {
-      const accepted = parsedProps.filter(p => p.status === 'Accepted' || p.status === 'Hired' || (p.status || '').toLowerCase().includes('hired'));
-      accepted.forEach((p, idx) => {
-        const pTitle = p.project || p.projectTitle || 'AI Deliverable';
-        const cleanTitle = pTitle.toLowerCase().trim();
-        const flName = p.freelancer || p.freelancerName || 'James Joe';
-        const bidVal = p.bid || p.bidAmount || '₹4,500';
-
-        const projObj = projectMap.get(cleanTitle);
-        const isProjCompleted = projObj && (projObj.status === 'Completed' || projObj.progress === 100);
-
-        const exists = baseTasks.some(t => {
-          const tProj = (t.project || t.projectTitle || '').toLowerCase().trim();
-          const tTitle = (t.title || '').replace(/^deliverable:\s*/i, '').toLowerCase().trim();
-          return tProj === cleanTitle || tTitle === cleanTitle || (tProj && cleanTitle && (tProj.includes(cleanTitle) || cleanTitle.includes(tProj)));
-        });
-
-        if (!exists) {
-          baseTasks.push({
-            id: `t_prop_${p.id || idx}`,
-            title: `Deliverable: ${pTitle}`,
-            status: isProjCompleted ? 'Done' : 'In Progress',
-            assignee: flName,
-            budget: bidVal,
-            project: pTitle
-          });
-        }
-      });
-    }
-
-    // 2. Read projects
-    if (savedProjects) {
+    // 1. Read proposals (demo only)
+    if (isDemoUser) {
+      let parsedProps = [];
       try {
-        const parsedProjects = JSON.parse(savedProjects);
-        if (Array.isArray(parsedProjects)) {
-          parsedProjects.forEach((proj, idx) => {
-            const pTitle = proj.title;
-            if (!pTitle) return;
-            const cleanTitle = pTitle.toLowerCase().trim();
+        const savedSharedProps = localStorage.getItem('freematch_shared_proposals');
+        if (savedSharedProps) {
+          const p = JSON.parse(savedSharedProps);
+          if (Array.isArray(p)) parsedProps.push(...p);
+        }
+        const savedLocalProps = localStorage.getItem(proposalStorageKey);
+        if (savedLocalProps) {
+          const p = JSON.parse(savedLocalProps);
+          if (Array.isArray(p)) parsedProps.push(...p);
+        }
+      } catch (e) {}
 
-            // Skip projects that have no hired freelancer and are still open for bids
-            const isUnhired = (proj.status === 'Hiring' || proj.status === 'Open for Bids') && !proj.hiredFreelancer && !proj.freelancer;
-            if (isUnhired) return;
+      if (parsedProps.length > 0) {
+        const accepted = parsedProps.filter(p => {
+          const isHired = p.status === 'Accepted' || p.status === 'Hired' || (p.status || '').toLowerCase().includes('hired');
+          if (!isHired) return false;
+          return true;
+        });
+        accepted.forEach((p, idx) => {
+          const pTitle = p.project || p.projectTitle || 'AI Deliverable';
+          const cleanTitle = pTitle.toLowerCase().trim();
+          const flName = p.freelancer || p.freelancerName || (role === 'freelancer' ? currentUserName : 'Assigned Freelancer');
+          const bidVal = p.bid || p.bidAmount || '₹4,500';
 
-            const exists = baseTasks.some(t => {
-              const tProj = (t.project || t.projectTitle || '').toLowerCase().trim();
-              const tTitle = (t.title || '').replace(/^deliverable:\s*/i, '').toLowerCase().trim();
-              return tProj === cleanTitle || tTitle === cleanTitle || (tProj && cleanTitle && (tProj.includes(cleanTitle) || cleanTitle.includes(tProj)));
+          const projObj = projectMap.get(cleanTitle);
+          const isProjCompleted = projObj && (projObj.status === 'Completed' || projObj.progress === 100);
+
+          const exists = baseTasks.some(t => {
+            const tProj = (t.project || t.projectTitle || '').toLowerCase().trim();
+            const tTitle = (t.title || '').replace(/^deliverable:\s*/i, '').toLowerCase().trim();
+            return tProj === cleanTitle || tTitle === cleanTitle || (tProj && cleanTitle && (tProj.includes(cleanTitle) || cleanTitle.includes(tProj)));
+          });
+
+          if (!exists) {
+            baseTasks.push({
+              id: `t_prop_${p.id || idx}`,
+              title: `Deliverable: ${pTitle}`,
+              status: isProjCompleted ? 'Done' : 'To Do',
+              assignee: flName,
+              budget: bidVal,
+              project: pTitle
             });
+          }
+        });
+      }
 
-            if (!exists) {
-              let defaultStatus = 'In Progress';
-              if (proj.status === 'Completed' || proj.progress === 100 || proj.status === 'Closed' || proj.status === 'Cancelled') {
-                defaultStatus = 'Done';
-              }
+      // 2. Read projects (demo only)
+      if (savedProjects) {
+        try {
+          const parsedProjects = JSON.parse(savedProjects);
+          if (Array.isArray(parsedProjects)) {
+            parsedProjects.forEach((proj, idx) => {
+              const pTitle = proj.title;
+              if (!pTitle) return;
+              const cleanTitle = pTitle.toLowerCase().trim();
+
+              const isUnhired = (proj.status === 'Hiring' || proj.status === 'Open for Bids') && !proj.hiredFreelancer && !proj.freelancer;
+              if (isUnhired) return;
 
               const assignee = proj.hiredFreelancer || proj.freelancer || 'Assigned Freelancer';
 
-              baseTasks.push({
-                id: `t_proj_${proj.id || idx}`,
-                title: `Deliverable: ${pTitle}`,
-                status: defaultStatus,
-                assignee: assignee,
-                budget: proj.budget || '₹5,000',
-                project: pTitle
+              const exists = baseTasks.some(t => {
+                const tProj = (t.project || t.projectTitle || '').toLowerCase().trim();
+                const tTitle = (t.title || '').replace(/^deliverable:\s*/i, '').toLowerCase().trim();
+                return tProj === cleanTitle || tTitle === cleanTitle || (tProj && cleanTitle && (tProj.includes(cleanTitle) || cleanTitle.includes(tProj)));
               });
-            }
-          });
-        }
-      } catch (e) {}
+
+              if (!exists) {
+                let defaultStatus = 'To Do';
+                if (proj.status === 'Completed' || proj.progress === 100 || proj.status === 'Closed' || proj.status === 'Cancelled') {
+                  defaultStatus = 'Done';
+                } else if (proj.progress > 0 && proj.progress < 100) {
+                  defaultStatus = proj.progress >= 60 ? 'Under Review' : 'In Progress';
+                }
+
+                baseTasks.push({
+                  id: `t_proj_${proj.id || idx}`,
+                  title: `Deliverable: ${pTitle}`,
+                  status: defaultStatus,
+                  assignee: assignee,
+                  budget: proj.budget || '₹5,000',
+                  project: pTitle
+                });
+              }
+            });
+          }
+        } catch (e) {}
+      }
     }
 
-    // Clean up generic "Deliverable: <Project Title>" if specific granular tasks exist for that project
-    const projectTaskCounts = new Map();
-    baseTasks.forEach(t => {
-      const p = (t.project || t.projectTitle || '').toLowerCase().trim();
-      const isGeneric = (t.title || '').toLowerCase().startsWith('deliverable:');
-      if (!isGeneric && p) {
-        projectTaskCounts.set(p, (projectTaskCounts.get(p) || 0) + 1);
-      }
-    });
-
-    baseTasks = baseTasks.filter(t => {
-      const p = (t.project || t.projectTitle || '').toLowerCase().trim();
-      const isGeneric = (t.title || '').toLowerCase().startsWith('deliverable:');
-      if (isGeneric) {
-        const hasGranular = Array.from(projectTaskCounts.keys()).some(k => k.includes(p) || p.includes(k));
-        if (hasGranular || projectTaskCounts.size > 0) {
-          return false; // drop generic deliverable since specific granular tasks exist
-        }
-      }
-      return true;
-    });
-
-    // If freelancer role and no tasks exist yet, supply default active tasks for the logged in freelancer
-    if (baseTasks.length === 0 && role === 'freelancer') {
+    // If freelancer role and no tasks exist yet, supply default active tasks for the logged in freelancer (demo only)
+    if (baseTasks.length === 0 && role === 'freelancer' && isDemoUser) {
       baseTasks = [...getFreelancerDefaultTasks(currentUserName)];
     }
 
@@ -285,7 +319,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         if (Array.isArray(parsed) && parsed.length > 0) loaded = parsed;
       } catch (e) {}
     }
-    if (loaded.length === 0 && role === 'freelancer') {
+    if (loaded.length === 0 && role === 'freelancer' && isDemoUser) {
       loaded = getFreelancerDefaultTasks(currentUserName);
     }
     const clean = getCombinedTasks(loaded);
@@ -296,7 +330,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
   const loadBackendTasks = React.useCallback(() => {
     let localTasks = [];
     try {
-      const saved = localStorage.getItem(taskStorageKey) || localStorage.getItem('freematch_shared_tasks');
+      const saved = isDemoUser
+        ? (localStorage.getItem(taskStorageKey) || localStorage.getItem('freematch_shared_tasks'))
+        : localStorage.getItem(taskStorageKey);
       if (saved) {
         const p = JSON.parse(saved);
         if (Array.isArray(p)) localTasks = p;
@@ -305,7 +341,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
     let fetchUrl = 'http://localhost:8000/api/sprint-tasks/';
     if (role === 'freelancer') {
-      fetchUrl += `?freelancer=${encodeURIComponent(currentUserName || currentUserId)}`;
+      fetchUrl += `?freelancer=${encodeURIComponent(currentUserId || currentUserName)}`;
     } else if (role === 'client') {
       fetchUrl += `?client_id=${encodeURIComponent(currentUserId || currentUserName)}`;
     }
@@ -319,16 +355,25 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
             assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
           }));
 
-          if (localTasks.length > 0) {
-            matched = matched.map(mt => {
-              const localMatch = localTasks.find(lt => lt.id === mt.id || String(lt.id) === String(mt.id) || lt.title === mt.title);
-              return localMatch ? { ...mt, status: localMatch.status } : mt;
-            });
-          }
-
           const clean = getCombinedTasks(deduplicateTasks(matched));
           setTasks(clean);
           localStorage.setItem(taskStorageKey, JSON.stringify(clean));
+          if (isDemoUser) {
+            localStorage.setItem('freematch_shared_tasks', JSON.stringify(clean));
+            localStorage.setItem('freematch_kanban_tasks', JSON.stringify(clean));
+          }
+        } else if (Array.isArray(apiTasks) && apiTasks.length === 0) {
+          if (!isDemoUser) {
+            setTasks([]);
+            try {
+              localStorage.removeItem(taskStorageKey);
+            } catch (e) {}
+          } else if (localTasks.length > 0) {
+            const clean = getCombinedTasks(deduplicateTasks(localTasks));
+            setTasks(clean);
+          } else {
+            setTasks([]);
+          }
         } else if (localTasks.length > 0) {
           const clean = getCombinedTasks(deduplicateTasks(localTasks));
           setTasks(clean);
@@ -340,7 +385,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
           setTasks(clean);
         }
       });
-  }, [role, currentUserName, currentUserId, taskStorageKey, getFreelancerDefaultTasks]);
+  }, [role, currentUserName, currentUserId, isDemoUser, taskStorageKey, getFreelancerDefaultTasks]);
 
   // Re-sync tasks from backend whenever component mounts, filter changes, or event fires
   useEffect(() => {
@@ -367,25 +412,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       });
 
       localStorage.setItem(taskStorageKey, JSON.stringify(updated));
-      localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
-      localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
-
-      try {
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('freematch_user_') && key.endsWith('_tasks')) {
-            const val = localStorage.getItem(key);
-            if (val) {
-              try {
-                const parsed = JSON.parse(val);
-                if (Array.isArray(parsed)) {
-                  const u = parsed.map(t => (t.id === taskId || String(t.id).trim() === targetIdStr) ? { ...t, status: newStatus } : t);
-                  localStorage.setItem(key, JSON.stringify(u));
-                }
-              } catch (e) {}
-            }
-          }
-        });
-      } catch (e) {}
+      if (isDemoUser) {
+        localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
+        localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
+      }
 
       return updated;
     });
@@ -403,18 +433,60 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     }
   };
 
-  const handleRemoveTask = (taskId, taskTitle) => {
-    const updated = tasks.filter(t => t.id !== taskId);
-    setTasks(updated);
-    localStorage.setItem(taskStorageKey, JSON.stringify(updated));
-    setToast({ message: `Removed completed task "${taskTitle}"`, type: 'info' });
+  const handleRemoveTask = async (taskId, taskTitle) => {
+    if (!taskId) return;
+    const targetIdStr = String(taskId).trim();
+
+    // 1. Delete from backend database if numeric ID
+    if (typeof taskId === 'number' || (!isNaN(Number(taskId)) && !targetIdStr.startsWith('t_'))) {
+      try {
+        await fetch(`http://localhost:8000/api/sprint-tasks/${taskId}/`, {
+          method: 'DELETE'
+        });
+      } catch (err) {
+        console.warn('Sprint task DELETE notice:', err);
+      }
+    }
+
+    // 2. Remove strictly this task from state and all storage keys
+    setTasks(prevTasks => {
+      const updated = prevTasks.filter(t => String(t.id).trim() !== targetIdStr);
+      localStorage.setItem(taskStorageKey, JSON.stringify(updated));
+      if (isDemoUser) {
+        localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
+        localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
+      }
+
+      return updated;
+    });
+
+    setToast({ message: `Removed task "${taskTitle || 'Deliverable'}"`, type: 'info' });
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('freematch_shared_event'));
+    window.dispatchEvent(new Event('freematch_kanban_event'));
   };
 
-  const handleClearCompletedTasks = () => {
+  const handleClearCompletedTasks = async () => {
+    const doneTasks = tasks.filter(t => t.status === 'Done' || t.status === 'Completed');
+    for (const dt of doneTasks) {
+      if (typeof dt.id === 'number' || (!isNaN(Number(dt.id)) && !String(dt.id).startsWith('t_'))) {
+        try {
+          await fetch(`http://localhost:8000/api/sprint-tasks/${dt.id}/`, { method: 'DELETE' });
+        } catch (e) {}
+      }
+    }
+
     const updated = tasks.filter(t => t.status !== 'Done' && t.status !== 'Completed');
     setTasks(updated);
     localStorage.setItem(taskStorageKey, JSON.stringify(updated));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
+      localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
+    }
     setToast({ message: 'All completed tasks removed from Kanban Board!', type: 'success' });
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('freematch_shared_event'));
+    window.dispatchEvent(new Event('freematch_kanban_event'));
   };
 
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
@@ -422,6 +494,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
   const [newTaskProject, setNewTaskProject] = useState('');
   const [newTaskAssignee, setNewTaskAssignee] = useState('');
   const [newTaskBudget, setNewTaskBudget] = useState('');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
   // Extract available projects and hired freelancers for dropdowns
   const availableProjects = React.useMemo(() => {
@@ -475,11 +548,13 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       const firstWordCurrent = currentNameClean.split('@')[0].split('.')[0].split(' ')[0];
       const firstWordAssignee = assigneeClean.split('@')[0].split('.')[0].split(' ')[0];
 
-      return assigneeClean.includes(currentNameClean) ||
+      return assigneeClean && (
+             assigneeClean === currentNameClean ||
+             assigneeClean.includes(currentNameClean) ||
              currentNameClean.includes(assigneeClean) ||
              (firstWordCurrent.length >= 3 && assigneeClean.includes(firstWordCurrent)) ||
              (firstWordAssignee.length >= 3 && currentNameClean.includes(firstWordAssignee)) ||
-             (currentUserId && currentUserId !== 'guest' && (assigneeClean.includes(currentUserId.toLowerCase()) || currentUserId.toLowerCase().includes(firstWordAssignee)));
+             (currentUserId && currentUserId !== 'guest' && (assigneeClean.includes(currentUserId.toLowerCase()) || currentUserId.toLowerCase().includes(firstWordAssignee))));
     });
 
     const projectMap = new Map();
@@ -537,65 +612,95 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const handleOpenAddTaskModal = () => {
     setNewTaskTitle('');
-    setNewTaskProject(availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || 'NextGen Autonomous Trading Engine');
+    const firstRealProject = availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || '';
+    setNewTaskProject(firstRealProject);
     setNewTaskAssignee(availableFreelancers[0] || 'Haines Jose Paulson');
     setNewTaskBudget('₹1,500');
+    setIsSubmittingTask(false);
     setShowAddTaskModal(true);
   };
 
   const handleSaveNewTask = async (e) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (isSubmittingTask) return;
+
+    const trimmedTitle = newTaskTitle.trim();
+    if (!trimmedTitle) {
       setToast({ message: 'Please enter a task title!', type: 'error' });
       return;
     }
 
-    let formattedBudget = newTaskBudget.trim();
-    if (formattedBudget && !formattedBudget.startsWith('₹') && !formattedBudget.startsWith('$')) {
-      const num = parseFloat(formattedBudget.replace(/[^0-9.]/g, ''));
-      formattedBudget = isNaN(num) ? '₹1,500' : `₹${num.toLocaleString('en-IN')}`;
-    }
+    setIsSubmittingTask(true);
 
-    const newTask = {
-      id: `t_${Date.now()}`,
-      title: newTaskTitle.trim(),
-      status: 'To Do',
-      assignee: newTaskAssignee || 'Haines Jose Paulson',
-      budget: formattedBudget || '₹1,500',
-      project: newTaskProject || 'NextGen Autonomous Trading Engine'
-    };
-
-    const updated = [newTask, ...tasks];
-    setTasks(updated);
-    localStorage.setItem(taskStorageKey, JSON.stringify(updated));
-    localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
-    localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
-    setShowAddTaskModal(false);
-
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('freematch_shared_event'));
-    window.dispatchEvent(new Event('freematch_kanban_event'));
-
-    // Save SprintTask to Django REST API Database
     try {
-      await fetch('http://localhost:8000/api/sprint-tasks/', {
+      let formattedBudget = newTaskBudget.trim();
+      if (formattedBudget && !formattedBudget.startsWith('₹') && !formattedBudget.startsWith('$')) {
+        const num = parseFloat(formattedBudget.replace(/[^0-9.]/g, ''));
+        formattedBudget = isNaN(num) ? '₹1,500' : `₹${num.toLocaleString('en-IN')}`;
+      }
+
+      const projectVal = newTaskProject && newTaskProject !== 'All' && newTaskProject !== 'All Assigned Projects'
+        ? newTaskProject
+        : (availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || '');
+
+      const assignedPerson = newTaskAssignee || (role === 'freelancer' ? (currentUserName || currentUserId) : 'Assigned Freelancer');
+
+      const res = await fetch('http://localhost:8000/api/sprint-tasks/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newTaskTitle.trim(),
-          project: newTaskProject,
-          assignee: newTaskAssignee,
-          budget: formattedBudget
+          title: trimmedTitle,
+          project: projectVal,
+          assignee: assignedPerson,
+          budget: formattedBudget || '₹1,500',
+          client_id: role === 'client' ? currentUserId : undefined,
+          freelancer_id: role === 'freelancer' ? currentUserId : undefined,
+          creator: currentUserId
         })
       });
-      loadBackendTasks();
-    } catch (err) {
-      console.warn('Sprint task POST error:', err);
-    }
 
-    setToast({ message: `Sprint task "${newTaskTitle.trim()}" created successfully!`, type: 'success' });
-    window.dispatchEvent(new Event('freematch_shared_event'));
-    window.dispatchEvent(new Event('freematch_kanban_event'));
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create sprint task');
+      }
+
+      const createdTask = data.task || {
+        id: data.id,
+        title: trimmedTitle,
+        project: projectVal || 'Enterprise Project',
+        projectTitle: projectVal || 'Enterprise Project',
+        assignee: assignedPerson,
+        status: 'To Do',
+        progress: 0,
+        budget: formattedBudget || '₹1,500',
+        created_at: new Date().toISOString()
+      };
+
+      // Add ONLY the single newly created task to state, preserving all existing tasks
+      setTasks(prevTasks => {
+        const filtered = prevTasks.filter(t => String(t.id).trim() !== String(createdTask.id).trim());
+        const updated = [createdTask, ...filtered];
+        localStorage.setItem(taskStorageKey, JSON.stringify(updated));
+        if (isDemoUser) {
+          localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
+          localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
+        }
+        return updated;
+      });
+
+      setShowAddTaskModal(false);
+      setNewTaskTitle('');
+      setToast({ message: `Sprint task "${trimmedTitle}" created successfully!`, type: 'success' });
+
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('freematch_shared_event'));
+      window.dispatchEvent(new Event('freematch_kanban_event'));
+    } catch (err) {
+      console.error('Sprint task POST error:', err);
+      setToast({ message: err.message || 'Could not create task', type: 'error' });
+    } finally {
+      setIsSubmittingTask(false);
+    }
   };
 
   // Filter tasks based on role and selected project filter
@@ -614,22 +719,22 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     }
 
     // 2. Role filter for freelancer
-    if (role === 'freelancer') {
-      if (t.assignee) {
-        const currentNameClean = (currentUserName || 'freelancer').toLowerCase().trim();
-        const assigneeClean = t.assignee.toLowerCase().trim();
-        const firstWordCurrent = currentNameClean.split(' ')[0];
-        const firstWordAssignee = assigneeClean.split(' ')[0];
+    if (role === 'freelancer' && !isDemoUser) {
+      if (!t.assignee) return false;
+      const currentNameClean = (currentUserName || 'freelancer').toLowerCase().trim();
+      const assigneeClean = t.assignee.toLowerCase().trim();
+      const firstWordCurrent = currentNameClean.split('@')[0].split(' ')[0];
+      const firstWordAssignee = assigneeClean.split('@')[0].split(' ')[0];
 
-        const matches = isDemoUser ||
-          assigneeClean.includes(currentNameClean) ||
-          currentNameClean.includes(assigneeClean) ||
-          (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent)) ||
-          (firstWordAssignee.length > 2 && currentNameClean.includes(firstWordAssignee)) ||
-          (currentUserId && currentUserId !== 'guest' && (assigneeClean.includes(currentUserId.toLowerCase()) || currentUserId.toLowerCase().includes(firstWordAssignee)));
+      const matches =
+        assigneeClean === currentNameClean ||
+        assigneeClean.includes(currentNameClean) ||
+        currentNameClean.includes(assigneeClean) ||
+        (firstWordCurrent.length > 2 && assigneeClean.includes(firstWordCurrent)) ||
+        (firstWordAssignee.length > 2 && currentNameClean.includes(firstWordAssignee)) ||
+        (currentUserId && currentUserId !== 'guest' && (assigneeClean.includes(currentUserId.toLowerCase()) || currentUserId.toLowerCase().includes(firstWordAssignee)));
 
-        if (!matches) return false;
-      }
+      if (!matches) return false;
     }
 
     // 3. Project filter dropdown
@@ -1133,12 +1238,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                             <div className="p-2.5 rounded-xl text-xs font-bold text-center bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                               ⏳ Pending Freelancer Start (0%)
                             </div>
-                            <button
-                              onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all text-center cursor-pointer"
-                            >
-                              View Details
-                            </button>
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                              <button
+                                onClick={() => setSelectedTaskDetail(t)}
+                                className="text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all cursor-pointer"
+                              >
+                                View Details
+                              </button>
+                              <button
+                                onClick={() => handleRemoveTask(t.id, t.title)}
+                                className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1253,12 +1367,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                                 <div className="bg-[#2563eb] h-full rounded-full w-[30%]" />
                               </div>
                             </div>
-                            <button
-                              onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all text-center cursor-pointer"
-                            >
-                              View Details
-                            </button>
+                            <div className="flex items-center justify-between pt-1 border-t border-blue-100 dark:border-slate-800">
+                              <button
+                                onClick={() => setSelectedTaskDetail(t)}
+                                className="text-xs font-bold text-[#2563eb] dark:text-blue-400 hover:underline transition-all cursor-pointer"
+                              >
+                                View Details
+                              </button>
+                              <button
+                                onClick={() => handleRemoveTask(t.id, t.title)}
+                                className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1367,12 +1490,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                             <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-300 text-xs font-bold text-center">
                               ⏳ Under Review (60%)<br /><span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Awaiting Completion</span>
                             </div>
-                            <button
-                              onClick={() => setSelectedTaskDetail(t)}
-                              className="w-full py-1 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline transition-all text-center cursor-pointer"
-                            >
-                              Audit Deliverable
-                            </button>
+                            <div className="flex items-center justify-between pt-1 border-t border-amber-100 dark:border-slate-800">
+                              <button
+                                onClick={() => setSelectedTaskDetail(t)}
+                                className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline transition-all cursor-pointer"
+                              >
+                                Audit Deliverable
+                              </button>
+                              <button
+                                onClick={() => handleRemoveTask(t.id, t.title)}
+                                className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1582,6 +1714,20 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                   </button>
                 )}
 
+                {role === 'client' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleRemoveTask(selectedTaskDetail.id, selectedTaskDetail.title);
+                      setSelectedTaskDetail(null);
+                    }}
+                    className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>Delete Task</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setSelectedTaskDetail(null)}
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs cursor-pointer"
@@ -1631,7 +1777,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                   onChange={(e) => setNewTaskProject(e.target.value)}
                   className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
                 >
-                  {availableProjects.map((proj, idx) => (
+                  {availableProjects.filter(p => p !== 'All' && p !== 'All Assigned Projects').map((proj, idx) => (
                     <option key={idx} value={proj}>{proj}</option>
                   ))}
                 </select>
@@ -1673,9 +1819,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
+                  disabled={isSubmittingTask}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
                 >
-                  Create Task
+                  {isSubmittingTask ? 'Creating...' : 'Create Task'}
                 </button>
               </div>
             </form>

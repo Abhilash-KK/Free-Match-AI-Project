@@ -3,6 +3,8 @@ import {
   fetchNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
+  clearAllNotifications,
   formatRelativeTime
 } from '../utils/notificationService';
 import { 
@@ -16,7 +18,9 @@ import {
   MessageCircle, 
   Bell, 
   BellOff, 
-  CheckCircle2 
+  CheckCircle2,
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
 
 const NotificationCenter = ({ userSession, onNavigateTab }) => {
@@ -24,12 +28,17 @@ const NotificationCenter = ({ userSession, onNavigateTab }) => {
   const [filter, setFilter] = useState('All'); // 'All' | 'Unread' | 'Proposals' | 'Projects' | 'Milestones' | 'Payments' | 'Messages' | 'Tasks'
   const [loading, setLoading] = useState(true);
 
-  const currentUser = userSession?.user_id || userSession?.name || 'client';
+  const currentUser = (userSession?.user_id || userSession?.username || userSession?.email || userSession?.id || '').toString().trim();
 
   const loadNotifs = async () => {
+    if (!currentUser) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const data = await fetchNotifications(currentUser);
-    setNotifications(data);
+    setNotifications(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
@@ -56,11 +65,22 @@ const NotificationCenter = ({ userSession, onNavigateTab }) => {
     await markAllNotificationsRead(currentUser);
   };
 
+  const handleDeleteNotification = async (id, e) => {
+    if (e) e.stopPropagation();
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await deleteNotification(id);
+  };
+
+  const handleClearAll = async () => {
+    setNotifications([]);
+    await clearAllNotifications(currentUser);
+  };
+
   const getFilteredNotifications = () => {
     return notifications.filter(n => {
       if (filter === 'Unread') return !n.is_read;
-      if (filter === 'Proposals') return n.type === 'proposal' || n.type === 'hired' || n.type === 'rejected';
-      if (filter === 'Projects') return n.type === 'project';
+      if (filter === 'Proposals') return n.type === 'proposal' || n.type === 'hired' || n.type === 'rejected' || n.type === 'contract';
+      if (filter === 'Projects') return n.type === 'project' || n.type === 'contract';
       if (filter === 'Milestones') return n.type === 'milestone';
       if (filter === 'Payments') return n.type === 'payment';
       if (filter === 'Messages') return n.type === 'message';
@@ -78,12 +98,14 @@ const NotificationCenter = ({ userSession, onNavigateTab }) => {
         return { icon: Send, bg: 'bg-purple-100/80', text: 'text-purple-700', border: 'border-purple-200', label: 'Proposal' };
       case 'hired':
         return { icon: UserCheck, bg: 'bg-emerald-100/80', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Hired' };
+      case 'contract':
+        return { icon: ShieldCheck, bg: 'bg-blue-100/80', text: 'text-blue-700', border: 'border-blue-200', label: 'Contract' };
       case 'rejected':
         return { icon: XCircle, bg: 'bg-rose-100/80', text: 'text-rose-700', border: 'border-rose-200', label: 'Declined' };
       case 'milestone':
         return { icon: Flag, bg: 'bg-amber-100/80', text: 'text-amber-700', border: 'border-amber-200', label: 'Milestone' };
       case 'payment':
-        return { icon: CreditCard, bg: 'bg-emerald-100/80', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Escrow' };
+        return { icon: CreditCard, bg: 'bg-emerald-100/80', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Payment' };
       case 'project':
         return { icon: FolderKanban, bg: 'bg-blue-100/80', text: 'text-blue-700', border: 'border-blue-200', label: 'Project' };
       case 'task':
@@ -116,15 +138,27 @@ const NotificationCenter = ({ userSession, onNavigateTab }) => {
           </p>
         </div>
 
-        {unreadCount > 0 && (
-          <button
-            onClick={handleMarkAllRead}
-            className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-bold transition-all shadow-2xs cursor-pointer shrink-0 flex items-center space-x-1"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-            <span>Mark all as read</span>
-          </button>
-        )}
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer shrink-0 flex items-center space-x-1"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+              <span>Mark all as read</span>
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="px-4 py-2.5 bg-slate-50 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer shrink-0 flex items-center space-x-1"
+              title="Clear all activity logs"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span>Clear all</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -215,10 +249,17 @@ const NotificationCenter = ({ userSession, onNavigateTab }) => {
                   </div>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end justify-between self-stretch">
                   <span className="text-xs font-bold text-slate-700 block whitespace-nowrap">
                     {relativeTime}
                   </span>
+                  <button
+                    onClick={(e) => handleDeleteNotification(item.id, e)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer mt-2"
+                    title="Dismiss notification"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             );

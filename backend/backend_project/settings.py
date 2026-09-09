@@ -102,3 +102,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    'api.auth_backend.CaseInsensitiveModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# File upload & body size settings (support up to 15MB for resume & portfolio attachments)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB

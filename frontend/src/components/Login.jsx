@@ -121,42 +121,6 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     }
     return [
       {
-        user_id: 'user1',
-        first_name: 'Abhilash',
-        last_name: 'K K',
-        name: 'Abhilash K K',
-        email: 'john@freematch.ai',
-        password: 'Password123!',
-        role: 'client'
-      },
-      {
-        user_id: 'abhi',
-        first_name: 'Abhilash',
-        last_name: 'K K',
-        name: 'Abhilash K K',
-        email: 'abhi@freematch.ai',
-        password: 'Password123!',
-        role: 'client'
-      },
-      {
-        user_id: 'alexmercer',
-        first_name: 'Alex',
-        last_name: 'Mercer',
-        name: 'Alex Mercer',
-        email: 'alex.mercer@freematch.ai',
-        password: 'Password123!',
-        role: 'freelancer'
-      },
-      {
-        user_id: 'haines',
-        first_name: 'Haines',
-        last_name: 'JP',
-        name: 'Haines JP',
-        email: 'haines@freematch.ai',
-        password: 'Password123!',
-        role: 'freelancer'
-      },
-      {
         user_id: 'admin',
         first_name: 'System',
         last_name: 'Admin',
@@ -401,10 +365,6 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
 
     if (['admin', 'administrator', 'admin@freematch.ai'].includes(cleanId)) {
       actualAccountRole = 'admin';
-    } else if (['alex', 'alexmercer', 'alex.mercer@freematch.ai', 'haines', 'hainesjp', 'haines@freematch.ai', 'sarah'].includes(cleanId)) {
-      actualAccountRole = 'freelancer';
-    } else if (['abhi', 'user1', 'john@freematch.ai', 'abhi@freematch.ai', 'abhilash'].includes(cleanId)) {
-      actualAccountRole = 'client';
     } else if (matchedRegUser) {
       actualAccountRole = matchedRegUser.role;
     } else {
@@ -423,14 +383,8 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       return;
     }
 
-    let displayName = cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
-    if (cleanId === 'abhi' || cleanId === 'user1' || cleanId === 'john@freematch.ai') {
-      displayName = 'Abhilash K K';
-    } else if (cleanId === 'alexmercer' || cleanId === 'alex') {
-      displayName = 'Alex Mercer';
-    } else if (cleanId === 'haines' || cleanId === 'haines jp') {
-      displayName = 'Haines JP';
-    } else if (cleanId === 'admin') {
+    let displayName = matchedRegUser?.name || (cleanId.charAt(0).toUpperCase() + cleanId.slice(1));
+    if (cleanId === 'admin') {
       displayName = 'System Admin';
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 import NotificationCenter from '../NotificationCenter';
@@ -7,7 +7,8 @@ import FreelancerProfileView from '../FreelancerProfileView';
 import FreelancerSettingsView from '../FreelancerSettingsView';
 import ClientReviewsView from '../ClientReviewsView';
 import FreelancerEarningsView from '../FreelancerEarningsView';
-import { fetchNotifications, createNotification } from '../../utils/notificationService';
+import { calculateFreelancerFinancials } from '../../utils/freelancerFinancials';
+import { fetchNotifications } from '../../utils/notificationService';
 import { 
   Zap, 
   LayoutDashboard, 
@@ -30,7 +31,6 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertTriangle,
   FolderKanban,
   Building2,
   Calendar,
@@ -56,19 +56,14 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
   const [contractSearchQuery, setContractSearchQuery] = useState('');
   const [selectedContractDetail, setSelectedContractDetail] = useState(null);
   const [freelancerDbContracts, setFreelancerDbContracts] = useState([]);
-  const [messagesCount, setMessagesCount] = useState(2);
+  const [freelancerFinancials, setFreelancerFinancials] = useState(null);
+  const [freelancerDbTasks, setFreelancerDbTasks] = useState([]);
+  const [messagesCount, setMessagesCount] = useState(0);
 
   // Proposal Form State
   const [coverLetter, setCoverLetter] = useState('');
   const [bidAmount, setBidAmount] = useState('4500');
   const [deliveryTime, setDeliveryTime] = useState('2 Weeks');
-
-  // Freelancer Personal Kanban Task Board
-  const [myTasks] = useState([
-    { id: 't1', title: 'Implement Django JWT Auth API', project: 'AI Pipeline Optimization', status: 'In Progress', due: 'In 2 days' },
-    { id: 't2', title: 'Design Figma Component Library', project: 'E-commerce UI Redesign', status: 'To Do', due: 'In 4 days' },
-    { id: 't3', title: 'Setup PostgreSQL Database Schema', project: 'AI Pipeline Optimization', status: 'Completed', due: 'Done' }
-  ]);
 
   // Submitted Proposals List (Synced with Client Inbox)
   const [proposals, setProposals] = useState(() => {
@@ -76,63 +71,245 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return [
-      { id: 'pr1', project: 'AI Pipeline Optimization', projectTitle: 'AI Pipeline Optimization', client: 'TechStream Corp', bid: '₹11,500', bidAmount: '₹11,500', delivery: '2 Weeks', status: 'Accepted', date: 'Oct 24, 2023' },
-      { id: 'pr2', project: 'E-commerce UI Redesign', projectTitle: 'E-commerce UI Redesign', client: 'MetaVibe Solutions', bid: '₹5,000', bidAmount: '₹5,000', delivery: '3 Weeks', status: 'Shortlisted', date: 'Oct 26, 2023' }
-    ];
+    return [];
   });
 
-  // Sync Available Jobs & Submitted Proposals with LocalStorage
+  // Sync Available Jobs & Submitted Proposals with LocalStorage & Django API
   const [jobs, setJobs] = useState(() => {
     const saved = localStorage.getItem('freematch_shared_projects');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((p, idx) => ({
-            id: p.id || `job_${idx}`,
-            title: p.title || 'AI Project',
-            client: p.clientName || p.client || 'Enterprise Client',
-            budget: p.budget || '₹4,500',
-            description: p.description || 'AI model fine-tuning and API integration.',
-            skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
-            posted: p.postedDate || 'Just now',
-            attachedFile: p.attachedFile || null,
-            abstract: p.abstract || null
-          }));
+        if (Array.isArray(parsed)) {
+          const activeProjects = parsed.filter(p => {
+            const st = (p.status || '').toLowerCase().trim();
+            return st !== 'closed' && st !== 'cancelled' && st !== 'completed';
+          });
+          if (activeProjects.length > 0) {
+            return activeProjects.map((p, idx) => ({
+              id: p.id || `job_${idx}`,
+              title: p.title || 'AI Project',
+              client: p.clientName || p.client || 'Enterprise Client',
+              clientId: p.clientId || p.client_id || p.client || 'client',
+              client_id: p.clientId || p.client_id || p.client || 'client',
+              budget: p.budget || '₹4,500',
+              duration: p.duration || '3 Weeks',
+              category: p.category || 'Software Development',
+              status: p.status || 'Open for Bids',
+              description: p.description || 'AI model fine-tuning and API integration.',
+              skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
+              posted: p.postedDate || p.posted || 'Just now',
+              attachedFile: p.attachedFile || null,
+              abstract: p.abstract || null,
+              milestones: p.milestones || p.milestoneItems || []
+            }));
+          }
         }
       } catch (e) {}
     }
-    return [
-      {
-        id: 'job_1',
-        title: 'PyTorch Deep Learning Inference Server & TensorRT Optimization',
-        client: 'Apex AI Labs',
-        budget: '₹8,500',
-        description: 'Construct a high-throughput deep learning model inference server using PyTorch, FastAPI, and TensorRT bindings.',
-        skills: ['PyTorch', 'FastAPI', 'TensorRT', 'CUDA', 'Python'],
-        posted: '2 hours ago',
-        attachedFile: { name: 'PyTorch_Architecture_Spec.png', size: '2.4 MB', isImage: true, url: '#' },
-        abstract: 'https://github.com/apex-ai-labs/pytorch-inference-server-spec\nArchitecture diagram shows 4x GPU worker nodes behind NGINX load balancer.'
-      },
-      {
-        id: 'job_2',
-        title: 'React & Tailwind Real-Time Analytics Dashboard with D3.js',
-        client: 'DataPulse Systems',
-        budget: '₹5,200',
-        description: 'Build a dark-mode real-time telemetry dashboard in React with WebSocket streaming graphs.',
-        skills: ['React.js', 'Tailwind CSS', 'D3.js', 'WebSockets', 'TypeScript'],
-        posted: '5 hours ago',
-        attachedFile: { name: 'Dashboard_Design_System_Doc.pdf', size: '4.1 MB', isImage: false, url: '#' }
-      }
-    ];
+    return [];
   });
 
   const [notifications, setNotifications] = useState([]);
   const unreadNotifCount = notifications.filter(n => !n.is_read).length;
+
+  const currentFlId = (userSession?.username || userSession?.user_id || userSession?.email || '').toLowerCase().trim();
+  const currentFlName = userSession?.name || userSession?.user_id || userSession?.username || 'Freelancer';
+  const isDemo = currentFlId === 'demo_freelancer';
+
+  // Global Workspace Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [liveConversations, setLiveConversations] = useState([]);
+  const [apiSearchResults, setApiSearchResults] = useState(null);
+  const searchContainerRef = useRef(null);
+
+  // Debounce search query to avoid lag / excess queries
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch backend global search as supplement
+  useEffect(() => {
+    const q = debouncedSearchQuery.trim();
+    if (q.length > 0) {
+      setIsSearchOpen(true);
+      fetch(`http://localhost:8000/api/search/?role=freelancer&user_id=${encodeURIComponent(currentFlId)}&q=${encodeURIComponent(q)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.results) {
+            setApiSearchResults(data.results);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setIsSearchOpen(false);
+      setApiSearchResults(null);
+    }
+  }, [debouncedSearchQuery, currentFlId]);
+
+  // Click outside and escape key handling
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsSearchOpen(false);
+    };
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const myProfileData = useMemo(() => {
+    if (isDemo) {
+      return {
+        name: 'Alex Mercer',
+        user_id: 'demo_freelancer',
+        title: 'Senior React, PyTorch & Django Architect',
+        headline: 'Senior React, PyTorch & Django Architect',
+        location: 'San Francisco, CA',
+        hourlyRate: '₹4,000 / hr',
+        availabilityStatus: 'Available for Work',
+        availableHours: '40 hrs/week',
+        yearsExperience: '7+',
+        projectsCompleted: '24',
+        jobSuccessRate: '100%',
+        onTimeDelivery: '98%',
+        lifetimeEarnings: '₹2,89,000',
+        bio: 'Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications.',
+        skills: ['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'D3.js', 'REST API Architecture', 'OWASP Security', 'FastAPI'],
+        completenessPercentage: 95
+      };
+    }
+    return {
+      name: currentFlName,
+      user_id: currentFlId,
+      title: '',
+      headline: '',
+      location: '',
+      hourlyRate: '₹0 / hr',
+      availabilityStatus: 'Available for Work',
+      availableHours: '40 hrs/week',
+      yearsExperience: '0',
+      projectsCompleted: '0',
+      jobSuccessRate: '100%',
+      onTimeDelivery: '100%',
+      lifetimeEarnings: '₹0',
+      bio: '',
+      skills: [],
+      completenessPercentage: 20
+    };
+  }, [currentFlId, currentFlName, isDemo]);
+
+  const [headerAvatar, setHeaderAvatar] = useState(() => {
+    let av = userSession?.avatar_url || '';
+    if (!av && currentFlId) {
+      try {
+        const cached = JSON.parse(localStorage.getItem(`freematch_profile_${currentFlId}`) || '{}');
+        av = cached.avatar_url || '';
+      } catch (e) {}
+    }
+    return av;
+  });
+
+  useEffect(() => {
+    const handleAvatarUpdate = (e) => {
+      const newAv = e?.detail?.avatar_url;
+      if (typeof newAv === 'string') {
+        setHeaderAvatar(newAv);
+      } else if (currentFlId) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(`freematch_profile_${currentFlId}`) || '{}');
+          if (cached.avatar_url !== undefined) setHeaderAvatar(cached.avatar_url);
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('freematch_user_avatar_event', handleAvatarUpdate);
+    return () => {
+      window.removeEventListener('freematch_user_avatar_event', handleAvatarUpdate);
+    };
+  }, [currentFlId]);
+
+  const loadFreelancerContracts = React.useCallback(() => {
+    if (!currentFlId) {
+      setFreelancerDbContracts([]);
+      return;
+    }
+    fetch(`http://localhost:8000/api/contracts/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(apiContracts => {
+        if (Array.isArray(apiContracts)) {
+          setFreelancerDbContracts(apiContracts);
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId]);
+
+  const loadFreelancerFinancials = React.useCallback(() => {
+    if (!currentFlId) {
+      setFreelancerFinancials(null);
+      return;
+    }
+    fetch(`http://localhost:8000/api/freelancer-financials/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.available_balance !== 'undefined') {
+          setFreelancerFinancials(data);
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId]);
+
+  const loadFreelancerTasks = React.useCallback(() => {
+    if (!currentFlId) {
+      setFreelancerDbTasks([]);
+      return;
+    }
+    fetch(`http://localhost:8000/api/sprint-tasks/?freelancer=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped = data.map(t => ({
+            ...t,
+            project: t.project || t.projectTitle || 'Enterprise Project',
+            assignee: t.assignee || 'Assigned Freelancer'
+          }));
+          setFreelancerDbTasks(mapped);
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId]);
+
+  const loadFreelancerProposals = React.useCallback(() => {
+    if (!currentFlId) {
+      setProposals([]);
+      return;
+    }
+    fetch(`http://localhost:8000/api/proposals/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(apiProps => {
+        if (Array.isArray(apiProps)) {
+          setProposals(apiProps);
+          try {
+            localStorage.setItem('freematch_shared_proposals', JSON.stringify(apiProps));
+          } catch (e) {}
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId]);
 
   // Sync proposals and jobs across components via storage events
   React.useEffect(() => {
@@ -149,79 +326,142 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         try {
           const parsed = JSON.parse(savedProjects);
           if (Array.isArray(parsed)) {
-            setJobs(parsed.map((p, idx) => ({
+            const activeProjects = parsed.filter(p => {
+              const st = (p.status || '').toLowerCase().trim();
+              const isClosedOrDone = st === 'closed' || st === 'cancelled' || st === 'completed' || st === 'in progress';
+              const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
+              return !isClosedOrDone && !isAssigned;
+            });
+            setJobs(activeProjects.map((p, idx) => ({
               id: p.id || `job_${idx}`,
               title: p.title || 'AI Project',
               client: p.clientName || p.client || 'Enterprise Client',
+              clientId: p.clientId || p.client_id || p.client || 'client',
+              client_id: p.clientId || p.client_id || p.client || 'client',
               budget: p.budget || '₹4,500',
+              duration: p.duration || '3 Weeks',
+              category: p.category || 'Software Development',
+              status: p.status || 'Open for Bids',
               description: p.description || 'AI model fine-tuning and API integration.',
               skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
-              posted: p.postedDate || 'Just now',
+              posted: p.postedDate || p.posted || 'Just now',
               attachedFile: p.attachedFile || null,
-              abstract: p.abstract || null
+              abstract: p.abstract || null,
+              milestones: p.milestones || p.milestoneItems || []
             })));
           }
         } catch (e) {}
       }
     };
 
-    const loadBackendNotifs = async () => {
-      if (userSession?.username || userSession?.user_id) {
-        const notifs = await fetchNotifications(userSession?.username || userSession?.user_id);
-        if (notifs) setNotifications(notifs);
-      }
-    };
-
-    handleSync();
-    loadBackendNotifs();
-
-    const currentFlId = (userSession?.username || userSession?.user_id || userSession?.email || 'alexmercer').toLowerCase().trim();
-    const loadFreelancerContracts = () => {
-      fetch(`http://localhost:8000/api/contracts/?user_id=${encodeURIComponent(currentFlId)}`)
+    const loadMarketplaceProjects = () => {
+      fetch('http://localhost:8000/api/projects/')
         .then(res => res.json())
-        .then(apiContracts => {
-          if (Array.isArray(apiContracts)) {
-            setFreelancerDbContracts(apiContracts);
+        .then(apiProjects => {
+          if (Array.isArray(apiProjects)) {
+            const activeOnly = apiProjects.filter(p => {
+              const st = (p.status || '').toLowerCase().trim();
+              const isClosedOrDone = st === 'closed' || st === 'cancelled' || st === 'completed' || st === 'in progress';
+              const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
+              return !isClosedOrDone && !isAssigned;
+            });
+            const mapped = activeOnly.map((p, idx) => ({
+              id: p.id || `job_${idx}`,
+              title: p.title || 'AI Project',
+              client: p.client || p.client_name || p.clientName || 'Enterprise Client',
+              clientId: p.client_id || p.clientId || p.client || 'client',
+              client_id: p.client_id || p.clientId || p.client || 'client',
+              budget: p.budget || '₹4,500',
+              duration: p.duration || '3 Weeks',
+              category: p.category || 'Software Development',
+              status: p.status || 'Open for Bids',
+              description: p.description || 'AI model fine-tuning and API integration.',
+              skills: Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',').map(s => s.trim()).filter(Boolean) : ['Python', 'Django']),
+              posted: p.postedDate || p.posted || 'Just now',
+              attachedFile: p.attachedFile || null,
+              abstract: p.abstract || null,
+              milestones: p.milestones || p.milestoneItems || []
+            }));
+            setJobs(mapped);
+            try {
+              localStorage.setItem('freematch_shared_projects', JSON.stringify(mapped));
+            } catch (e) {}
           }
         })
         .catch(() => {});
     };
 
+    const loadBackendNotifs = async () => {
+      const cUserId = (userSession?.user_id || userSession?.username || userSession?.email || userSession?.id || '').toString().trim();
+      if (cUserId) {
+        const notifs = await fetchNotifications(cUserId);
+        setNotifications(Array.isArray(notifs) ? notifs : []);
+      } else {
+        setNotifications([]);
+      }
+    };
+
+    handleSync();
+    loadMarketplaceProjects();
+    loadBackendNotifs();
+
     const loadMessagesCount = () => {
+      if (!currentFlId) {
+        setMessagesCount(0);
+        return;
+      }
       fetch(`http://localhost:8000/api/messages/?user_id=${encodeURIComponent(currentFlId)}`)
         .then(res => res.json())
         .then(data => {
           if (data && Array.isArray(data.conversations)) {
             setMessagesCount(data.conversations.length);
+            setLiveConversations(data.conversations);
           }
         })
         .catch(() => {});
     };
 
-    handleSync();
-    loadBackendNotifs();
+    loadFreelancerProposals();
     loadFreelancerContracts();
+    loadFreelancerFinancials();
+    loadFreelancerTasks();
     loadMessagesCount();
 
     window.addEventListener('storage', handleSync);
+    window.addEventListener('storage', loadFreelancerProposals);
     window.addEventListener('freematch_shared_event', handleSync);
+    window.addEventListener('freematch_shared_event', loadMarketplaceProjects);
+    window.addEventListener('freematch_shared_event', loadFreelancerProposals);
     window.addEventListener('freematch_shared_event', loadFreelancerContracts);
+    window.addEventListener('freematch_shared_event', loadFreelancerFinancials);
+    window.addEventListener('freematch_shared_event', loadFreelancerTasks);
     window.addEventListener('freematch_shared_event', loadMessagesCount);
+    window.addEventListener('freematch_kanban_event', loadFreelancerTasks);
     window.addEventListener('freematch_notification_event', loadBackendNotifs);
+    window.addEventListener('focus', loadMarketplaceProjects);
 
     return () => {
       window.removeEventListener('storage', handleSync);
+      window.removeEventListener('storage', loadFreelancerProposals);
       window.removeEventListener('freematch_shared_event', handleSync);
+      window.removeEventListener('freematch_shared_event', loadMarketplaceProjects);
+      window.removeEventListener('freematch_shared_event', loadFreelancerProposals);
       window.removeEventListener('freematch_shared_event', loadFreelancerContracts);
+      window.removeEventListener('freematch_shared_event', loadFreelancerFinancials);
+      window.removeEventListener('freematch_shared_event', loadFreelancerTasks);
+      window.removeEventListener('freematch_shared_event', loadMessagesCount);
+      window.removeEventListener('freematch_kanban_event', loadFreelancerTasks);
       window.removeEventListener('freematch_notification_event', loadBackendNotifs);
+      window.removeEventListener('focus', loadMarketplaceProjects);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSession]);
 
   const handleDownloadContractPDF = (contract) => {
     const cId = contract.contractId || contract.id || 'CTR-9024';
     const cProject = contract.projectName || contract.project || 'AI System Architecture';
     const cClient = contract.clientName || contract.client || 'Enterprise Client';
-    const cFreelancer = contract.freelancerName || contract.freelancer || userSession?.name || 'Alex Mercer';
+    const cFreelancer = contract.freelancerName || contract.freelancer || userSession?.name || userSession?.username || 'Freelancer';
     const cAmount = contract.agreedAmount || contract.amount || '₹1,50,000';
     const cStartDate = contract.startDate || 'Aug 11, 2026';
     const cDeadline = contract.deadline || 'Aug 30, 2026';
@@ -332,19 +572,53 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     pdfWindow.document.close();
   };
 
-  const handleSubmitBid = (e) => {
+  const handleSubmitBid = async (e) => {
     e.preventDefault();
     if (!selectedJob) return;
 
-    const flName = userSession?.name || userSession?.user_id || 'Alex Mercer';
+    const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
+    const flName = userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer';
+    const targetClientId = selectedJob.clientId || selectedJob.client_id || selectedJob.client || 'client';
+
+    let proposalDbId = null;
+    try {
+      const res = await fetch('http://localhost:8000/api/proposals/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: selectedJob.id,
+          project_title: selectedJob.title,
+          freelancer_id: currentFlId || flName,
+          freelancer: flName,
+          bid_amount: `₹${bidAmount}`,
+          delivery_time: deliveryTime,
+          cover_letter: coverLetter
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.id) {
+          proposalDbId = data.id;
+        }
+      }
+    } catch (e) {
+      console.warn('Backend proposal submission note:', e);
+    }
+
     const newProposal = {
-      id: `pr_${Date.now()}`,
+      id: proposalDbId || `pr_${Date.now()}`,
+      db_id: proposalDbId ? String(proposalDbId).replace('prop_', '') : null,
       projectId: selectedJob.id,
       projectTitle: selectedJob.title,
       clientName: selectedJob.client,
       client: selectedJob.client,
+      clientId: targetClientId,
+      client_id: targetClientId,
       freelancerName: flName,
-      freelancerRole: 'Senior React, PyTorch & Django Architect',
+      freelancer: flName,
+      user_id: currentFlId,
+      freelancer_id: currentFlId,
+      freelancerRole: 'Freelancer Specialist',
       bidAmount: `₹${bidAmount}`,
       bid: `₹${bidAmount}`,
       deliveryTime: deliveryTime,
@@ -357,14 +631,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     const currentShared = JSON.parse(localStorage.getItem('freematch_shared_proposals') || '[]');
     const updatedProposals = [newProposal, ...currentShared];
     localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProposals));
+    if (currentFlId) {
+      const userKey = `freematch_user_${currentFlId}_proposals`;
+      const currentScoped = JSON.parse(localStorage.getItem(userKey) || '[]');
+      localStorage.setItem(userKey, JSON.stringify([newProposal, ...currentScoped]));
+    }
     setProposals(updatedProposals);
-
-    createNotification(
-      'techstream_client',
-      'proposal',
-      `New Proposal Received from ${flName}`,
-      `${flName} submitted a bid of ₹${bidAmount} for project "${selectedJob.title}".`
-    );
 
     setShowBidModal(false);
     setCoverLetter('');
@@ -387,29 +659,15 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     setToast({ message: `Opening Sprint Board for "${targetTitle}"`, type: 'info' });
   };
 
-  const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || userSession?.name || '').toLowerCase().trim();
+  const currentFlNameLower = (userSession?.name || '').toLowerCase().trim();
 
   const myProposalsCount = (() => {
-    const defaultProposalsList = [
-      { id: 'pr1', project: 'AI Pipeline Optimization', projectTitle: 'AI Pipeline Optimization', client: 'Abhilash K K', bid: '₹2,25,000', bidAmount: '₹2,25,000', delivery: '2 Weeks', status: 'Accepted', date: 'Aug 10, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' },
-      { id: 'pr2', project: 'AI Automated Test Pipeline', projectTitle: 'AI Automated Test Pipeline', client: 'Abhilash K K', bid: '₹1,50,000', bidAmount: '₹1,50,000', delivery: '3 Weeks', status: 'Accepted', date: 'Aug 11, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' },
-      { id: 'pr3', project: 'Cybersecurity Audit & Shield', projectTitle: 'Cybersecurity Audit & Shield', client: 'MetaVibe Solutions', bid: '₹5,000', bidAmount: '₹5,000', delivery: '3 Weeks', status: 'Submitted / Under Review', date: 'Aug 14, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' }
-    ];
-
-    const allProps = [...(proposals || [])];
-    defaultProposalsList.forEach(dp => {
-      if (!allProps.some(p => (p.project || p.projectTitle || '').toLowerCase().trim() === dp.project.toLowerCase().trim())) {
-        allProps.push(dp);
-      }
-    });
-
-    return allProps.filter(pr => {
-      const f = (pr.freelancer || pr.freelancerName || pr.user_id || '').toLowerCase().trim();
-      if (!f) return true;
-      return f.includes(currentFlId) || currentFlId.includes(f) ||
-        (currentFlId.includes('alex') && f.includes('alex')) ||
-        (currentFlId.includes('sarah') && f.includes('sarah')) ||
-        (currentFlId.includes('haines') && f.includes('haines'));
+    if (!currentFlId && !currentFlNameLower) return 0;
+    return (proposals || []).filter(pr => {
+      const fid = (pr.user_id || pr.freelancer_id || '').toLowerCase().trim();
+      const fname = (pr.freelancer || pr.freelancerName || '').toLowerCase().trim();
+      return (currentFlId && (fid === currentFlId || fname === currentFlId || fname.includes(currentFlId))) ||
+             (currentFlNameLower && (fname === currentFlNameLower || fname.includes(currentFlNameLower)));
     }).length;
   })();
 
@@ -573,17 +831,401 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         
         {/* Top Bar */}
         <header className="sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
-          <div className="relative w-full max-w-md">
+          <div className="relative w-full max-w-md" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300">
               <Search className="w-4 h-4" />
             </span>
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!isSearchOpen && e.target.value.trim() !== '') setIsSearchOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim() !== '') setIsSearchOpen(true);
+              }}
               placeholder="Search available jobs, required skills, or clients..."
-              className={`w-full pl-10 pr-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
+              className={`w-full pl-10 pr-8 py-2 border rounded-xl text-xs focus:outline-none focus:border-blue-500 ${
                 isDark ? 'bg-[#081024] text-white border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-200'
               }`}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setIsSearchOpen(false); }}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+
+            {isSearchOpen && debouncedSearchQuery.trim() !== '' && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-50 p-3 space-y-3 max-h-96 overflow-y-auto">
+                {(() => {
+                  const q = debouncedSearchQuery.toLowerCase().trim();
+
+                  // 1. AVAILABLE JOBS
+                  const localJobs = jobs.filter(j => {
+                    const title = (j.title || '').toLowerCase();
+                    const cat = (j.category || '').toLowerCase();
+                    const skills = (Array.isArray(j.skills) ? j.skills.join(' ') : (j.skills || '')).toLowerCase();
+                    const client = (j.client || j.clientName || '').toLowerCase();
+                    const desc = (j.description || '').toLowerCase();
+                    return title.includes(q) || cat.includes(q) || skills.includes(q) || client.includes(q) || desc.includes(q);
+                  });
+                  const apiJobs = apiSearchResults?.jobs || [];
+                  const seenJobKeys = new Set();
+                  const matchingJobs = [];
+                  [...localJobs, ...apiJobs].forEach(j => {
+                    const k = (j.title || j.id || '').toLowerCase().trim();
+                    if (!seenJobKeys.has(k)) {
+                      seenJobKeys.add(k);
+                      matchingJobs.push(j);
+                    }
+                  });
+
+                  // 2. MY SUBMITTED BIDS
+                  const localProps = proposals.filter(pr => {
+                    const pTitle = (pr.projectTitle || pr.project || '').toLowerCase();
+                    const cl = (pr.client || pr.clientName || '').toLowerCase();
+                    const stat = (pr.status || '').toLowerCase();
+                    return pTitle.includes(q) || cl.includes(q) || stat.includes(q);
+                  });
+                  const apiProps = apiSearchResults?.proposals || [];
+                  const seenPropKeys = new Set();
+                  const matchingProposals = [];
+                  [...localProps, ...apiProps].forEach(pr => {
+                    const k = (pr.projectTitle || pr.project || pr.id || '').toLowerCase().trim();
+                    if (!seenPropKeys.has(k)) {
+                      seenPropKeys.add(k);
+                      matchingProposals.push(pr);
+                    }
+                  });
+
+                  // 3. ASSIGNED / ACTIVE PROJECTS
+                  const activeContracts = freelancerDbContracts.filter(c => (c.status || '').toLowerCase() === 'active');
+                  const apiAssigned = apiSearchResults?.assigned_projects || [];
+                  const seenAssignedKeys = new Set();
+                  const matchingAssigned = [];
+                  [...activeContracts, ...apiAssigned].forEach(c => {
+                    const pName = (c.projectName || c.project || c.title || '').toLowerCase();
+                    const cl = (c.clientName || c.client || '').toLowerCase();
+                    if (pName.includes(q) || cl.includes(q)) {
+                      const k = (c.projectName || c.project || c.id || '').toLowerCase().trim();
+                      if (!seenAssignedKeys.has(k)) {
+                        seenAssignedKeys.add(k);
+                        matchingAssigned.push(c);
+                      }
+                    }
+                  });
+
+                  // 4. CONTRACTS
+                  const localContracts = freelancerDbContracts.filter(c => {
+                    const cid = (c.id || c.contractId || '').toLowerCase();
+                    const pName = (c.projectName || c.project || c.title || '').toLowerCase();
+                    const cl = (c.clientName || c.client || '').toLowerCase();
+                    const stat = (c.status || '').toLowerCase();
+                    return cid.includes(q) || pName.includes(q) || cl.includes(q) || stat.includes(q);
+                  });
+                  const apiCtrs = apiSearchResults?.contracts || [];
+                  const seenCtrKeys = new Set();
+                  const matchingContracts = [];
+                  [...localContracts, ...apiCtrs].forEach(c => {
+                    const k = (c.id || c.contractId || c.projectName || '').toLowerCase().trim();
+                    if (!seenCtrKeys.has(k)) {
+                      seenCtrKeys.add(k);
+                      matchingContracts.push(c);
+                    }
+                  });
+
+                  // 5. SPRINT TASKS
+                  const localTasks = freelancerDbTasks.filter(t => {
+                    const title = (t.title || t.name || '').toLowerCase();
+                    const pName = (t.projectName || t.project || '').toLowerCase();
+                    const stat = (t.status || '').toLowerCase();
+                    return title.includes(q) || pName.includes(q) || stat.includes(q);
+                  });
+                  const apiTasks = apiSearchResults?.tasks || [];
+                  const seenTaskKeys = new Set();
+                  const matchingTasks = [];
+                  [...localTasks, ...apiTasks].forEach(t => {
+                    const k = (t.title || t.name || t.id || '').toLowerCase().trim();
+                    if (!seenTaskKeys.has(k)) {
+                      seenTaskKeys.add(k);
+                      matchingTasks.push(t);
+                    }
+                  });
+
+                  // 6. EARNINGS & WALLET
+                  const allEarnings = [
+                    ...(freelancerFinancials?.transactions || []),
+                    ...(apiSearchResults?.earnings || [])
+                  ];
+                  const seenEarnKeys = new Set();
+                  const matchingEarnings = [];
+                  allEarnings.forEach(pm => {
+                    const pName = (pm.project || pm.projectName || '').toLowerCase();
+                    const cid = (pm.contractId || pm.contract || '').toLowerCase();
+                    const txId = (pm.transactionId || pm.id || '').toLowerCase();
+                    const typeStr = (pm.type || pm.paymentType || pm.type_label || pm.milestone || '').toLowerCase();
+                    if (pName.includes(q) || cid.includes(q) || txId.includes(q) || typeStr.includes(q)) {
+                      const k = (pm.transactionId || pm.id || `${pm.project}_${pm.amount}`).toLowerCase().trim();
+                      if (!seenEarnKeys.has(k)) {
+                        seenEarnKeys.add(k);
+                        matchingEarnings.push(pm);
+                      }
+                    }
+                  });
+
+                  // 7. MESSAGES
+                  const allMessages = [
+                    ...(liveConversations || []),
+                    ...(apiSearchResults?.messages || [])
+                  ];
+                  const seenMsgKeys = new Set();
+                  const matchingMessages = [];
+                  allMessages.forEach(msg => {
+                    const cp = (msg.counterpart || msg.name || msg.username || '').toLowerCase();
+                    const cpId = (msg.counterpartId || msg.email || '').toLowerCase();
+                    const snip = (msg.snippet || msg.last_message || msg.content || '').toLowerCase();
+                    if (cp.includes(q) || cpId.includes(q) || snip.includes(q)) {
+                      const k = (msg.counterpartId || msg.username || msg.counterpart || msg.name || '').toLowerCase().trim();
+                      if (k && !seenMsgKeys.has(k)) {
+                        seenMsgKeys.add(k);
+                        matchingMessages.push(msg);
+                      }
+                    }
+                  });
+
+                  const totalMatches = matchingJobs.length + matchingProposals.length + matchingAssigned.length + matchingContracts.length + matchingTasks.length + matchingEarnings.length + matchingMessages.length;
+
+                  if (totalMatches === 0) {
+                    return (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium text-center py-4">No matching results found for "{searchQuery}"</p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {/* AVAILABLE JOBS GROUP */}
+                      {matchingJobs.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>AVAILABLE JOBS</span>
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{matchingJobs.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingJobs.slice(0, 4).map(j => (
+                              <div
+                                key={j.id || j.title}
+                                onClick={() => {
+                                  setSelectedJob(j);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open Job Details & Submit Proposal"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{j.title}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">{j.client || 'Client'} • {j.budget || 'Budget TBD'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">Apply</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ASSIGNED PROJECTS GROUP */}
+                      {matchingAssigned.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>ASSIGNED PROJECTS</span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">{matchingAssigned.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingAssigned.slice(0, 3).map(ap => (
+                              <div
+                                key={ap.id || ap.contractId}
+                                onClick={() => {
+                                  setActiveTab('contracts');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="View in Contracts Tab"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{ap.projectName || ap.project || ap.title}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">Client: {ap.clientName || ap.client || 'Enterprise'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">Active</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SUBMITTED BIDS GROUP */}
+                      {matchingProposals.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>MY SUBMITTED BIDS</span>
+                            <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-full">{matchingProposals.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingProposals.slice(0, 3).map(pr => (
+                              <div
+                                key={pr.id || pr.projectTitle}
+                                onClick={() => {
+                                  setActiveTab('proposals');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="View in Proposals Tab"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{pr.projectTitle || pr.project}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">Bid: {pr.bid || pr.bidAmount || 'N/A'} • {pr.client || 'Client'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full shrink-0">{pr.status || 'Pending'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CONTRACTS GROUP */}
+                      {matchingContracts.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-teal-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>CONTRACTS</span>
+                            <span className="text-[10px] bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded-full">{matchingContracts.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingContracts.slice(0, 3).map(c => (
+                              <div
+                                key={c.id || c.contractId}
+                                onClick={() => {
+                                  setSelectedContractDetail(c);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open Contract Details"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{c.id || c.contractId} — {c.projectName || c.project || c.title}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">Client: {c.clientName || c.client || 'Client'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full shrink-0">{c.status || 'Active'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* SPRINT TASKS GROUP */}
+                      {matchingTasks.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-violet-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>SPRINT TASKS</span>
+                            <span className="text-[10px] bg-violet-50 text-violet-600 px-1.5 py-0.5 rounded-full">{matchingTasks.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingTasks.slice(0, 3).map(t => (
+                              <div
+                                key={t.id || t.title}
+                                onClick={() => {
+                                  setActiveTab('tasks');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open in Sprint Workspace"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{t.title || t.name}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">Project: {t.projectName || t.project || 'Sprint'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full shrink-0">{t.status || 'To Do'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* EARNINGS & WALLET GROUP */}
+                      {matchingEarnings.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>EARNINGS & WALLET</span>
+                            <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full">{matchingEarnings.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingEarnings.slice(0, 3).map((pm, idx) => (
+                              <div
+                                key={pm.transactionId || pm.id || idx}
+                                onClick={() => {
+                                  setActiveTab('earnings');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open in Earnings & Wallet"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{pm.project || pm.projectName || 'Milestone Payment'} — {pm.amount || '₹0'}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">{pm.type || pm.paymentType || pm.type_label || 'Milestone Release'} • Ref: {pm.contractId || pm.transactionId || pm.id || 'N/A'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">Wallet</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* MESSAGES GROUP */}
+                      {matchingMessages.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-sky-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>MESSAGES</span>
+                            <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full">{matchingMessages.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingMessages.slice(0, 3).map((msg, idx) => {
+                              const cpName = msg.counterpart || msg.name || msg.username || 'Chat User';
+                              return (
+                                <div
+                                  key={msg.id || idx}
+                                  onClick={() => {
+                                    setActiveTab('messages');
+                                    setIsSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                  title="Open Chat in Messages"
+                                >
+                                  <div className="truncate pr-2">
+                                    <p className="font-extrabold text-slate-900 truncate">{cpName}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{msg.snippet || msg.last_message || msg.content || 'Active conversation'}</p>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Chat</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -603,35 +1245,23 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 className="flex items-center space-x-3 p-1.5 rounded-xl hover:bg-slate-200/60 transition-all cursor-pointer text-left"
               >
                 <div className="text-right">
-                  <p className="text-sm font-black text-slate-900">{userSession?.name || userSession?.user_id || 'Haines'}</p>
-                  <p className="text-xs text-[#2563eb] font-extrabold tracking-wider uppercase">SENIOR PYTORCH ARCHITECT</p>
+                  <p className="text-sm font-black text-slate-900">{userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer'}</p>
+                  <p className="text-xs text-[#2563eb] font-extrabold tracking-wider uppercase">{userSession?.headline || userSession?.title || userSession?.role_title || 'FREELANCER SPECIALIST'}</p>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-xs shadow-md shrink-0 overflow-hidden">
-                  {(() => {
-                    const uid = (userSession?.user_id || userSession?.username || userSession?.name || '').toLowerCase();
-                    let avatarUrl = userSession?.avatar_url || '';
-                    if (!avatarUrl && uid) {
-                      try {
-                        const cached = JSON.parse(localStorage.getItem(`freematch_profile_${uid}`) || '{}');
-                        avatarUrl = cached.avatar_url || '';
-                      } catch (e) {}
-                    }
-                    const name = userSession?.name || userSession?.user_id || 'Freelancer';
-                    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
-                    return avatarUrl ? (
-                      <img src={avatarUrl} alt={name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-                    ) : (
-                      <span>{initials}</span>
-                    );
-                  })()}
+                  {headerAvatar ? (
+                    <img src={headerAvatar} alt={currentFlName} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                  ) : (
+                    <span>{currentFlName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL'}</span>
+                  )}
                 </div>
               </button>
 
               {showProfileDropdown && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 z-50 animate-fadeIn">
                   <div className="px-4 py-2.5 border-b border-slate-100">
-                    <p className="text-xs font-extrabold text-slate-900">{userSession?.name || 'Alex Mercer'}</p>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate">{userSession?.email || 'alex.mercer@freematch.ai'}</p>
+                    <p className="text-xs font-extrabold text-slate-900">{userSession?.name || userSession?.username || 'Freelancer'}</p>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium truncate">{userSession?.email || ''}</p>
                   </div>
                   <button
                     onClick={() => { setActiveTab('profile'); setShowProfileDropdown(false); }}
@@ -663,16 +1293,13 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB 4: KANBAN SPRINT TASKS BOARD */}
         {activeTab === 'tasks' && (() => {
-          const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
-          const flDisplayName = userSession?.name || userSession?.user_id || userSession?.username || (
-            currentFlId.includes('haines') ? 'Haines JP' :
-            currentFlId.includes('sarah') ? 'Sarah Chen' : 'Alex Mercer'
-          );
+          const flDisplayName = userSession?.name || userSession?.user_id || userSession?.username || 'Freelancer';
           return (
             <div className="p-8">
               <KanbanBoard 
                 role="freelancer" 
                 currentUserName={flDisplayName} 
+                currentUserId={userSession?.username || userSession?.user_id || userSession?.email || ''}
                 initialProjectFilter={selectedSprintProjectFilter} 
                 isDark={isDark} 
               />
@@ -689,126 +1316,95 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             </div>
 
             <div className="space-y-4">
-              {jobs.map(job => (
-                <div key={job.id} className={`p-6 rounded-3xl border space-y-3 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-base">{job.title}</h4>
-                      <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>{job.client} • {job.posted || job.postedDate}</p>
-                    </div>
-                    <span className="bg-blue-500/10 text-blue-400 font-extrabold text-xs px-3 py-1 rounded-xl">{job.budget}</span>
-                  </div>
-
-                  <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>{job.description}</p>
-
-                  {/* Attached Document or Architecture Image */}
-                  {job.attachedFile && (
-                    <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-blue-950/30 border-blue-500/30 text-blue-200' : 'bg-blue-50/80 border-blue-200 text-blue-900'}`}>
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-                          {job.attachedFile.isImage ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
-                        </div>
-                        <div>
-                          <p className="font-bold text-xs">{job.attachedFile.name}</p>
-                          <p className="text-xs text-slate-600 dark:text-slate-300">{job.attachedFile.size} • Client Technical Attachment</p>
-                        </div>
-                      </div>
-                      <a
-                        href={job.attachedFile.url || '#'}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer flex items-center space-x-1"
-                      >
-                        {job.attachedFile.isImage ? <Search className="w-3.5 h-3.5 mr-1" /> : <Download className="w-3.5 h-3.5 mr-1" />}
-                        <span>{job.attachedFile.isImage ? 'View Diagram' : 'Download Abstract'}</span>
-                      </a>
-                    </div>
-                  )}
-
-                  {job.abstract && (
-                    <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed ${isDark ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
-                      <div className="flex items-center space-x-1.5 mb-1 text-blue-400 font-extrabold text-xs uppercase tracking-wider">
-                        <LinkIcon className="w-3.5 h-3.5" />
-                        <span>Technical Notes & GitHub Link:</span>
-                      </div>
-                      <p className="whitespace-pre-line text-xs font-mono bg-black/20 p-2.5 rounded-xl border border-slate-800">{job.abstract}</p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center pt-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(Array.isArray(job.skills) ? job.skills : typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : []).map((s, i) => (
-                        <span key={i} className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-semibold">{s}</span>
-                      ))}
-                    </div>
-                    <button 
-                      onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md cursor-pointer flex items-center space-x-1.5"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Submit Proposal / Bid</span>
-                    </button>
-                  </div>
+              {jobs.length === 0 ? (
+                <div className={`p-12 text-center rounded-3xl border border-dashed ${isDark ? 'border-slate-800 bg-[#060e22]' : 'border-slate-300 bg-white'} space-y-3`}>
+                  <Briefcase className="w-8 h-8 text-slate-500 dark:text-slate-400 mx-auto" />
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No Active Job Postings</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
+                    There are currently no open client projects in the marketplace. When clients post new projects, they will appear here in real-time.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                jobs.map(job => (
+                  <div key={job.id} className={`p-6 rounded-3xl border space-y-3 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-base">{job.title}</h4>
+                        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>{job.client} • {job.posted || job.postedDate}</p>
+                      </div>
+                      <span className="bg-blue-500/10 text-blue-400 font-extrabold text-xs px-3 py-1 rounded-xl">{job.budget}</span>
+                    </div>
+
+                    <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>{job.description}</p>
+
+                    {/* Attached Document or Architecture Image */}
+                    {job.attachedFile && (
+                      <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-blue-950/30 border-blue-500/30 text-blue-200' : 'bg-blue-50/80 border-blue-200 text-blue-900'}`}>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
+                            {job.attachedFile.isImage ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-xs">{job.attachedFile.name}</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">{job.attachedFile.size} • Client Technical Attachment</p>
+                          </div>
+                        </div>
+                        <a
+                          href={job.attachedFile.url || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer flex items-center space-x-1"
+                        >
+                          {job.attachedFile.isImage ? <Search className="w-3.5 h-3.5 mr-1" /> : <Download className="w-3.5 h-3.5 mr-1" />}
+                          <span>{job.attachedFile.isImage ? 'View Diagram' : 'Download Abstract'}</span>
+                        </a>
+                      </div>
+                    )}
+
+                    {job.abstract && (
+                      <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed ${isDark ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
+                        <div className="flex items-center space-x-1.5 mb-1 text-blue-400 font-extrabold text-xs uppercase tracking-wider">
+                          <LinkIcon className="w-3.5 h-3.5" />
+                          <span>Technical Notes & GitHub Link:</span>
+                        </div>
+                        <p className="whitespace-pre-line text-xs font-mono bg-black/20 p-2.5 rounded-xl border border-slate-800">{job.abstract}</p>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pt-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Array.isArray(job.skills) ? job.skills : typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : []).map((s, i) => (
+                          <span key={i} className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-semibold">{s}</span>
+                        ))}
+                      </div>
+                      <button 
+                        onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md cursor-pointer flex items-center space-x-1.5"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>Submit Proposal / Bid</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
 
         {/* TAB 3: SUBMITTED BIDS / PROPOSALS */}
         {activeTab === 'proposals' && (() => {
-          const currentFlId = (userSession?.user_id || userSession?.email || userSession?.name || 'alexmercer').toLowerCase().trim();
-          const isDemo = ['user1', 'alex', 'mercer', 'haines', 'abhilash', 'john'].some(d => currentFlId.includes(d));
+          const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
+          const currentFlName = (userSession?.name || '').toLowerCase().trim();
 
-          // Default accepted & pending proposals for demo account fallback
-          const defaultProposalsList = [
-            { id: 'pr1', project: 'AI Pipeline Optimization', projectTitle: 'AI Pipeline Optimization', client: 'Abhilash K K', bid: '₹2,25,000', bidAmount: '₹2,25,000', delivery: '2 Weeks', status: 'Accepted', date: 'Aug 10, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' },
-            { id: 'pr2', project: 'AI Automated Test Pipeline', projectTitle: 'AI Automated Test Pipeline', client: 'Abhilash K K', bid: '₹1,50,000', bidAmount: '₹1,50,000', delivery: '3 Weeks', status: 'Accepted', date: 'Aug 11, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' },
-            { id: 'pr3', project: 'Cybersecurity Audit & Shield', projectTitle: 'Cybersecurity Audit & Shield', client: 'MetaVibe Solutions', bid: '₹5,000', bidAmount: '₹5,000', delivery: '3 Weeks', status: 'Submitted / Under Review', date: 'Aug 14, 2026', freelancer: 'Alex Mercer', freelancerName: 'Alex Mercer' }
-          ];
-
-          const allProposals = [...proposals];
-          defaultProposalsList.forEach(dp => {
-            if (!allProposals.some(p => (p.project || p.projectTitle || '').toLowerCase().trim() === dp.project.toLowerCase().trim())) {
-              allProposals.push(dp);
-            }
+          const myProposals = (!currentFlId && !currentFlName) ? [] : (proposals || []).filter(pr => {
+            const fid = (pr.user_id || pr.freelancer_id || '').toLowerCase().trim();
+            const fname = (pr.freelancer || pr.freelancerName || '').toLowerCase().trim();
+            return (currentFlId && (fid === currentFlId || fname === currentFlId || fname.includes(currentFlId))) ||
+                   (currentFlName && (fname === currentFlName || fname.includes(currentFlName)));
           });
 
-          const myProposals = allProposals.filter(pr => {
-            const f = (pr.freelancer || pr.freelancerName || pr.user_id || '').toLowerCase().trim();
-            if (!f) return true;
-            return f.includes(currentFlId) || currentFlId.includes(f) ||
-              (currentFlId.includes('alex') && f.includes('alex')) ||
-              (currentFlId.includes('sarah') && f.includes('sarah')) ||
-              (currentFlId.includes('haines') && f.includes('haines'));
-          });
-
-          // Account-level fallback contract list for demo users
-          let defaultFreelancerContractsList = [];
-          if (currentFlId.includes('alex')) {
-            defaultFreelancerContractsList = [
-              { projectName: 'AI Pipeline Optimization', project: 'AI Pipeline Optimization', freelancerName: 'Alex Mercer' },
-              { projectName: 'AI Automated Test Pipeline', project: 'AI Automated Test Pipeline', freelancerName: 'Alex Mercer' }
-            ];
-          } else if (currentFlId.includes('sarah')) {
-            defaultFreelancerContractsList = [
-              { projectName: 'FinTech Dashboard v2', project: 'FinTech Dashboard v2', freelancerName: 'Sarah Chen' },
-              { projectName: 'AI Medical Imaging Diagnostic Suite', project: 'AI Medical Imaging Diagnostic Suite', freelancerName: 'Sarah Chen' }
-            ];
-          } else if (currentFlId.includes('haines')) {
-            defaultFreelancerContractsList = [
-              { projectName: 'NextGen Autonomous Trading Engine', project: 'NextGen Autonomous Trading Engine', freelancerName: 'Haines Jose Paulson' },
-              { projectName: 'Autonomous Supply Chain Freight Router', project: 'Autonomous Supply Chain Freight Router', freelancerName: 'Haines Jose Paulson' }
-            ];
-          }
-
-          const combinedContractsList = [...(freelancerDbContracts || [])];
-          defaultFreelancerContractsList.forEach(dc => {
-            const dcTitle = (dc.projectName || dc.project || '').toLowerCase().trim();
-            if (!combinedContractsList.some(c => (c.projectName || c.project || '').toLowerCase().trim() === dcTitle)) {
-              combinedContractsList.push(dc);
-            }
-          });
+          const combinedContractsList = freelancerDbContracts || [];
 
           return (
             <div className="p-8 space-y-6">
@@ -825,12 +1421,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                     // Strictly check if a valid contract/assignment exists for THIS authenticated freelancer
                     const hasValidAssignment = combinedContractsList.some(c => {
                       const cProj = (c.projectName || c.project || '').toLowerCase().trim();
-                      const cFl = (c.freelancerName || c.freelancer || c.freelancerId || '').toLowerCase().trim();
+                      const cFl = (c.freelancerName || c.freelancer || c.freelancerId || c.freelancer_id || '').toLowerCase().trim();
                       const isProjMatch = cProj && prTitle && (cProj === prTitle || cProj.includes(prTitle) || prTitle.includes(cProj));
-                      const isFlMatch = cFl && (cFl.includes(currentFlId) || currentFlId.includes(cFl) ||
-                        (currentFlId.includes('alex') && cFl.includes('alex')) ||
-                        (currentFlId.includes('sarah') && cFl.includes('sarah')) ||
-                        (currentFlId.includes('haines') && cFl.includes('haines')));
+                      const isFlMatch = cFl && (
+                        (currentFlId && (cFl === currentFlId || cFl.includes(currentFlId))) ||
+                        (currentFlName && (cFl === currentFlName || cFl.includes(currentFlName)))
+                      );
                       return isProjMatch && isFlMatch;
                     });
 
@@ -929,10 +1525,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB 1: DEDICATED CLIENT REVIEWS & RATINGS PAGE */}
         {activeTab === 'reviews' && (() => {
-          const currentFlName = userSession?.name || userSession?.user_id || 'Alex Mercer';
+          const currentFlName = userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer';
           const myProfileData = {
             name: currentFlName,
-            user_id: userSession?.user_id || userSession?.username || 'alexmercer'
+            user_id: userSession?.user_id || userSession?.username || ''
           };
           return (
             <ClientReviewsView
@@ -946,99 +1542,16 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         })()}
 
         {/* TAB 2: FREELANCER PROFILE & SKILLS PORTFOLIO */}
-        {activeTab === 'profile' && (() => {
-          const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || 'alexmercer').toLowerCase().trim();
-          const currentFlName = userSession?.name || userSession?.user_id || userSession?.username || 'Alex Mercer';
-          
-          let myProfileData = {
-            name: currentFlName,
-            user_id: userSession?.user_id || userSession?.username || 'freelancer',
-            title: 'Senior Full Stack & AI Specialist',
-            headline: 'Senior Full Stack & AI Specialist',
-            location: 'San Francisco, CA',
-            hourlyRate: '₹4,000 / hr',
-            availabilityStatus: 'Available for Work',
-            availableHours: '40 hrs/week',
-            yearsExperience: '5+',
-            projectsCompleted: '12',
-            jobSuccessRate: '100%',
-            onTimeDelivery: '98%',
-            lifetimeEarnings: '₹1,50,000',
-            bio: 'Senior Full Stack & Artificial Intelligence Engineer specializing in robust REST APIs, deep learning models, and real-time React applications.',
-            skills: ['React.js', 'Python', 'Django', 'PostgreSQL', 'Tailwind CSS'],
-            completenessPercentage: 90
-          };
-
-          if (currentFlId.includes('alex')) {
-            myProfileData = {
-              name: 'Alex Mercer',
-              user_id: 'alexmercer',
-              title: 'Senior React, PyTorch & Django Architect',
-              headline: 'Senior React, PyTorch & Django Architect',
-              location: 'San Francisco, CA',
-              hourlyRate: '₹4,000 / hr',
-              availabilityStatus: 'Available for Work',
-              availableHours: '40 hrs/week',
-              yearsExperience: '7+',
-              projectsCompleted: '24',
-              jobSuccessRate: '100%',
-              onTimeDelivery: '98%',
-              lifetimeEarnings: '₹2,89,000',
-              bio: 'Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications.',
-              skills: ['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'D3.js', 'REST API Architecture', 'OWASP Security', 'FastAPI'],
-              completenessPercentage: 95
-            };
-          } else if (currentFlId.includes('sarah')) {
-            myProfileData = {
-              name: 'Sarah Chen',
-              user_id: 'sarahchen',
-              title: 'Senior Data Scientist & Frontend Lead',
-              headline: 'Senior Data Scientist & Frontend Lead',
-              location: 'Seattle, WA',
-              hourlyRate: '₹3,800 / hr',
-              availabilityStatus: 'Available for Work',
-              availableHours: '35 hrs/week',
-              yearsExperience: '6+',
-              projectsCompleted: '18',
-              jobSuccessRate: '100%',
-              onTimeDelivery: '100%',
-              lifetimeEarnings: '₹3,00,000',
-              bio: 'Specialist in DICOM PACS imaging systems, UNet lesion detection pipelines, Neo4j Knowledge Graphs, and high-frequency React D3.js telemetry components.',
-              skills: ['React.js', 'D3.js', 'Python', 'Neo4j', 'FastAPI', 'PyTorch', 'DICOM Imaging'],
-              completenessPercentage: 90
-            };
-          } else if (currentFlId.includes('haines')) {
-            myProfileData = {
-              name: 'Haines Jose Paulson',
-              user_id: 'hainesjosepaulson',
-              title: 'Senior High-Frequency Trading & Systems Architect',
-              headline: 'Senior High-Frequency Trading & Systems Architect',
-              location: 'Austin, TX',
-              hourlyRate: '₹4,500 / hr',
-              availabilityStatus: 'Available for Work',
-              availableHours: '40 hrs/week',
-              yearsExperience: '8+',
-              projectsCompleted: '20',
-              jobSuccessRate: '99%',
-              onTimeDelivery: '97%',
-              lifetimeEarnings: '₹3,45,000',
-              bio: 'High-frequency trading engine developer specializing in low-latency Rust order execution cores, OR-Tools vehicle routing optimization, and WebSocket telemetry.',
-              skills: ['Rust', 'Python', 'C++', 'Google OR-Tools', 'WebSockets', 'React.js', 'PostgreSQL'],
-              completenessPercentage: 92
-            };
-          }
-
-          return (
-            <FreelancerProfileView
-              userSession={userSession}
-              initialFreelancerData={myProfileData}
-              reviews={reviews}
-              viewMode="freelancer"
-              isDark={isDark}
-              showToast={(msg, type = 'info') => setToast({ message: msg, type })}
-            />
-          );
-        })()}
+        {activeTab === 'profile' && (
+          <FreelancerProfileView
+            userSession={userSession}
+            initialFreelancerData={myProfileData}
+            reviews={reviews}
+            viewMode="freelancer"
+            isDark={isDark}
+            showToast={(msg, type = 'info') => setToast({ message: msg, type })}
+          />
+        )}
 
         {/* WORKSPACE OVERVIEW TAB */}
         {activeTab === 'workspace' && (() => {
@@ -1055,52 +1568,81 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             clientRatingStr,
             completedProjectsCount
           } = (() => {
-            const currentFlId = (userSession?.user_id || userSession?.email || userSession?.name || '').toLowerCase().trim();
-            const isDemo = ['user1', 'alex', 'mercer', 'haines', 'abhilash', 'john'].some(d => currentFlId.includes(d));
+            const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
+            const currentFlName = (userSession?.name || '').toLowerCase().trim();
+            const isDemo = currentFlId === 'demo_freelancer';
 
-            let kanbanTasks = [];
-            try {
-              const savedTasks = localStorage.getItem(`freematch_user_${currentFlId}_tasks`) || localStorage.getItem('freematch_kanban_tasks');
-              if (savedTasks) kanbanTasks = JSON.parse(savedTasks);
-            } catch (e) {}
+            let myTasks = [];
+            if (Array.isArray(freelancerDbTasks) && freelancerDbTasks.length > 0) {
+              myTasks = freelancerDbTasks;
+            } else {
+              let kanbanTasks = [];
+              try {
+                const savedTasks = localStorage.getItem(`freematch_user_${currentFlId}_tasks`);
+                if (savedTasks) kanbanTasks = JSON.parse(savedTasks);
+              } catch (e) {}
 
-            if ((!Array.isArray(kanbanTasks) || kanbanTasks.length === 0) && isDemo) {
-              kanbanTasks = [
-                { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', project: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: 'Aug 30, 2026' },
-                { id: 't2', title: 'Design D3.js Financial Chart Widgets', status: 'In Progress', assignee: 'Alex Mercer', project: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: 'Aug 30, 2026' },
-                { id: 't3', title: 'Restructure REST API Inference Endpoints', status: 'Under Review', assignee: 'Alex Mercer', project: 'AI Pipeline Optimization', client: 'Haines JP', deadline: 'Aug 30, 2026' },
-                { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Alex Mercer', project: 'AI Pipeline Optimization', client: 'Haines JP', deadline: 'Aug 30, 2026' },
-                { id: 't5', title: 'Implement JWT Refresh Middleware', status: 'In Progress', assignee: 'Alex Mercer', project: 'AI Pipeline Optimization', client: 'Haines JP', deadline: 'Aug 30, 2026' }
-              ];
-            } else if (!Array.isArray(kanbanTasks)) {
-              kanbanTasks = [];
+              if ((!Array.isArray(kanbanTasks) || kanbanTasks.length === 0) && isDemo) {
+                kanbanTasks = [
+                  { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', project: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: 'Aug 30, 2026' }
+                ];
+              } else if (!Array.isArray(kanbanTasks)) {
+                kanbanTasks = [];
+              }
+
+              myTasks = isDemo ? kanbanTasks : kanbanTasks.filter(t => {
+                const a = (t.assignee || '').toLowerCase();
+                return a && (
+                  (currentFlId && (a === currentFlId || a.includes(currentFlId) || currentFlId.includes(a))) ||
+                  (currentFlName && (a === currentFlName || a.includes(currentFlName) || currentFlName.includes(a)))
+                );
+              });
             }
 
-            const myTasks = isDemo ? kanbanTasks : kanbanTasks.filter(t => {
-              const a = (t.assignee || '').toLowerCase();
-              return a && (a.includes(currentFlId) || currentFlId.includes(a));
+            // Build assigned projects from active contracts and actual tasks
+            const activeContracts = (freelancerDbContracts || []).filter(c => {
+              const st = (c.status || '').toLowerCase().trim();
+              return st === 'active' || st === 'in progress' || st === 'pending';
             });
 
             const projectMap = {};
+            activeContracts.forEach(c => {
+              const pName = c.projectName || c.project || 'Assigned Project';
+              projectMap[pName] = {
+                name: pName,
+                client: c.clientName || c.client || 'Enterprise Client',
+                deadline: c.deadline || 'Aug 30, 2026',
+                total: 0,
+                done: 0,
+                inProgress: 0,
+                underReview: 0,
+                pending: 0
+              };
+            });
+
             myTasks.forEach(t => {
               const projName = t.project || t.projectTitle || 'AI Project';
               if (!projectMap[projName]) {
-                projectMap[projName] = {
-                  name: projName,
-                  client: t.client || t.clientName || 'Enterprise Client',
-                  deadline: t.deadline || t.due || 'Aug 30, 2026',
-                  total: 0,
-                  done: 0,
-                  inProgress: 0,
-                  underReview: 0,
-                  pending: 0
-                };
+                if (isDemo || activeContracts.length === 0) {
+                  projectMap[projName] = {
+                    name: projName,
+                    client: t.client || t.clientName || 'Enterprise Client',
+                    deadline: t.deadline || t.due || 'Aug 30, 2026',
+                    total: 0,
+                    done: 0,
+                    inProgress: 0,
+                    underReview: 0,
+                    pending: 0
+                  };
+                }
               }
-              projectMap[projName].total += 1;
-              if (t.status === 'Done' || t.status === 'Completed') projectMap[projName].done += 1;
-              else if (t.status === 'Under Review') projectMap[projName].underReview += 1;
-              else if (t.status === 'In Progress') projectMap[projName].inProgress += 1;
-              else projectMap[projName].pending += 1;
+              if (projectMap[projName]) {
+                projectMap[projName].total += 1;
+                if (t.status === 'Done' || t.status === 'Completed') projectMap[projName].done += 1;
+                else if (t.status === 'Under Review') projectMap[projName].underReview += 1;
+                else if (t.status === 'In Progress') projectMap[projName].inProgress += 1;
+                else projectMap[projName].pending += 1;
+              }
             });
 
             let projList = Object.values(projectMap).map(p => {
@@ -1111,11 +1653,8 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               };
             });
 
-            if (projList.length === 0 && isDemo) {
-              projList = [
-                { name: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: 'Aug 30, 2026', progress: 10, total: 3, done: 0, inProgress: 1, pending: 2 },
-                { name: 'AI Pipeline Optimization', client: 'Haines JP', deadline: 'Aug 30, 2026', progress: 65, total: 4, done: 2, inProgress: 1, pending: 1 }
-              ];
+            if (!isDemo && activeContracts.length === 0 && myTasks.length === 0) {
+              projList = [];
             }
 
             const tot = myTasks.length;
@@ -1130,15 +1669,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             let calculatedRatingStr = isDemo ? '4.9 / 5.0' : 'No ratings yet';
             try {
               let allRevs = Array.isArray(reviews) ? [...reviews] : [];
-              for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                if (k && (k.includes('reviews') || k.includes('freematch'))) {
-                  try {
-                    const parsed = JSON.parse(localStorage.getItem(k));
-                    if (Array.isArray(parsed)) allRevs.push(...parsed);
-                  } catch (e) {}
-                }
-              }
               const flName = (userSession?.name || userSession?.user_id || '').toLowerCase().trim();
               if (flName) {
                 const matched = allRevs.filter(r => r && r.reviewee && String(r.reviewee).toLowerCase().includes(flName.split(' ')[0]));
@@ -1149,6 +1679,13 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               }
             } catch (e) {}
 
+            // Unified, single source-of-truth financial calculation
+            const fin = calculateFreelancerFinancials({
+              userSession,
+              contracts: freelancerDbContracts || [],
+              apiFinancials: freelancerFinancials
+            });
+
             return {
               assignedProjects: projList,
               totalTasksCount: tot,
@@ -1156,11 +1693,11 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               inProgressCount: inp,
               pendingCount: pnd >= 0 ? pnd : 0,
               overallProgressPercent: overallPct,
-              walletBalanceStr: isDemo ? '₹3,450' : '₹0.00',
-              lifetimeEarningsStr: isDemo ? '₹2,89,000' : '₹0.00',
-              activeContractsStr: isDemo ? '2' : '0',
+              walletBalanceStr: fin.availableBalanceStr,
+              lifetimeEarningsStr: fin.lifetimeEarningsStr,
+              activeContractsStr: fin.activeContractsCount,
               clientRatingStr: calculatedRatingStr,
-              completedProjectsCount: isDemo ? '24' : '0'
+              completedProjectsCount: fin.completedProjectsCount
             };
           })();
 
@@ -1274,9 +1811,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                                 </span>
                               </div>
                             </div>
-                            
+
                             <button
-                              onClick={() => setActiveTab('tasks')}
+                              onClick={() => {
+                                if (proj.name) setSelectedSprintProjectFilter(proj.name);
+                                setActiveTab('tasks');
+                              }}
                               className="px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center space-x-1.5 shrink-0 self-start sm:self-center cursor-pointer"
                             >
                               <span>View Tasks</span>
@@ -1355,14 +1895,17 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                         <div 
                           className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${overallProgressPercent}%` }}
+                          style={{ width: `${overallProgressPercent}%` }} 
                         />
                       </div>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => setActiveTab('tasks')}
+                    onClick={() => {
+                      setSelectedSprintProjectFilter(assignedProjects[0]?.name || 'All Assigned Projects');
+                      setActiveTab('tasks');
+                    }}
                     className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center space-x-2 mt-4"
                   >
                     <Kanban className="w-4 h-4" />
@@ -1388,9 +1931,15 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 </div>
 
                 <div className="space-y-3">
-                  {jobs.slice(0, 3).map(job => (
-                    <div 
-                      key={job.id} 
+                  {jobs.length === 0 ? (
+                    <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800 text-slate-400' : 'bg-white border-slate-200/90 text-slate-500'}`}>
+                      <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="font-bold text-sm">No open marketplace jobs available at this moment.</p>
+                    </div>
+                  ) : (
+                    jobs.slice(0, 3).map(job => (
+                      <div 
+                        key={job.id} 
                       className={`p-4.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                         isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs'
                       }`}
@@ -1406,7 +1955,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                         </div>
 
                         <div className={`flex flex-wrap items-center gap-3 text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                          <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{job.client || 'Abhilash K K'}</span>
+                          <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{job.client || 'Client Organization'}</span>
                           <span>•</span>
                           <span>{job.posted || 'Aug 11, 2026'}</span>
                           <span>•</span>
@@ -1428,7 +1977,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                         <span>Submit Proposal / Bid</span>
                       </button>
                     </div>
-                  ))}
+                  )))}
                 </div>
               </div>
 
@@ -1438,40 +1987,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: FREELANCER EARNINGS & WALLET DASHBOARD */}
         {activeTab === 'earnings' && (() => {
-          const currentFlId = (userSession?.username || userSession?.user_id || userSession?.email || '').toLowerCase().trim();
-          const currentFlName = userSession?.name || userSession?.user_id || 'Freelancer';
-
-          let defaultContracts = [];
-          if (currentFlId.includes('alex') || currentFlName.toLowerCase().includes('alex')) {
-            defaultContracts = [
-              { id: 'CTR-9024', contractId: 'CTR-9024', projectName: 'AI Pipeline Optimization', project: 'AI Pipeline Optimization', clientName: 'Abhilash K K', freelancerName: 'Alex Mercer', amount: '₹2,25,000', agreedAmount: '₹2,25,000', status: 'Active', milestonesDone: 0, milestonesTotal: 4, startDate: 'Aug 10, 2026' },
-              { id: 'CTR-9438', contractId: 'CTR-9438', projectName: 'AI Automated Test Pipeline', project: 'AI Automated Test Pipeline', clientName: 'Abhilash K K', freelancerName: 'Alex Mercer', amount: '₹1,50,000', agreedAmount: '₹1,50,000', status: 'Active', milestonesDone: 0, milestonesTotal: 3, startDate: 'Aug 11, 2026' }
-            ];
-          } else if (currentFlId.includes('sarah') || currentFlName.toLowerCase().includes('sarah')) {
-            defaultContracts = [
-              { id: 'CTR-8812', contractId: 'CTR-8812', projectName: 'FinTech Dashboard v2', project: 'FinTech Dashboard v2', clientName: 'Abhilash K K', freelancerName: 'Sarah Chen', amount: '₹1,20,000', agreedAmount: '₹1,20,000', status: 'Completed', milestonesDone: 3, milestonesTotal: 3, startDate: 'Aug 08, 2026' },
-              { id: 'CNT-8901', contractId: 'CNT-8901', projectName: 'AI Medical Imaging Diagnostic Suite', project: 'AI Medical Imaging Diagnostic Suite', clientName: 'Abhilash K K', freelancerName: 'Sarah Chen', amount: '₹1,80,000', agreedAmount: '₹1,80,000', status: 'Active', milestonesDone: 2, milestonesTotal: 3, startDate: 'Aug 12, 2026' }
-            ];
-          } else if (currentFlId.includes('haines') || currentFlName.toLowerCase().includes('haines')) {
-            defaultContracts = [
-              { id: 'CNT-8902', contractId: 'CNT-8902', projectName: 'Autonomous Supply Chain Freight Router', project: 'Autonomous Supply Chain Freight Router', clientName: 'Abhilash K K', freelancerName: 'Haines Jose Paulson', amount: '₹12,000', agreedAmount: '₹12,000', status: 'Active', milestonesDone: 1, milestonesTotal: 4, startDate: 'Aug 03, 2026' },
-              { id: 'CTR-9918', contractId: 'CTR-9918', projectName: 'AI Medical Imaging Diagnostic Suite', project: 'AI Medical Imaging Diagnostic Suite', clientName: 'Abhilash K K', freelancerName: 'Haines jp', amount: '₹4,500', agreedAmount: '₹4,500', status: 'Active', milestonesDone: 1, milestonesTotal: 3, startDate: 'Aug 10, 2026' },
-              { id: 'CTR-9176', contractId: 'CTR-9176', projectName: 'NextGen Autonomous Trading Engine', project: 'NextGen Autonomous Trading Engine', clientName: 'Abhilash K K', freelancerName: 'Haines Jose Paulson', amount: '₹22,500', agreedAmount: '₹22,500', status: 'Active', milestonesDone: 1, milestonesTotal: 3, startDate: 'Aug 10, 2026' }
-            ];
-          }
-
-          const combinedList = [...(freelancerDbContracts || [])];
-          defaultContracts.forEach(dc => {
-            const dcTitle = (dc.projectName || dc.project || '').toLowerCase().trim();
-            if (!combinedList.some(c => (c.projectName || c.project || '').toLowerCase().trim() === dcTitle)) {
-              combinedList.push(dc);
-            }
-          });
-
           return (
             <FreelancerEarningsView
               userSession={userSession}
-              contracts={combinedList}
+              contracts={freelancerDbContracts || []}
+              apiFinancials={freelancerFinancials}
+              onFinancialsChange={loadFreelancerFinancials}
               isDark={isDark}
               showToast={(msg, type) => setToast({ message: msg, type })}
             />
@@ -1480,173 +2001,15 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: FREELANCER CONTRACTS & AGREEMENTS */}
         {activeTab === 'contracts' && (() => {
-          const currentFlId = (userSession?.username || userSession?.user_id || userSession?.email || 'alexmercer').toLowerCase().trim();
-          const currentFlName = userSession?.name || userSession?.user_id || 'Alex Mercer';
+          const currentFlId = (userSession?.username || userSession?.user_id || userSession?.email || '').toLowerCase().trim();
+          const currentFlName = (userSession?.name || '').toLowerCase().trim();
 
-          // Strict account-level contract mapping for default demo fallback if DB query is pending
-          let defaultFreelancerContractsList = [];
-          if (currentFlId.includes('alex') || currentFlName.toLowerCase().includes('alex')) {
-            defaultFreelancerContractsList = [
-              {
-                id: 'CTR-9024',
-                contractId: 'CTR-9024',
-                projectName: 'AI Pipeline Optimization',
-                project: 'AI Pipeline Optimization',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Alex Mercer',
-                freelancer: 'Alex Mercer',
-                startDate: 'Aug 10, 2026',
-                deadline: 'Sep 05, 2026',
-                amount: '₹2,25,000',
-                agreedAmount: '₹2,25,000',
-                status: 'Active',
-                milestonesDone: 0,
-                milestonesTotal: 4,
-                milestoneProgress: 0,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹2,25,000'
-              },
-              {
-                id: 'CTR-9438',
-                contractId: 'CTR-9438',
-                projectName: 'AI Automated Test Pipeline',
-                project: 'AI Automated Test Pipeline',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Alex Mercer',
-                freelancer: 'Alex Mercer',
-                startDate: 'Aug 11, 2026',
-                deadline: 'Aug 30, 2026',
-                amount: '₹1,50,000',
-                agreedAmount: '₹1,50,000',
-                status: 'Active',
-                milestonesDone: 0,
-                milestonesTotal: 3,
-                milestoneProgress: 0,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹1,50,000'
-              }
-            ];
-          } else if (currentFlId.includes('sarah') || currentFlName.toLowerCase().includes('sarah')) {
-            defaultFreelancerContractsList = [
-              {
-                id: 'CTR-8812',
-                contractId: 'CTR-8812',
-                projectName: 'FinTech Dashboard v2',
-                project: 'FinTech Dashboard v2',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Sarah Chen',
-                freelancer: 'Sarah Chen',
-                startDate: 'Aug 08, 2026',
-                deadline: 'Aug 25, 2026',
-                amount: '₹1,20,000',
-                agreedAmount: '₹1,20,000',
-                status: 'Completed',
-                milestonesDone: 3,
-                milestonesTotal: 3,
-                milestoneProgress: 100,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹1,20,000'
-              },
-              {
-                id: 'CNT-8901',
-                contractId: 'CNT-8901',
-                projectName: 'AI Medical Imaging Diagnostic Suite',
-                project: 'AI Medical Imaging Diagnostic Suite',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Sarah Chen',
-                freelancer: 'Sarah Chen',
-                startDate: 'Aug 12, 2026',
-                deadline: 'Sep 10, 2026',
-                amount: '₹1,80,000',
-                agreedAmount: '₹1,80,000',
-                status: 'Active',
-                milestonesDone: 2,
-                milestonesTotal: 3,
-                milestoneProgress: 66,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹1,80,000'
-              }
-            ];
-          } else if (currentFlId.includes('haines') || currentFlName.toLowerCase().includes('haines')) {
-            defaultFreelancerContractsList = [
-              {
-                id: 'CNT-8902',
-                contractId: 'CNT-8902',
-                projectName: 'Autonomous Supply Chain Freight Router',
-                project: 'Autonomous Supply Chain Freight Router',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Haines Jose Paulson',
-                freelancer: 'Haines Jose Paulson',
-                startDate: 'Aug 03, 2026',
-                deadline: 'Aug 30, 2026',
-                amount: '₹12,000',
-                agreedAmount: '₹12,000',
-                status: 'Active',
-                milestonesDone: 1,
-                milestonesTotal: 4,
-                milestoneProgress: 25,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹12,000'
-              },
-              {
-                id: 'CTR-9918',
-                contractId: 'CTR-9918',
-                projectName: 'AI Medical Imaging Diagnostic Suite',
-                project: 'AI Medical Imaging Diagnostic Suite',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Haines jp',
-                freelancer: 'Haines jp',
-                startDate: 'Aug 10, 2026',
-                deadline: 'Sep 01, 2026',
-                amount: '₹4,500',
-                agreedAmount: '₹4,500',
-                status: 'Active',
-                milestonesDone: 1,
-                milestonesTotal: 3,
-                milestoneProgress: 33,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹4,500'
-              },
-              {
-                id: 'CTR-9176',
-                contractId: 'CTR-9176',
-                projectName: 'NextGen Autonomous Trading Engine',
-                project: 'NextGen Autonomous Trading Engine',
-                clientName: 'Abhilash K K',
-                client: 'Abhilash K K',
-                freelancerName: 'Haines Jose Paulson',
-                freelancer: 'Haines Jose Paulson',
-                startDate: 'Aug 10, 2026',
-                deadline: 'Sep 20, 2026',
-                amount: '₹22,500',
-                agreedAmount: '₹22,500',
-                status: 'Active',
-                milestonesDone: 1,
-                milestonesTotal: 3,
-                milestoneProgress: 33,
-                paymentType: 'Fixed Price',
-                escrowBalance: '₹22,500'
-              }
-            ];
-          }
-
-          const baseContracts = freelancerDbContracts.length > 0 ? freelancerDbContracts : defaultFreelancerContractsList;
-
-          const allContracts = baseContracts.filter(c => {
-            const fName = (c.freelancerName || c.freelancer || c.freelancerId || '').toLowerCase();
-            const flMatch = fName.includes(currentFlId) || currentFlId.includes(fName) || 
-              (currentFlId.includes('alex') && fName.includes('alex')) ||
-              (currentFlId.includes('sarah') && fName.includes('sarah')) ||
-              (currentFlId.includes('haines') && fName.includes('haines'));
-            return flMatch;
+          const allContracts = (freelancerDbContracts || []).filter(c => {
+            const fName = (c.freelancerName || c.freelancer || c.freelancerId || c.freelancer_id || '').toLowerCase().trim();
+            if (!fName) return false;
+            return (currentFlId && (fName === currentFlId || fName.includes(currentFlId) || currentFlId.includes(fName))) ||
+                   (currentFlName && (fName === currentFlName || fName.includes(currentFlName) || currentFlName.includes(fName)));
           });
-
 
           const filteredContracts = allContracts.filter(c => {
             const matchesTab = contractTabFilter === 'All' ? true : (c.status || '').toLowerCase() === contractTabFilter.toLowerCase();
@@ -1659,6 +2022,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           const activeCount = allContracts.filter(c => c.status === 'Active').length;
           const pendingCount = allContracts.filter(c => c.status === 'Pending').length;
           const completedCount = allContracts.filter(c => c.status === 'Completed').length;
+          const totalContractValue = allContracts.reduce((sum, c) => {
+            const amt = parseInt((c.amount || c.agreedAmount || '0').toString().replace(/[^0-9]/g, ''), 10) || 0;
+            return sum + amt;
+          }, 0);
 
           return (
             <div className="p-8 space-y-6">
@@ -1732,7 +2099,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <div className="p-5 rounded-3xl bg-white border border-slate-200/90 shadow-2xs flex justify-between items-start">
                   <div>
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-blue-600">TOTAL CONTRACT VALUE</span>
-                    <h3 className="text-2xl font-black text-[#2563eb] mt-1">₹6,42,500</h3>
+                    <h3 className="text-2xl font-black text-[#2563eb] mt-1">{totalContractValue > 0 ? `₹${totalContractValue.toLocaleString('en-IN')}` : '₹0'}</h3>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">Across all contracts</p>
                   </div>
                   <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100">
@@ -1923,8 +2290,8 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {activeTab === 'settings' && (
           <FreelancerSettingsView
             userSession={userSession}
-            currentUserId={userSession?.username || userSession?.user_id || userSession?.email || 'haines'}
-            currentUserName={userSession?.name || userSession?.user_id || 'Haines JP'}
+            currentUserId={userSession?.username || userSession?.user_id || userSession?.email || ''}
+            currentUserName={userSession?.name || userSession?.username || 'Freelancer'}
             isDark={isDark}
             onNavigateTab={setActiveTab}
             showToastMessage={(msg, type) => setToast({ message: msg, type })}
@@ -2032,28 +2399,16 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                       </div>
                     ))
                   ) : (
-                    <>
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                        <div className="space-y-0.5">
-                          <h5 className="font-extrabold text-slate-900 text-sm">Phase 1: Model Setup & Data Ingestion</h5>
-                          <p className="text-xs text-slate-700 font-medium">PyTorch model pipeline architecture</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-black text-emerald-600 text-sm block">₹750</span>
-                          <span className="text-[10px] font-extrabold uppercase text-emerald-600">Approved</span>
-                        </div>
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                      <div className="space-y-0.5">
+                        <h5 className="font-extrabold text-slate-900 text-sm">Phase 1: Project Deliverable</h5>
+                        <p className="text-xs text-slate-700 font-medium">Core deliverable under active contract agreement</p>
                       </div>
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                        <div className="space-y-0.5">
-                          <h5 className="font-extrabold text-slate-900 text-sm">Phase 2: Inference Optimization & Benchmarking</h5>
-                          <p className="text-xs text-slate-500 font-medium">REST API acceleration and low-latency benchmark</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-black text-emerald-600 text-sm block">₹750</span>
-                          <span className="text-[10px] font-extrabold uppercase text-blue-600">In Progress</span>
-                        </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-black text-emerald-600 text-sm block">{selectedContractDetail.agreedAmount || selectedContractDetail.amount || '₹0'}</span>
+                        <span className="text-[10px] font-extrabold uppercase text-blue-600">Active</span>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>

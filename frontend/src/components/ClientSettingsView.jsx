@@ -50,26 +50,26 @@ const ClientSettingsView = ({
       }
     } catch (e) {}
 
-    const isSeedClient = ['user1', 'abhi', 'abhilash', 'techstream', 'john@freematch.ai'].includes(authUsername);
+    const isSeedClient = authUsername === 'demo_client';
     if (isSeedClient) {
       return {
-        displayName: currentUserName || 'Abhilash K K',
+        displayName: currentUserName || 'TechStream Enterprises',
         companyName: 'TechStream Enterprises',
         industry: 'Software Engineering & AI',
         location: 'San Francisco, CA',
         website: 'https://freematch.ai',
-        contactEmail: userSession?.email || 'abhi@freematch.ai',
+        contactEmail: userSession?.email || 'demo_client@freematch.ai',
         avatar_url: userSession?.avatar_url || ''
       };
     }
 
     return {
-      displayName: currentUserName || 'New Client Account',
-      companyName: userSession?.company || `${currentUserName}'s Enterprise`,
+      displayName: currentUserName || userSession?.name || userSession?.username || 'Client',
+      companyName: userSession?.company || '',
       industry: '',
       location: '',
       website: '',
-      contactEmail: userSession?.email || `${authUsername}@example.com`,
+      contactEmail: userSession?.email || '',
       avatar_url: userSession?.avatar_url || ''
     };
   });
@@ -1112,7 +1112,7 @@ const ClientSettingsView = ({
                   className={`w-full px-4 py-2.5 rounded-xl border font-bold text-xs ${
                     accountErrors.displayName ? 'border-red-500' : (isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-300 text-slate-900')
                   }`}
-                  placeholder="e.g. Abhilash K K"
+                  placeholder="e.g. John Doe"
                 />
                 {accountErrors.displayName && <p className="text-xs text-red-500 font-bold mt-1">{accountErrors.displayName}</p>}
               </div>

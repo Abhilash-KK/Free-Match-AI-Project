@@ -29,7 +29,7 @@ export default function ClientReviewsView({
   isDark = false,
   onNavigateToProjects = () => {}
 }) {
-  const authUsername = userSession?.user_id || userSession?.username || freelancerData.user_id || freelancerData.username || 'alexmercer';
+  const authUsername = userSession?.user_id || userSession?.username || freelancerData.user_id || freelancerData.username || '';
   const freelancerName = userSession?.name || freelancerData.name || authUsername;
 
   const [fetchedReviews, setFetchedReviews] = useState([]);
@@ -41,13 +41,15 @@ export default function ClientReviewsView({
     let combined = Array.isArray(reviews) ? [...reviews] : [];
 
     // 1. Fetch from backend REST API with user ID query
-    try {
-      const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
-      if (resUser.ok) {
-        const apiData = await resUser.json();
-        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
-      }
-    } catch (e) {}
+    if (authUsername) {
+      try {
+        const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+        if (resUser.ok) {
+          const apiData = await resUser.json();
+          if (Array.isArray(apiData)) combined = [...combined, ...apiData];
+        }
+      } catch (e) {}
+    }
 
     // 2. Fetch from backend REST API with display name query
     if (freelancerName && freelancerName !== authUsername) {
@@ -60,41 +62,52 @@ export default function ClientReviewsView({
       } catch (e) {}
     }
 
-    // 3. Fallback: Fetch all reviews endpoint
-    try {
-      const resAll = await fetch(`http://localhost:8000/api/reviews/`);
-      if (resAll.ok) {
-        const apiData = await resAll.json();
-        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
-      }
-    } catch (e) {}
-
-    // 4. Scan LocalStorage for client-submitted reviews
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('reviews') || key.includes('freematch'))) {
-          try {
-            const parsed = JSON.parse(localStorage.getItem(key));
-            if (Array.isArray(parsed)) {
-              parsed.forEach(item => {
-                if (item && item.reviewee && (item.comment || item.rating)) {
-                  combined.push(item);
-                }
-              });
-            }
-          } catch (err) {}
+    // 3. Scan LocalStorage for client-submitted reviews strictly for this freelancer
+    const curName = (freelancerName || '').toLowerCase().trim();
+    const curUser = (authUsername || '').toLowerCase().trim();
+    if (curName || curUser) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('reviews') || key.includes('freematch'))) {
+            try {
+              const parsed = JSON.parse(localStorage.getItem(key));
+              if (Array.isArray(parsed)) {
+                parsed.forEach(item => {
+                  if (item && item.reviewee && (item.comment || item.rating)) {
+                    const revTarget = String(item.reviewee).toLowerCase().trim();
+                    const matches = (curUser && (revTarget === curUser || revTarget.includes(curUser) || curUser.includes(revTarget))) ||
+                                    (curName && (revTarget === curName || revTarget.includes(curName) || curName.includes(revTarget)));
+                    if (matches) {
+                      combined.push(item);
+                    }
+                  }
+                });
+              }
+            } catch (err) {}
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
 
-    // Deduplicate by unique key
+    // Deduplicate by composite semantic key (reviewer + reviewee + project)
     const uniqueMap = new Map();
     combined.forEach(r => {
       if (!r) return;
-      const key = r.id || `${r.reviewer}_${r.reviewee}_${r.projectTitle || r.project_title}_${r.comment}`;
-      if (!uniqueMap.has(key)) {
+      const rev = String(r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+      const target = String(r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+      const proj = String(r.projectTitle || r.project_title || '').toLowerCase().trim();
+      const key = `${rev}___${target}___${proj}`;
+
+      const existing = uniqueMap.get(key);
+      if (!existing) {
         uniqueMap.set(key, r);
+      } else {
+        const existingIsBackend = String(existing.id || '').startsWith('rev_') || typeof existing.id === 'number';
+        const currentIsBackend = String(r.id || '').startsWith('rev_') || typeof r.id === 'number';
+        if (!existingIsBackend && currentIsBackend) {
+          uniqueMap.set(key, r);
+        }
       }
     });
 

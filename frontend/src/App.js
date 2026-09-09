@@ -54,6 +54,12 @@ function App() {
 
   const handleSignOut = () => {
     setUserSession(null);
+    localStorage.removeItem('freematch_active_session');
+    localStorage.removeItem('freematch_shared_projects');
+    localStorage.removeItem('freematch_shared_proposals');
+    localStorage.removeItem('freematch_shared_tasks');
+    localStorage.removeItem('freematch_kanban_tasks');
+    localStorage.removeItem('freematch_shared_reviews');
     if (currentView !== 'landing') {
       window.history.pushState({ view: 'landing' }, '', '/');
     }

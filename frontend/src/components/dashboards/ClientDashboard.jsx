@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 import NotificationCenter from '../NotificationCenter';
@@ -6,7 +6,7 @@ import MessagingCenter from '../MessagingCenter';
 import FreelancerProfileView from '../FreelancerProfileView';
 import ClientProfileView from '../ClientProfileView';
 import ClientSettingsView from '../ClientSettingsView';
-import { fetchNotifications, createNotification } from '../../utils/notificationService';
+import { fetchNotifications } from '../../utils/notificationService';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -45,8 +45,36 @@ import {
   Check,
   AlertCircle,
   Link as LinkIcon,
-  Briefcase
+  Briefcase,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react';
+
+// Module-level static demo defaults (only used when logged in as demo_client)
+const DEFAULT_PROJECTS = [
+  { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Aug 01, 2026', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
+  { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '₹6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Aug 02, 2026', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
+  { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '₹4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Jul 28, 2026', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
+  { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '₹8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Aug 03, 2026', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
+  { id: 'cp5', title: 'AI Customer Support Chatbot', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹9,500', duration: '3 Weeks', skills: 'Python, LLM, LangChain, React', status: 'Open for Bids', postedDate: 'Just Now', progress: 0, applicants: 6, description: 'RAG-powered customer support assistant with automated document ingestion and vector search.' },
+  { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '₹14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Aug 04, 2026', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
+];
+
+const DEFAULT_PROPOSALS = [
+  { id: 'prop_james_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'James Joe', freelancerName: 'James Joe', avatar: 'JJ', title: 'Senior Full Stack & AI Specialist', rating: 5.0, bid: '₹5,500', bidAmount: '₹5,500', delivery: '2 Weeks', deliveryTime: '2 Weeks', coverLetter: 'I am excited to submit my proposal for your AI project! Experienced in PyTorch inference optimization, Django APIs, and React dashboards.', status: 'Under Review' },
+  { id: 'prop_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', rating: 4.9, bid: '₹11,500', delivery: '3 Weeks', coverLetter: 'I have 7+ years optimizing PyTorch inference models for enterprise SaaS backends. Ready to start immediately with daily GitHub syncs.', status: 'Accepted' },
+  { id: 'prop_2', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹4,500', delivery: '2 Weeks', coverLetter: 'Ex-Stripe UI engineer specializing in high-frequency financial charts and D3.js real-time websockets.', status: 'Accepted' },
+  { id: 'prop_3', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹7,000', delivery: '7 Weeks', coverLetter: 'Built vector similarity pipelines using Pinecone and spaCy. Can deliver clean code with 100% test coverage.', status: 'Accepted' },
+  { id: 'prop_4', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹8,999', delivery: '3 Weeks', coverLetter: 'Experienced in LLM orchestration with LangChain, Pinecone vector stores, and custom OpenAI fine-tuning.', status: 'Accepted' },
+  { id: 'prop_5', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹10,000', delivery: '5 Weeks', coverLetter: 'Specialist in Swift, iOS Native, React Native cross-platform apps with biometric security integrations.', status: 'Accepted' },
+  { id: 'prop_6', projectId: 'cp3', projectTitle: 'Cybersecurity Audit & Shield', freelancer: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', rating: 5.0, bid: '₹4,200', delivery: '2 Weeks', coverLetter: 'OWASP Certified Penetration Tester. Experienced in scanning SaaS backends, auditing API security, and patch validation.', status: 'Accepted' },
+  { id: 'prop_7', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist & Frontend Lead', rating: 5.0, bid: '₹6,200', delivery: '2.5 Weeks', coverLetter: 'Specialist in real-time WebSocket market feeds, D3.js interactive chart rendering, and micro-frontend state management.', status: 'Pending' },
+  { id: 'prop_8', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Lana Kim', avatar: 'LK', title: 'LLM & Vector Search Specialist', rating: 4.9, bid: '₹7,800', delivery: '2 Weeks', coverLetter: 'Expertise in building hybrid keyword & semantic vector search backends using Weaviate and Elasticsearch.', status: 'Pending' },
+  { id: 'prop_9', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Elena Rostova', avatar: 'ER', title: 'NLP & Conversational AI Engineer', rating: 4.9, bid: '₹9,200', delivery: '3 Weeks', coverLetter: 'Built multi-agent customer support bots using LangGraph, Redis session caching, and automated fallback escalation.', status: 'Pending' },
+  { id: 'prop_10', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Marcus Vance', avatar: 'MV', title: 'Senior iOS & Security Architect', rating: 4.9, bid: '₹12,500', delivery: '4 Weeks', coverLetter: '10+ years mobile app development. Built fintech banking apps with encrypted SQLite local vaults and biometric hardware auth.', status: 'Pending' },
+  { id: 'prop_11', projectId: 'cp7', projectTitle: 'AI Automated PostgreSQL Test', freelancer: 'David K.', avatar: 'DK', title: 'Full Stack & Database Engineer', rating: 4.8, bid: '₹9,500', delivery: '3.5 Weeks', coverLetter: 'Specializing in Django ORM optimization, PostgreSQL query indexing, and automated REST endpoint benchmarking.', status: 'Pending' },
+  { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '₹11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
+];
 
 const ClientDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
@@ -83,14 +111,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
   };
 
-  const DEFAULT_PROJECTS = [
-    { id: 'cp1', title: 'AI Pipeline Optimization', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹12,000', duration: '4 Weeks', skills: 'Python, PyTorch', status: 'In Progress', postedDate: 'Aug 01, 2026', progress: 30, applicants: 8, description: 'Optimize deep learning model training pipelines and automate RESTful API inferences.' },
-    { id: 'cp2', title: 'FinTech Dashboard v2', client: 'TechStream Corp', category: 'Software Development', budget: '₹6,500', duration: '3 Weeks', skills: 'React, D3.js', status: 'In Progress', postedDate: 'Aug 02, 2026', progress: 30, applicants: 12, description: 'Implementation of a complex data visualization dashboard for crypto asset management.' },
-    { id: 'cp3', title: 'Cybersecurity Audit & Shield', client: 'TechStream Corp', category: 'Cybersecurity', budget: '₹4,200', duration: '2 Weeks', skills: 'PenTesting, Python', status: 'Completed', postedDate: 'Jul 28, 2026', progress: 100, applicants: 5, description: 'Penetration testing and security compliance audit.' },
-    { id: 'cp4', title: 'AI Search Engine', client: 'TechStream Corp', category: 'Software Development', budget: '₹8,000', duration: '3 Weeks', skills: 'React, Python, Vector DB', status: 'Open for Bids', postedDate: 'Aug 03, 2026', progress: 0, applicants: 4, description: 'Natural language search engine powered by embedding vector databases.' },
-    { id: 'cp5', title: 'AI Customer Support Chatbot', client: 'TechStream Corp', category: 'Data Science & AI', budget: '₹9,500', duration: '3 Weeks', skills: 'Python, LLM, LangChain, React', status: 'Open for Bids', postedDate: 'Just Now', progress: 0, applicants: 6, description: 'RAG-powered customer support assistant with automated document ingestion and vector search.' },
-    { id: 'cp6', title: 'Mobile Banking iOS App', client: 'TechStream Corp', category: 'Software Development', budget: '₹14,000', duration: '5 Weeks', skills: 'Swift, iOS, React Native, REST API', status: 'In Progress', postedDate: 'Aug 04, 2026', progress: 30, applicants: 14, description: 'Secure mobile banking application featuring biometric login, instant transfer, and push alerts.' }
-  ];
 
   const currentUserId = (userSession?.username || userSession?.user_id || userSession?.email || userSession?.name || 'guest').toLowerCase().trim();
   const currentUserName = userSession?.name || userSession?.first_name || userSession?.username || 'Client';
@@ -154,141 +174,48 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     };
   }, [loadLiveProjects]);
 
-  const DEFAULT_PROPOSALS = [
-    { id: 'prop_james_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'James Joe', freelancerName: 'James Joe', avatar: 'JJ', title: 'Senior Full Stack & AI Specialist', rating: 5.0, bid: '₹5,500', bidAmount: '₹5,500', delivery: '2 Weeks', deliveryTime: '2 Weeks', coverLetter: 'I am excited to submit my proposal for your AI project! Experienced in PyTorch inference optimization, Django APIs, and React dashboards.', status: 'Under Review' },
-    { id: 'prop_1', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', rating: 4.9, bid: '₹11,500', delivery: '3 Weeks', coverLetter: 'I have 7+ years optimizing PyTorch inference models for enterprise SaaS backends. Ready to start immediately with daily GitHub syncs.', status: 'Accepted' },
-    { id: 'prop_2', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹4,500', delivery: '2 Weeks', coverLetter: 'Ex-Stripe UI engineer specializing in high-frequency financial charts and D3.js real-time websockets.', status: 'Accepted' },
-    { id: 'prop_3', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Alex Mercer', avatar: 'AM', title: 'Senior UX Designer & React Developer', rating: 4.9, bid: '₹7,000', delivery: '7 Weeks', coverLetter: 'Built vector similarity pipelines using Pinecone and spaCy. Can deliver clean code with 100% test coverage.', status: 'Accepted' },
-    { id: 'prop_4', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹8,999', delivery: '3 Weeks', coverLetter: 'Experienced in LLM orchestration with LangChain, Pinecone vector stores, and custom OpenAI fine-tuning.', status: 'Accepted' },
-    { id: 'prop_5', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Haines jp', avatar: 'HJ', title: 'Senior Full Stack & AI Specialist', rating: 4.8, bid: '₹10,000', delivery: '5 Weeks', coverLetter: 'Specialist in Swift, iOS Native, React Native cross-platform apps with biometric security integrations.', status: 'Accepted' },
-    { id: 'prop_6', projectId: 'cp3', projectTitle: 'Cybersecurity Audit & Shield', freelancer: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', rating: 5.0, bid: '₹4,200', delivery: '2 Weeks', coverLetter: 'OWASP Certified Penetration Tester. Experienced in scanning SaaS backends, auditing API security, and patch validation.', status: 'Accepted' },
-    { id: 'prop_7', projectId: 'cp2', projectTitle: 'FinTech Dashboard v2', freelancer: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist & Frontend Lead', rating: 5.0, bid: '₹6,200', delivery: '2.5 Weeks', coverLetter: 'Specialist in real-time WebSocket market feeds, D3.js interactive chart rendering, and micro-frontend state management.', status: 'Pending' },
-    { id: 'prop_8', projectId: 'cp4', projectTitle: 'AI Search Engine', freelancer: 'Lana Kim', avatar: 'LK', title: 'LLM & Vector Search Specialist', rating: 4.9, bid: '₹7,800', delivery: '2 Weeks', coverLetter: 'Expertise in building hybrid keyword & semantic vector search backends using Weaviate and Elasticsearch.', status: 'Pending' },
-    { id: 'prop_9', projectId: 'cp5', projectTitle: 'AI Customer Support Chatbot', freelancer: 'Elena Rostova', avatar: 'ER', title: 'NLP & Conversational AI Engineer', rating: 4.9, bid: '₹9,200', delivery: '3 Weeks', coverLetter: 'Built multi-agent customer support bots using LangGraph, Redis session caching, and automated fallback escalation.', status: 'Pending' },
-    { id: 'prop_10', projectId: 'cp6', projectTitle: 'Mobile Banking iOS App', freelancer: 'Marcus Vance', avatar: 'MV', title: 'Senior iOS & Security Architect', rating: 4.9, bid: '₹12,500', delivery: '4 Weeks', coverLetter: '10+ years mobile app development. Built fintech banking apps with encrypted SQLite local vaults and biometric hardware auth.', status: 'Pending' },
-    { id: 'prop_11', projectId: 'cp7', projectTitle: 'AI Automated PostgreSQL Test', freelancer: 'David K.', avatar: 'DK', title: 'Full Stack & Database Engineer', rating: 4.8, bid: '₹9,500', delivery: '3.5 Weeks', coverLetter: 'Specializing in Django ORM optimization, PostgreSQL query indexing, and automated REST endpoint benchmarking.', status: 'Pending' },
-    { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '₹11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
-  ];
 
-  // 2. APPLICATIONS STATE
+  // 2. APPLICATIONS STATE (Strictly scoped to authenticated client)
   const [proposals, setProposals] = useState(() => {
-    let shared = [];
-    try {
-      const savedShared = localStorage.getItem('freematch_shared_proposals');
-      if (savedShared) shared = JSON.parse(savedShared);
-    } catch (e) {}
-
     const saved = localStorage.getItem(proposalStorageKey);
-    let localList = [];
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) localList = parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {}
     }
 
-    if (localList.length === 0 && isDemoUser) {
-      localList = DEFAULT_PROPOSALS;
+    if (isDemoUser) {
+      localStorage.setItem(proposalStorageKey, JSON.stringify(DEFAULT_PROPOSALS));
+      return DEFAULT_PROPOSALS;
     }
 
-    const combined = [...shared, ...localList];
-    const seen = new Set();
-    const result = [];
-    combined.forEach(p => {
-      const key = (p.id || `${p.freelancer}_${p.project}`).toString();
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(p);
-      }
-    });
-
-    return result.length > 0 ? result : DEFAULT_PROPOSALS;
+    return [];
   });
 
   const loadLiveProposals = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
 
-    let sharedProposals = [];
-    try {
-      const savedShared = localStorage.getItem('freematch_shared_proposals');
-      if (savedShared) {
-        const parsed = JSON.parse(savedShared);
-        if (Array.isArray(parsed)) sharedProposals = parsed;
-      }
-    } catch (e) {}
-
     fetch(`http://localhost:8000/api/proposals/?client_id=${encodeURIComponent(currentUserId)}`)
       .then(res => res.json())
       .then(dbProps => {
-        let combined = Array.isArray(dbProps) ? [...dbProps] : [];
-        if (sharedProposals.length > 0) {
-          sharedProposals.forEach(sp => {
-            const spName = (sp.freelancer || sp.freelancerName || '').toLowerCase();
-            const spProj = (sp.project || sp.projectTitle || '').toLowerCase();
-            const exists = combined.some(c => 
-              (c.id && c.id === sp.id) ||
-              ((c.freelancer || c.freelancerName || '').toLowerCase() === spName && (c.project || c.projectTitle || '').toLowerCase() === spProj)
-            );
-            if (!exists) {
-              combined.unshift({
-                ...sp,
-                freelancer: sp.freelancer || sp.freelancerName || 'James Joe',
-                freelancerName: sp.freelancerName || sp.freelancer || 'James Joe',
-                avatar: sp.avatar || 'JJ',
-                title: sp.title || sp.freelancerRole || 'Senior Full Stack & AI Specialist',
-                rating: sp.rating || 5.0,
-                bid: sp.bid || sp.bidAmount || '₹5,500',
-                delivery: sp.delivery || sp.deliveryTime || '2 Weeks',
-                coverLetter: sp.coverLetter || 'Submitted proposal for AI Project.',
-                status: sp.status || 'Under Review'
-              });
-            }
-          });
-        }
-
-        if (combined.length > 0) {
-          setProposals(combined);
-          localStorage.setItem(proposalStorageKey, JSON.stringify(combined));
-        } else {
-          const savedLocal = localStorage.getItem(proposalStorageKey);
-          let localArr = [];
-          if (savedLocal) {
-            try { localArr = JSON.parse(savedLocal); } catch (e) {}
+        if (Array.isArray(dbProps)) {
+          if (dbProps.length > 0) {
+            setProposals(dbProps);
+            localStorage.setItem(proposalStorageKey, JSON.stringify(dbProps));
+          } else if (isDemoUser) {
+            setProposals(DEFAULT_PROPOSALS);
+            localStorage.setItem(proposalStorageKey, JSON.stringify(DEFAULT_PROPOSALS));
+          } else {
+            setProposals([]);
+            localStorage.setItem(proposalStorageKey, JSON.stringify([]));
           }
-          let baseList = localArr.length > 0 ? localArr : (isDemoUser ? DEFAULT_PROPOSALS : []);
-          if (sharedProposals.length > 0) {
-            const mergedMap = new Map();
-            sharedProposals.forEach(p => mergedMap.set(p.id || `${p.freelancer}_${p.project}`, p));
-            baseList.forEach(p => {
-              const k = p.id || `${p.freelancer}_${p.project}`;
-              if (!mergedMap.has(k)) mergedMap.set(k, p);
-            });
-            baseList = Array.from(mergedMap.values());
-          }
-          setProposals(baseList);
-          localStorage.setItem(proposalStorageKey, JSON.stringify(baseList));
         }
       })
       .catch(err => {
         console.warn('Proposals fetch notice:', err);
-        const savedLocal = localStorage.getItem(proposalStorageKey);
-        let localArr = [];
-        if (savedLocal) {
-          try { localArr = JSON.parse(savedLocal); } catch (e) {}
-        }
-        let baseList = localArr.length > 0 ? localArr : (isDemoUser ? DEFAULT_PROPOSALS : []);
-        if (sharedProposals.length > 0) {
-          const mergedMap = new Map();
-          sharedProposals.forEach(p => mergedMap.set(p.id || `${p.freelancer}_${p.project}`, p));
-          baseList.forEach(p => {
-            const k = p.id || `${p.freelancer}_${p.project}`;
-            if (!mergedMap.has(k)) mergedMap.set(k, p);
-          });
-          baseList = Array.from(mergedMap.values());
-        }
-        setProposals(baseList);
       });
-  }, [currentUserId, isDemoUser, proposalStorageKey, DEFAULT_PROPOSALS]);
+  }, [currentUserId, isDemoUser, proposalStorageKey]);
 
   useEffect(() => {
     loadLiveProposals();
@@ -311,6 +238,57 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   ]);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [liveConversations, setLiveConversations] = useState([]);
+  const [apiSearchResults, setApiSearchResults] = useState(null);
+  const searchContainerRef = useRef(null);
+
+  // Debounce search query to avoid lag / excess queries
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch backend global search as supplement
+  useEffect(() => {
+    const q = debouncedSearchQuery.trim();
+    if (q.length > 0) {
+      setIsSearchOpen(true);
+      fetch(`http://localhost:8000/api/search/?role=client&user_id=${encodeURIComponent(currentUserId)}&q=${encodeURIComponent(q)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.results) {
+            setApiSearchResults(data.results);
+          }
+        })
+        .catch(() => {});
+    } else {
+      setIsSearchOpen(false);
+      setApiSearchResults(null);
+    }
+  }, [debouncedSearchQuery, currentUserId]);
+
+  // Click outside and escape key handling
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsSearchOpen(false);
+    };
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const [applicationFilter, setApplicationFilter] = useState('All'); // 'All' | 'Pending Review' | 'Hired / Active'
   const [selectedManageProject, setSelectedManageProject] = useState(null);
   const [selectedProjectDetailView, setSelectedProjectDetailView] = useState(null);
@@ -406,18 +384,36 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     };
   });
 
+  // 4. DYNAMIC CONTRACTS STATE & API INTEGRATION
+  const [dbContracts, setDbContracts] = useState([]);
+  const [contractFilter, setContractFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Completed' | 'Cancelled'
+  const [selectedContractDetail, setSelectedContractDetail] = useState(null);
+
   const rawHired = [...defaultHired];
   dynamicHiredFromProps.forEach(dh => {
     if (!rawHired.some(hf => hf.name.toLowerCase() === dh.name.toLowerCase() && hf.project.toLowerCase() === dh.project.toLowerCase())) {
       rawHired.push(dh);
     }
   });
+  dbContracts.forEach(c => {
+    const cName = c.freelancerName || c.freelancer;
+    const cProj = c.projectName || c.project;
+    if (cName && !rawHired.some(hf => hf.name.toLowerCase() === cName.toLowerCase() && hf.project.toLowerCase() === (cProj || '').toLowerCase())) {
+      const initials = cName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+      rawHired.push({
+        id: `hired_ctr_${c.id || c.contractId}`,
+        freelancer_id: c.freelancerId || c.freelancer_id || cName,
+        name: cName,
+        avatar: initials,
+        title: 'Senior Software Specialist',
+        project: cProj || 'Marketplace Project',
+        rate: c.hourlyRate || c.agreedAmount || '₹75/hr',
+        status: c.status || 'Active',
+        hiredDate: c.startDate || 'Recent'
+      });
+    }
+  });
   const hiredFreelancers = rawHired;
-
-  // 4. DYNAMIC CONTRACTS STATE & API INTEGRATION
-  const [dbContracts, setDbContracts] = useState([]);
-  const [contractFilter, setContractFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Completed' | 'Cancelled'
-  const [selectedContractDetail, setSelectedContractDetail] = useState(null);
 
   const [removedContractIds, setRemovedContractIds] = useState(() => {
     const saved = localStorage.getItem(`freematch_user_${currentUserId}_deleted_contracts`);
@@ -446,7 +442,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     return () => window.removeEventListener('freematch_shared_event', loadLiveContracts);
   }, [loadLiveContracts]);
 
-  // SAVED FREELANCERS STATE & API SYNC (Client-scoped)
+  // SAVED FREELANCERS STATE & API SYNC (Strictly Client-scoped)
   const [savedFreelancers, setSavedFreelancers] = useState(() => {
     const saved = localStorage.getItem(`freematch_user_${currentUserId}_saved_freelancers`);
     if (saved) {
@@ -455,10 +451,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         if (Array.isArray(parsed)) return parsed;
       } catch (e) {}
     }
-    return isDemoUser ? [
-      { id: 'sf1', freelancer_id: 'sarahchen', name: 'Sarah Chen', title: 'Senior AI Lead & Data Scientist', hourly_rate: '₹110/hr', rating: 5.0, skills: 'PyTorch, DICOM, LangChain, Neo4j', avatar: 'SC' },
-      { id: 'sf2', freelancer_id: 'alexmercer', name: 'Alex Mercer', title: 'Senior PyTorch Architect', hourly_rate: '₹95/hr', rating: 4.9, skills: 'PyTorch, Python, React, FastAPI', avatar: 'AM' }
-    ] : [];
+    return [];
   });
 
   const loadSavedFreelancers = React.useCallback(() => {
@@ -472,38 +465,76 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         }
       })
       .catch(err => console.warn('Saved freelancers fetch notice:', err));
-  }, [currentUserId, isDemoUser]);
+  }, [currentUserId]);
 
   useEffect(() => {
     loadSavedFreelancers();
   }, [loadSavedFreelancers]);
 
+  const isFreelancerSaved = React.useCallback((target) => {
+    if (!target || !Array.isArray(savedFreelancers)) return false;
+    const targetId = (typeof target === 'object'
+      ? (target.freelancer_id || target.freelancer || target.username || target.email || target.name || '')
+      : String(target)
+    ).toLowerCase().trim();
+
+    return savedFreelancers.some(sf => {
+      const sfId = (sf.freelancer_id || sf.freelancer || sf.username || sf.email || '').toLowerCase().trim();
+      const sfName = (sf.name || '').toLowerCase().trim();
+      return (sfId && sfId === targetId) || (sfName && sfName === targetId);
+    });
+  }, [savedFreelancers]);
+
   const handleSaveFreelancer = async (freelancerObj) => {
-    const flId = freelancerObj.freelancer_id || freelancerObj.username || freelancerObj.freelancer || freelancerObj.name;
+    if (!freelancerObj) return;
+    const flId = freelancerObj.freelancer_id || freelancerObj.username || freelancerObj.freelancer || freelancerObj.email || freelancerObj.name;
+    const flName = freelancerObj.name || freelancerObj.freelancer || flId;
     try {
       const res = await fetch('http://localhost:8000/api/saved-freelancers/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: currentUserId, freelancer_id: flId })
+        body: JSON.stringify({ client_id: currentUserId, freelancer_id: flId, name: flName })
       });
       if (res.ok) {
-        setToast({ message: `${freelancerObj.name || flId} added to Saved Freelancers!`, type: 'success' });
+        setToast({ message: `${flName} added to Saved Freelancers!`, type: 'success' });
         loadSavedFreelancers();
       }
     } catch (e) {
-      setToast({ message: `${freelancerObj.name || flId} saved to list!`, type: 'success' });
+      setToast({ message: `${flName} saved to list!`, type: 'success' });
     }
   };
 
   const handleRemoveSavedFreelancer = async (freelancerId) => {
+    if (!freelancerId) return;
+    const cleanId = (typeof freelancerId === 'object'
+      ? (freelancerId.freelancer_id || freelancerId.username || freelancerId.freelancer || freelancerId.name)
+      : freelancerId
+    );
     try {
-      await fetch(`http://localhost:8000/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}&freelancer_id=${encodeURIComponent(freelancerId)}`, {
+      await fetch(`http://localhost:8000/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}&freelancer_id=${encodeURIComponent(cleanId)}`, {
         method: 'DELETE'
       });
-      setSavedFreelancers(prev => prev.filter(f => f.freelancer_id !== freelancerId && f.name !== freelancerId));
-      localStorage.setItem(`freematch_user_${currentUserId}_saved_freelancers`, JSON.stringify(savedFreelancers.filter(f => f.freelancer_id !== freelancerId && f.name !== freelancerId)));
+      setSavedFreelancers(prev => prev.filter(f => {
+        const fId = (f.freelancer_id || f.username || f.freelancer || '').toLowerCase();
+        const fName = (f.name || '').toLowerCase();
+        const targetClean = String(cleanId).toLowerCase();
+        return fId !== targetClean && fName !== targetClean;
+      }));
       setToast({ message: 'Freelancer removed from saved list.', type: 'info' });
-    } catch (e) {}
+      loadSavedFreelancers();
+    } catch (e) {
+      console.warn('Remove saved freelancer notice:', e);
+    }
+  };
+
+  const handleToggleSaveFreelancer = async (freelancerObj) => {
+    if (!freelancerObj) return;
+    if (isFreelancerSaved(freelancerObj)) {
+      const flId = freelancerObj.freelancer_id || freelancerObj.username || freelancerObj.freelancer || freelancerObj.email || freelancerObj.name;
+      await handleRemoveSavedFreelancer(flId);
+    } else {
+      await handleSaveFreelancer(freelancerObj);
+    }
   };
 
   const handleHireSavedFreelancer = async (freelancerObj, projectId) => {
@@ -592,8 +623,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const handleDownloadContractPDF = (contract) => {
     const cId = contract.contractId || contract.id || 'CTR-9024';
     const cProject = contract.projectName || contract.project || 'AI System Architecture';
-    const cClient = contract.clientName || contract.client || userSession?.name || 'Abhilash K K';
-    const cFreelancer = contract.freelancerName || contract.freelancer || 'Alex Mercer';
+    const cClient = contract.clientName || contract.client || userSession?.name || userSession?.username || 'Client';
+    const cFreelancer = contract.freelancerName || contract.freelancer || 'Freelancer';
     const cAmount = formatCurrency(contract.agreedAmount || contract.agreed_amount || contract.amount || '₹5,000');
     const cEscrow = formatCurrency(contract.escrowBalance || contract.escrow || cAmount);
     const cStartDate = contract.startDate || 'Aug 10, 2026';
@@ -697,23 +728,76 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     pdfWindow.document.close();
   };
 
-  const handleDeleteProject = (projId, projTitle) => {
-    const updatedProjects = clientProjects.filter(p => p.id !== projId && p.title !== projTitle);
+  const handleDeleteProject = async (projId, projTitle) => {
+    // 1. Check if the project currently has an assigned freelancer, active contract, or is in progress/completed
+    const currentProj = clientProjects.find(p => p.id === projId || (p.title || '').trim().toLowerCase() === (projTitle || '').trim().toLowerCase());
+    const acceptedProp = proposals.find(pr => (pr.projectId === projId || (pr.projectTitle || pr.project) === projTitle) && (pr.status === 'Accepted' || pr.status === 'Hired'));
+    const linkedContract = contracts.find(c => (c.projectName || c.project || '').toLowerCase().trim() === (projTitle || '').toLowerCase().trim() && (c.status || '').toLowerCase() !== 'cancelled');
+    const isAssigned = Boolean(
+      (currentProj && (currentProj.hiredFreelancer || currentProj.freelancer || currentProj.status === 'In Progress' || currentProj.status === 'Completed')) ||
+      acceptedProp ||
+      linkedContract
+    );
+
+    if (isAssigned) {
+      const errorMsg = "This project cannot be deleted because a freelancer has already been assigned to it. Please complete or close the project instead.";
+      setToast({ message: errorMsg, type: 'error' });
+      alert(errorMsg);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to permanently delete project "${projTitle || 'Selected Project'}"?`)) {
+      return;
+    }
+
+    // Call backend API first to check database state and enforce strict backend rule
+    try {
+      const cleanId = String(projId || '').trim();
+      if (cleanId) {
+        const res = await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const errorMsg = errData.error || errData.message || "This project cannot be deleted because a freelancer has already been assigned to it. Please complete or close the project instead.";
+          setToast({ message: errorMsg, type: 'error' });
+          alert(errorMsg);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend delete error:', err);
+      setToast({ message: "Network error occurred while attempting to delete project.", type: 'error' });
+      return;
+    }
+
+    const updatedProjects = clientProjects.filter(p => p.id !== projId && (p.title || '').trim().toLowerCase() !== (projTitle || '').trim().toLowerCase());
     setClientProjects(updatedProjects);
-    localStorage.setItem('freematch_shared_projects', JSON.stringify(updatedProjects));
+    
+    const key1 = `freematch_user_${currentUserId}_projects`;
+    const key2 = `freematch_projects_${currentUserId}`;
+    localStorage.setItem(key1, JSON.stringify(updatedProjects));
+    localStorage.setItem(key2, JSON.stringify(updatedProjects));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_projects', JSON.stringify(updatedProjects));
+    }
 
     const updatedProps = proposals.filter(pr => pr.projectId !== projId && (pr.projectTitle || pr.project) !== projTitle);
     setProposals(updatedProps);
-    localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProps));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProps));
+    }
 
-    setToast({ message: `Project "${projTitle || 'Selected Project'}" and related contracts removed.`, type: 'info' });
+    setToast({ message: `Project "${projTitle || 'Selected Project'}" deleted successfully.`, type: 'info' });
+    window.dispatchEvent(new Event('freematch_shared_event'));
   };
 
   const taskStorageKey = `freematch_user_${currentUserId}_tasks`;
 
   // 5. KANBAN TASKS STATE (4 Columns: To-Do, In Progress, Under Review, Done)
   const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem(taskStorageKey) || localStorage.getItem('freematch_kanban_tasks');
+    const saved = localStorage.getItem(taskStorageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -724,21 +808,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   });
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/sprint-tasks/')
+    if (!currentUserId || currentUserId === 'guest') return;
+    fetch(`http://localhost:8000/api/sprint-tasks/?client_id=${encodeURIComponent(currentUserId || '')}`)
       .then(res => res.json())
       .then(apiTasks => {
-        if (Array.isArray(apiTasks) && apiTasks.length > 0) {
-          const normalized = apiTasks.map(t => ({
-            ...t,
-            project: t.project || t.projectTitle || t.project_name || 'Enterprise Project',
-            assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
-          }));
-          setTasks(normalized);
-          localStorage.setItem(taskStorageKey, JSON.stringify(normalized));
+        if (Array.isArray(apiTasks)) {
+          if (apiTasks.length > 0) {
+            const normalized = apiTasks.map(t => ({
+              ...t,
+              project: t.project || t.projectTitle || t.project_name || 'Enterprise Project',
+              assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
+            }));
+            setTasks(normalized);
+            localStorage.setItem(taskStorageKey, JSON.stringify(normalized));
+          } else {
+            setTasks([]);
+            localStorage.setItem(taskStorageKey, JSON.stringify([]));
+          }
         }
       })
       .catch(() => {});
-  }, [taskStorageKey]);
+  }, [taskStorageKey, currentUserId]);
 
   // 6. MESSAGES STATE (Client-scoped)
   const [selectedChat, setSelectedChat] = useState('Alex Mercer');
@@ -761,15 +851,59 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   }, [messages, currentUserId]);
 
   // 7. PAYMENTS & ESCROW STATE (Client-scoped)
+  const [clientFinancials, setClientFinancials] = useState({
+    available_balance: 0,
+    available_balance_str: '₹0',
+    escrow_balance: 0,
+    escrow_balance_str: '₹0',
+    released_payments: 0,
+    released_payments_str: '₹0',
+    pending_release: 0,
+    pending_release_str: '₹0',
+    total_withdrawn: 0,
+    total_withdrawn_str: '₹0',
+    stripe_balance: 0,
+    razorpay_balance: 0,
+    gateway_status: 'Payment gateway not configured',
+    is_gateway_configured: false,
+    transactions: []
+  });
+
+  const loadClientFinancials = async () => {
+    if (!currentUserId || currentUserId === 'guest') return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/client-financials/?client_id=${encodeURIComponent(currentUserId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setClientFinancials(data);
+        if (Array.isArray(data.transactions)) {
+          setPayments(data.transactions);
+          try {
+            localStorage.setItem(`freematch_user_${currentUserId}_payments`, JSON.stringify(data.transactions));
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load client financials:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadClientFinancials();
+    const handleShared = () => loadClientFinancials();
+    window.addEventListener('freematch_shared_event', handleShared);
+    return () => window.removeEventListener('freematch_shared_event', handleShared);
+  }, [currentUserId]);
+
   const [payments, setPayments] = useState(() => {
     const saved = localStorage.getItem(`freematch_user_${currentUserId}_payments`);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
     }
-    return isDemoUser ? [
-      { id: 'INV-3041', date: 'Aug 01, 2026', project: 'AI Pipeline Optimization', milestone: 'Milestone 1: Model Setup', amount: '₹4,000', type: 'Milestone Release', status: 'Paid' },
-      { id: 'INV-3042', date: 'Aug 03, 2026', project: 'FinTech Dashboard v2', milestone: 'Milestone 1: Wireframes', amount: '₹2,500', type: 'Escrow Lock', status: 'Pending' }
-    ] : [];
+    return [];
   });
 
   useEffect(() => {
@@ -779,39 +913,74 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   }, [payments, currentUserId]);
 
   // 8. DYNAMIC REVIEWS STATE & CANDIDATES (Client-scoped)
-  const baseCandidates = [
-    { id: 'cand_alex_1', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Pipeline Optimization', rate: '₹75/hr' },
-    { id: 'cand_alex_2', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Automated Test Pipeline', rate: '₹75/hr' },
-    { id: 'cand_haines_1', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'NextGen Autonomous Trading Engine', rate: '₹85/hr' },
-    { id: 'cand_haines_2', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'Autonomous Supply Chain Freight Router', rate: '₹85/hr' },
-    { id: 'cand_haines_3', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'AI Medical Imaging Diagnostic Suite', rate: '₹85/hr' },
-    { id: 'cand_sarah_1', freelancer: 'Sarah Chen', avatar: 'SC', projectTitle: 'Enterprise Knowledge Graph RAG Bot', rate: '₹85/hr' },
-    { id: 'cand_sarah_2', freelancer: 'Sarah Chen', avatar: 'SC', projectTitle: 'AI Medical Imaging Diagnostic Suite', rate: '₹85/hr' },
-    { id: 'cand_lana_1', freelancer: 'Lana Kim', avatar: 'LK', projectTitle: 'Penetration Testing & OWASP Scan', rate: '₹90/hr' },
-    { id: 'cand_james_1', freelancer: 'James Joe', avatar: 'JJ', projectTitle: 'Autonomous Supply Chain Freight Router', rate: '₹65/hr' }
-  ];
-
-  hiredFreelancers.forEach((hf, idx) => {
-    let projName = hf.project;
-    if ((hf.name || '').toLowerCase().includes('alex') && projName === 'NextGen Autonomous Trading Engine') {
-      projName = 'AI Pipeline Optimization';
+  const REVIEWABLE_CANDIDATES = React.useMemo(() => {
+    const list = [];
+    if (isDemoUser) {
+      list.push(
+        { id: 'cand_alex_1', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Pipeline Optimization', rate: '₹75/hr' },
+        { id: 'cand_alex_2', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Automated Test Pipeline', rate: '₹75/hr' },
+        { id: 'cand_haines_1', freelancer: 'Haines jp', avatar: 'HJ', projectTitle: 'NextGen Autonomous Trading Engine', rate: '₹85/hr' },
+        { id: 'cand_sarah_1', freelancer: 'Sarah Chen', avatar: 'SC', projectTitle: 'Enterprise Knowledge Graph RAG Bot', rate: '₹85/hr' },
+        { id: 'cand_lana_1', freelancer: 'Lana Kim', avatar: 'LK', projectTitle: 'Penetration Testing & OWASP Scan', rate: '₹90/hr' },
+        { id: 'cand_james_1', freelancer: 'James Joe', avatar: 'JJ', projectTitle: 'Autonomous Supply Chain Freight Router', rate: '₹65/hr' }
+      );
     }
-    if (!baseCandidates.some(c => (c.freelancer || '').toLowerCase() === (hf.name || '').toLowerCase() && (c.projectTitle || '').toLowerCase() === (projName || '').toLowerCase())) {
-      baseCandidates.push({
-        id: `cand_dyn_${hf.id || idx}`,
-        freelancer: hf.name,
-        avatar: hf.avatar,
-        projectTitle: projName,
-        rate: hf.rate
+
+    // Include freelancers from live contracts
+    if (Array.isArray(dbContracts)) {
+      dbContracts.forEach((c, idx) => {
+        const flName = c.freelancer || c.freelancerName || 'Freelancer';
+        const projName = c.project || c.projectName || 'Marketplace Project';
+        const initials = flName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+        const exists = list.some(item => 
+          (item.freelancer || '').toLowerCase() === flName.toLowerCase() &&
+          (item.projectTitle || '').toLowerCase() === projName.toLowerCase()
+        );
+        if (!exists) {
+          list.push({
+            id: `cand_contract_${c.id || c.db_id || idx}`,
+            freelancer: flName,
+            avatar: initials,
+            projectTitle: projName,
+            rate: c.hourlyRate || c.agreedAmount || c.amount || '₹75/hr'
+          });
+        }
       });
     }
-  });
 
-  const REVIEWABLE_CANDIDATES = baseCandidates;
+    // Include freelancers from accepted proposals and hired list
+    if (Array.isArray(hiredFreelancers)) {
+      hiredFreelancers.forEach((hf, idx) => {
+        const flName = hf.name || hf.freelancer || 'Freelancer';
+        const projName = hf.project || hf.projectTitle || 'Marketplace Project';
+        const exists = list.some(item => 
+          (item.freelancer || '').toLowerCase() === flName.toLowerCase() &&
+          (item.projectTitle || '').toLowerCase() === projName.toLowerCase()
+        );
+        if (!exists) {
+          list.push({
+            id: `cand_hired_${hf.id || idx}`,
+            freelancer: flName,
+            avatar: hf.avatar || flName.slice(0, 2).toUpperCase(),
+            projectTitle: projName,
+            rate: hf.rate || '₹75/hr'
+          });
+        }
+      });
+    }
 
-  const [selectedCandidate, setSelectedCandidate] = useState(REVIEWABLE_CANDIDATES[0] || {
-    id: 'cand_alex_1', freelancer: 'Alex Mercer', avatar: 'AM', projectTitle: 'AI Pipeline Optimization', rate: '₹75/hr'
-  });
+    return list;
+  }, [isDemoUser, dbContracts, hiredFreelancers]);
+
+  const [selectedCandidate, setSelectedCandidate] = useState(() => REVIEWABLE_CANDIDATES[0] || null);
+
+  useEffect(() => {
+    if (!selectedCandidate && REVIEWABLE_CANDIDATES.length > 0) {
+      setSelectedCandidate(REVIEWABLE_CANDIDATES[0]);
+    } else if (selectedCandidate && !REVIEWABLE_CANDIDATES.some(c => c.id === selectedCandidate.id)) {
+      setSelectedCandidate(REVIEWABLE_CANDIDATES[0] || null);
+    }
+  }, [REVIEWABLE_CANDIDATES, selectedCandidate]);
   const [commRating, setCommRating] = useState(5);
   const [codeRating, setCodeRating] = useState(5);
   const [deadlineRating, setDeadlineRating] = useState(5);
@@ -832,18 +1001,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       }
     } catch (e) {}
 
-    // 2. Load from shared localStorage log
+    // 2. Fetch from backend REST API strictly scoped to current client
     try {
-      const savedShared = localStorage.getItem('freematch_shared_reviews');
-      if (savedShared) {
-        const parsed = JSON.parse(savedShared);
-        if (Array.isArray(parsed)) combined = [...combined, ...parsed];
-      }
-    } catch (e) {}
-
-    // 3. Fetch from backend REST API
-    try {
-      const res = await fetch('http://localhost:8000/api/reviews/');
+      const res = await fetch(`http://localhost:8000/api/reviews/?client_id=${encodeURIComponent(currentUserId)}`);
       if (res.ok) {
         const apiData = await res.json();
         if (Array.isArray(apiData)) combined = [...combined, ...apiData];
@@ -859,17 +1019,33 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       ];
     }
 
-    // Deduplicate by unique key
+    // Deduplicate by composite semantic key (reviewer + reviewee + project)
     const uniqueMap = new Map();
     combined.forEach(r => {
       if (!r) return;
-      const key = r.id || `${r.reviewer}_${r.reviewee}_${r.projectTitle || r.project_title}_${r.comment}`;
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, r);
+      const rev = String(r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+      const target = String(r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+      const proj = String(r.projectTitle || r.project_title || '').toLowerCase().trim();
+      const semanticKey = `${rev}___${target}___${proj}`;
+
+      const existing = uniqueMap.get(semanticKey);
+      if (!existing) {
+        uniqueMap.set(semanticKey, r);
+      } else {
+        // If an existing entry was temporary (e.g. r_...) and current entry is canonical backend (rev_... or number), prefer backend
+        const existingIsBackend = String(existing.id || '').startsWith('rev_') || typeof existing.id === 'number';
+        const currentIsBackend = String(r.id || '').startsWith('rev_') || typeof r.id === 'number';
+        if (!existingIsBackend && currentIsBackend) {
+          uniqueMap.set(semanticKey, r);
+        }
       }
     });
 
-    setReviews(Array.from(uniqueMap.values()));
+    const deduplicatedReviews = Array.from(uniqueMap.values());
+    setReviews(deduplicatedReviews);
+    try {
+      localStorage.setItem(`freematch_user_${currentUserId}_reviews`, JSON.stringify(deduplicatedReviews));
+    } catch (e) {}
   }, [currentUserId, currentUserName, isDemoUser]);
 
   useEffect(() => {
@@ -890,65 +1066,132 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   }, [reviews, currentUserId]);
 
   const [selectedProfileFreelancer, setSelectedProfileFreelancer] = useState(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const handleAddReview = async (e) => {
-    e.preventDefault();
-    if (!commentInput.trim()) return;
+    if (e && e.preventDefault) e.preventDefault();
+    if (isSubmittingReview) return;
+    if (!selectedCandidate || !commentInput.trim()) return;
 
+    const candidateName = selectedCandidate?.freelancer || 'Freelancer';
+    const candidateProject = (selectedCandidate?.projectTitle || 'Project').trim();
+    const currUser = (currentUserId || '').toLowerCase().trim();
+    const currName = (currentUserName || '').toLowerCase().trim();
+    const targetName = candidateName.toLowerCase().trim();
+    const targetProj = candidateProject.toLowerCase().trim();
+
+    // 1. Client-side prevention: check if this candidate/project has already been reviewed
+    const alreadyReviewed = reviews.some(r => {
+      const revReviewer = (r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+      const revReviewee = (r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+      const revProject = (r.projectTitle || r.project_title || '').toLowerCase().trim();
+      const matchesReviewer = revReviewer === currUser || revReviewer === currName || !revReviewer;
+      const matchesReviewee = revReviewee === targetName || revReviewee.includes(targetName) || targetName.includes(revReviewee);
+      const matchesProject = revProject === targetProj;
+      return matchesReviewer && matchesReviewee && matchesProject;
+    });
+
+    if (alreadyReviewed) {
+      setToast({ 
+        message: `A review for ${candidateName} on project "${candidateProject}" has already been submitted.`, 
+        type: 'error' 
+      });
+      return;
+    }
+
+    setIsSubmittingReview(true);
     const avgRating = Math.round((commRating + codeRating + deadlineRating) / 3.0);
-    const newRev = {
-      id: `r_${Date.now()}`,
-      type: 'given',
-      reviewer: currentUserName,
-      reviewee: selectedCandidate.freelancer,
-      projectTitle: selectedCandidate.projectTitle,
-      rating: avgRating,
-      comm: commRating,
-      code: codeRating,
-      deadline: deadlineRating,
-      comment: commentInput,
-      date: 'Just now'
-    };
 
-    const updated = [newRev, ...reviews];
-    setReviews(updated);
-    localStorage.setItem(`freematch_user_${currentUserId}_reviews`, JSON.stringify(updated));
-
-    // Save to shared localStorage review log for cross-session/cross-account sync
     try {
-      let shared = [];
-      const savedShared = localStorage.getItem('freematch_shared_reviews');
-      if (savedShared) shared = JSON.parse(savedShared);
-      shared = [newRev, ...shared.filter(r => r.id !== newRev.id)];
-      localStorage.setItem('freematch_shared_reviews', JSON.stringify(shared));
-    } catch (e) {}
-
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('freematch_review_submitted'));
-
-    // Try posting to Python Django backend REST API
-    try {
-      await fetch('http://localhost:8000/api/reviews/submit/', {
+      const res = await fetch('http://localhost:8000/api/reviews/submit/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reviewer: newRev.reviewer,
-          reviewee: newRev.reviewee,
+          reviewer: currentUserName,
+          reviewee: candidateName,
           rating: avgRating,
           comm: commRating,
           code: codeRating,
           deadline: deadlineRating,
-          comment: commentInput,
-          project_title: selectedCandidate.projectTitle
+          comment: commentInput.trim(),
+          project_title: candidateProject
         })
       });
-    } catch (err) {}
 
-    setCommentInput('');
-    setToast({ 
-      message: `Review for ${selectedCandidate.freelancer} submitted! Rating updated in database and displayed on freelancer profile.`, 
-      type: 'success' 
-    });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (data.already_exists) {
+          setToast({ 
+            message: `A review for ${candidateName} on "${candidateProject}" already exists in database.`, 
+            type: 'error' 
+          });
+          loadClientReviews();
+        } else {
+          setToast({ 
+            message: data.error || 'Failed to submit review. Please try again.', 
+            type: 'error' 
+          });
+        }
+        setIsSubmittingReview(false);
+        return;
+      }
+
+      // Canonical review created by database
+      const createdReview = data.review || {
+        id: `rev_${Date.now()}`,
+        type: 'given',
+        reviewer: currentUserName,
+        reviewee: candidateName,
+        projectTitle: candidateProject,
+        rating: avgRating,
+        comm: commRating,
+        code: codeRating,
+        deadline: deadlineRating,
+        comment: commentInput.trim(),
+        date: 'Just now'
+      };
+
+      // Deduplicate and update state cleanly with canonical record
+      setReviews(prev => {
+        const filtered = prev.filter(r => {
+          const rev = (r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+          const trg = (r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+          const prj = (r.projectTitle || r.project_title || '').toLowerCase().trim();
+          const isSame = (rev === currUser || rev === currName) && (trg === targetName) && (prj === targetProj);
+          return !isSame;
+        });
+        const nextReviews = [createdReview, ...filtered];
+        try {
+          localStorage.setItem(`freematch_user_${currentUserId}_reviews`, JSON.stringify(nextReviews));
+          let shared = [];
+          const savedShared = localStorage.getItem('freematch_shared_reviews');
+          if (savedShared) shared = JSON.parse(savedShared);
+          const filteredShared = shared.filter(r => {
+            const rev = (r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+            const trg = (r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+            const prj = (r.projectTitle || r.project_title || '').toLowerCase().trim();
+            const isSame = (rev === currUser || rev === currName) && (trg === targetName) && (prj === targetProj);
+            return !isSame;
+          });
+          localStorage.setItem('freematch_shared_reviews', JSON.stringify([createdReview, ...filteredShared]));
+        } catch (e) {}
+        return nextReviews;
+      });
+
+      // Dispatch event to sync review across tabs without duplicate trigger
+      window.dispatchEvent(new CustomEvent('freematch_review_submitted', { detail: createdReview }));
+
+      setCommentInput('');
+      setToast({ 
+        message: `Review for ${candidateName} submitted! Rating updated in database and AI Match Score boosted.`, 
+        type: 'success' 
+      });
+    } catch (err) {
+      setToast({ message: 'Network error submitting review. Please try again.', type: 'error' });
+    } finally {
+      setIsSubmittingReview(false);
+    }
   };
 
   // 9. CLIENT PROFILE & SETTINGS STATE (Client-scoped)
@@ -1088,18 +1331,28 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   useEffect(() => {
     const loadLiveNotifications = async () => {
-      const list = await fetchNotifications(userSession?.user_id || userSession?.name || 'client');
-      setNotifications(list);
+      const cUserId = (userSession?.user_id || userSession?.username || userSession?.email || userSession?.id || '').toString().trim();
+      if (cUserId) {
+        const list = await fetchNotifications(cUserId);
+        setNotifications(Array.isArray(list) ? list : []);
+      } else {
+        setNotifications([]);
+      }
     };
 
     const loadLiveMessagesCount = async () => {
-      const cUserId = (userSession?.username || userSession?.user_id || userSession?.email || 'client').toLowerCase().trim();
+      const cUserId = (userSession?.username || userSession?.user_id || userSession?.email || userSession?.id || '').toString().toLowerCase().trim();
+      if (!cUserId) {
+        setMessagesCount(0);
+        return;
+      }
       try {
         const res = await fetch(`http://localhost:8000/api/messages/?user_id=${encodeURIComponent(cUserId)}`);
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data.conversations)) {
             setMessagesCount(data.conversations.length);
+            setLiveConversations(data.conversations);
           }
         }
       } catch (err) {}
@@ -1156,6 +1409,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   // Saved Drafts State & Helpers
   const draftListKey = `freematch_user_${userSession?.user_id || 'client'}_project_drafts_list`;
   const activeDraftKey = `freematch_user_${userSession?.user_id || 'client'}_project_draft`;
+  const [activeResumedDraftId, setActiveResumedDraftId] = useState(null);
 
   const [savedDraftsList, setSavedDraftsList] = useState(() => {
     try {
@@ -1165,11 +1419,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     return [];
   });
 
+  // Automatically purge any drafts that have already been published as active projects
+  useEffect(() => {
+    if (!Array.isArray(savedDraftsList) || savedDraftsList.length === 0 || !Array.isArray(clientProjects) || clientProjects.length === 0) return;
+    const cleanDrafts = savedDraftsList.filter(d => {
+      const dTitle = (d.projectTitle || '').trim().toLowerCase();
+      if (!dTitle) return false;
+      const alreadyPublished = clientProjects.some(p => (p.title || '').trim().toLowerCase() === dTitle);
+      return !alreadyPublished;
+    });
+    if (cleanDrafts.length !== savedDraftsList.length) {
+      setSavedDraftsList(cleanDrafts);
+      localStorage.setItem(draftListKey, JSON.stringify(cleanDrafts));
+    }
+  }, [clientProjects, savedDraftsList, draftListKey]);
+
   const handleSaveDraft = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     try {
       const titleToSave = (projectTitle || '').trim() || 'Untitled Project Draft';
-      const draftId = `draft_${Date.now()}`;
+      const draftId = activeResumedDraftId || `draft_${Date.now()}`;
       const now = new Date();
       const savedAtFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + now.toLocaleDateString();
 
@@ -1189,7 +1458,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
       localStorage.setItem(activeDraftKey, JSON.stringify(draftObj));
 
-      const existingList = savedDraftsList.filter(d => (d.projectTitle || '').toLowerCase() !== titleToSave.toLowerCase());
+      const existingList = savedDraftsList.filter(d => d.id !== draftId && (d.projectTitle || '').toLowerCase() !== titleToSave.toLowerCase());
       const updatedList = [draftObj, ...existingList];
 
       setSavedDraftsList(updatedList);
@@ -1206,6 +1475,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   const handleResumeDraft = (draftObj) => {
     if (!draftObj) return;
+    setActiveResumedDraftId(draftObj.id || null);
     if (draftObj.projectTitle) setProjectTitle(draftObj.projectTitle);
     if (draftObj.category) setCategory(draftObj.category);
     if (draftObj.skillsReq) setSkillsReq(draftObj.skillsReq);
@@ -1219,6 +1489,77 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
     setShowPostProjectModal(true);
     setToast({ message: `Loaded draft "${draftObj.projectTitle || 'Project Draft'}"!`, type: 'info' });
+  };
+
+  const handlePublishDraftDirectly = async (draft) => {
+    if (!draft || !draft.projectTitle) return;
+    const currentUserName = userSession?.name || userSession?.username || 'Client';
+    const currentUserId = userSession?.user_id || userSession?.username || 'client';
+
+    const rawBudget = draft.budget || '5000';
+    const formattedBudget = formatCurrency(rawBudget);
+    const newProj = {
+      id: `proj_${Date.now()}`,
+      title: draft.projectTitle,
+      client: currentUserName,
+      client_id: currentUserId,
+      category: draft.category || 'Software Development',
+      budget: formattedBudget,
+      duration: draft.duration || '3 Weeks',
+      skills: draft.skillsReq || 'Python, React',
+      status: 'Open for Bids',
+      postedDate: 'Just Now',
+      progress: 0,
+      applicants: 0,
+      description: draft.description || '',
+      abstract: draft.projectAbstract || '',
+      attachedFile: draft.attachedFile || null,
+      milestones: draft.milestoneItems || []
+    };
+
+    const updated = [newProj, ...clientProjects];
+    setClientProjects(updated);
+    
+    const key1 = `freematch_user_${currentUserId}_projects`;
+    const key2 = `freematch_projects_${currentUserId}`;
+    localStorage.setItem(key1, JSON.stringify(updated));
+    localStorage.setItem(key2, JSON.stringify(updated));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+    }
+
+    // Remove from drafts immediately
+    const cleanTitle = (draft.projectTitle || '').trim().toLowerCase();
+    const updatedDrafts = savedDraftsList.filter(d => d.id !== draft.id && (d.projectTitle || '').trim().toLowerCase() !== cleanTitle);
+    setSavedDraftsList(updatedDrafts);
+    localStorage.setItem(draftListKey, JSON.stringify(updatedDrafts));
+    localStorage.removeItem(activeDraftKey);
+
+    try {
+      await fetch('http://localhost:8000/api/projects/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: draft.projectTitle,
+          client: currentUserId,
+          client_name: currentUserName,
+          category: draft.category || 'Software Development',
+          budget: formattedBudget,
+          duration: draft.duration || '3 Weeks',
+          skills: Array.isArray(draft.skillsReq) ? draft.skillsReq.join(', ') : (draft.skillsReq || ''),
+          description: draft.description || '',
+          abstract: draft.projectAbstract || '',
+          milestones: draft.milestoneItems || []
+        })
+      });
+    } catch (err) {
+      console.warn('Backend sync warning:', err);
+    }
+
+    setToast({ message: `Project "${draft.projectTitle}" published successfully and moved from drafts to active postings!`, type: 'success' });
+    setProjectFilter('All');
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('freematch_shared_event'));
   };
 
   const handleDeleteDraft = (draftId) => {
@@ -1236,55 +1577,128 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
-
-
   // Handlers
   const handlePostProject = async (e) => {
     e.preventDefault();
-    if (!projectTitle.trim()) return;
 
-    const currentUserName = userSession?.name || 'TechStream Corp';
-    const currentUserId = userSession?.user_id || 'client';
-    const projectStorageKey = `freematch_projects_${currentUserId}`;
+    // 1. Required Field & Format Validations
+    const cleanTitle = (projectTitle || '').trim();
+    if (!cleanTitle || cleanTitle.length < 3) {
+      setToast({ message: 'Project Title is required (at least 3 characters).', type: 'error' });
+      return;
+    }
 
-    const formattedBudget = `$${parseInt(budget || 0).toLocaleString()}`;
+    if (!category || !category.trim()) {
+      setToast({ message: 'Please select a project category.', type: 'error' });
+      return;
+    }
+
+    const numBudget = parseFloat(budget) || 0;
+    if (numBudget <= 0) {
+      setToast({ message: 'Please enter a valid project budget (minimum ₹100).', type: 'error' });
+      return;
+    }
+
+    if (!duration || !duration.trim()) {
+      setToast({ message: 'Please select an estimated project duration.', type: 'error' });
+      return;
+    }
+
+    const skillsArr = Array.isArray(skillsReq)
+      ? skillsReq
+      : (typeof skillsReq === 'string' ? skillsReq.split(',').map(s => s.trim()).filter(Boolean) : []);
+    if (skillsArr.length === 0) {
+      setToast({ message: 'Please provide at least one required skill.', type: 'error' });
+      return;
+    }
+
+    const cleanDesc = (description || '').trim();
+    if (!cleanDesc || cleanDesc.length < 20) {
+      setToast({ message: 'Please provide a detailed project description (at least 20 characters).', type: 'error' });
+      return;
+    }
+
+    // 2. Milestone Validations
+    if (Array.isArray(milestoneItems) && milestoneItems.length > 0) {
+      const invalidMilestone = milestoneItems.find(
+        m => !m.title || !m.title.trim() || isNaN(parseFloat(m.amount)) || parseFloat(m.amount) <= 0
+      );
+      if (invalidMilestone) {
+        setToast({ message: 'Each milestone must have a valid title and positive amount.', type: 'error' });
+        return;
+      }
+
+      const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+      if (Math.abs(totalMilestoneSum - numBudget) > 0.01) {
+        setToast({
+          message: `Milestone sum (₹${totalMilestoneSum.toLocaleString()}) must match the total project budget (₹${numBudget.toLocaleString()}).`,
+          type: 'error'
+        });
+        return;
+      }
+    }
+
+    const currentUserName = userSession?.name || userSession?.username || 'Client';
+    const currentUserId = userSession?.user_id || userSession?.username || 'client';
+    const formattedBudget = formatCurrency(budget);
+
     const newProj = {
       id: `proj_${Date.now()}`,
-      title: projectTitle,
+      title: cleanTitle,
       client: currentUserName,
       client_id: currentUserId,
       category: category,
       budget: formattedBudget,
       duration: duration,
-      skills: skillsReq,
+      skills: skillsArr,
       status: 'Open for Bids',
       postedDate: 'Just Now',
       progress: 0,
       applicants: 0,
-      description: description,
-      abstract: projectAbstract,
-      attachedFile: attachedFile
+      description: cleanDesc,
+      abstract: projectAbstract || '',
+      attachedFile: attachedFile,
+      milestones: milestoneItems || []
     };
 
     const updated = [newProj, ...clientProjects];
     setClientProjects(updated);
-    localStorage.setItem(projectStorageKey, JSON.stringify(updated));
 
-    // Persist project directly into Django PostgreSQL database
+    const key1 = `freematch_user_${currentUserId}_projects`;
+    const key2 = `freematch_projects_${currentUserId}`;
+    localStorage.setItem(key1, JSON.stringify(updated));
+    localStorage.setItem(key2, JSON.stringify(updated));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+    }
+
+    // Automatically remove published project from drafts
+    const cleanTitleLower = cleanTitle.toLowerCase();
+    const remainingDrafts = savedDraftsList.filter(d => 
+      (activeResumedDraftId ? d.id !== activeResumedDraftId : true) &&
+      (d.projectTitle || '').trim().toLowerCase() !== cleanTitleLower
+    );
+    setSavedDraftsList(remainingDrafts);
+    localStorage.setItem(draftListKey, JSON.stringify(remainingDrafts));
+    localStorage.removeItem(activeDraftKey);
+    setActiveResumedDraftId(null);
+
+    // Persist project directly into Django database
     try {
       await fetch('http://localhost:8000/api/projects/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: projectTitle,
+          title: cleanTitle,
           client: currentUserId,
           client_name: currentUserName,
           category: category,
           budget: formattedBudget,
           duration: duration,
-          skills: Array.isArray(skillsReq) ? skillsReq.join(', ') : skillsReq,
-          description: description,
-          abstract: projectAbstract
+          skills: skillsArr.join(', '),
+          description: cleanDesc,
+          abstract: projectAbstract || '',
+          milestones: milestoneItems || []
         })
       });
     } catch (err) {
@@ -1292,18 +1706,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
 
     setShowPostProjectModal(false);
-    setToast({ message: `Project "${projectTitle}" posted successfully!`, type: 'success' });
+    setToast({ message: `Project "${cleanTitle}" posted successfully and published to marketplace!`, type: 'success' });
     setProjectTitle('');
     setDescription('');
     setProjectAbstract('');
     setAttachedFile(null);
     setMilestoneItems([]);
+    window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('freematch_shared_event'));
   };
 
   const handleAcceptProposal = (acceptedProp) => {
-    const currentUserName = userSession?.name || 'Abhilash K K';
-    const currentUserId = userSession?.user_id || 'abhi';
+    const currentUserName = userSession?.name || userSession?.username || 'Client';
+    const currentUserId = userSession?.user_id || userSession?.username || 'client';
     const projectStorageKey = `freematch_user_${currentUserId}_projects`;
     const proposalStorageKey = `freematch_user_${currentUserId}_proposals`;
     const taskStorageKey = `freematch_user_${currentUserId}_tasks`;
@@ -1314,7 +1729,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     setProposals(updated);
     localStorage.setItem(proposalStorageKey, JSON.stringify(updated));
-    localStorage.setItem('freematch_shared_proposals', JSON.stringify(updated));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_proposals', JSON.stringify(updated));
+    }
 
     const flName = acceptedProp.freelancer || acceptedProp.freelancerName || 'Freelancer';
     const targetProjTitle = acceptedProp.projectTitle || acceptedProp.project || 'Project';
@@ -1323,14 +1740,16 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     const updatedProjects = clientProjects.map(p => {
       if (p.id === acceptedProp.projectId || (p.title || '').toLowerCase().trim() === targetProjTitle.toLowerCase().trim()) {
-        return { ...p, status: 'In Progress', hiredFreelancer: flName, progress: Math.max(p.progress || 0, 30) };
+        return { ...p, status: 'In Progress', hiredFreelancer: flName, progress: 0 };
       }
       return p;
     });
 
     setClientProjects(updatedProjects);
     localStorage.setItem(projectStorageKey, JSON.stringify(updatedProjects));
-    localStorage.setItem('freematch_shared_projects', JSON.stringify(updatedProjects));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_projects', JSON.stringify(updatedProjects));
+    }
 
     const savedTasks = localStorage.getItem(taskStorageKey);
     let currentTasks = [];
@@ -1348,23 +1767,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     const task1 = {
       id: `t_proj_${Date.now()}_1`,
-      title: `Build Rust Order Execution Core Engine`,
-      status: 'In Progress',
-      assignee: flName,
-      budget: bidVal,
-      project: targetProjTitle
-    };
-    const task2 = {
-      id: `t_proj_${Date.now()}_2`,
-      title: `Implement WebSocket Orderbook & Telemetry Feed`,
+      title: `Deliverable: ${targetProjTitle}`,
       status: 'To Do',
       assignee: flName,
       budget: bidVal,
       project: targetProjTitle
     };
 
-    updatedTasks = [task1, task2, ...updatedTasks];
+    updatedTasks = [task1, ...updatedTasks];
     localStorage.setItem(taskStorageKey, JSON.stringify(updatedTasks));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_tasks', JSON.stringify(updatedTasks));
+      localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updatedTasks));
+    }
 
     // 3. Persist Contract to Django PostgreSQL Database API
     const propDbId = acceptedProp.db_id || String(acceptedProp.id || '').replace('prop_', '');
@@ -1398,24 +1813,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('freematch_shared_event'));
     window.dispatchEvent(new Event('freematch_kanban_event'));
-
-    createNotification({
-      type: 'hired',
-      title: `Contract Created for ${targetProjTitle}`,
-      message: `Contract created successfully for ${targetProjTitle} with ${flName}.`,
-      project_name: targetProjTitle,
-      related_user_name: flName,
-      user_id: currentUserId
-    });
-
-    createNotification({
-      type: 'proposal',
-      title: `Proposal Accepted & Contract Active`,
-      message: `Congratulations! Your proposal for ${targetProjTitle} has been accepted by ${currentUserName}. Your contract is now active.`,
-      project_name: targetProjTitle,
-      related_user_name: currentUserName,
-      user_id: flName
-    });
+    window.dispatchEvent(new Event('freematch_notification_event'));
 
     setToast({ message: `Hired ${flName} for "${targetProjTitle}"! Contract activated and task added to Sprint Board.`, type: 'success' });
   };
@@ -1434,15 +1832,22 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     setMessageInput('');
   };
 
-  const handleClosePosting = (project) => {
+  const handleClosePosting = async (project) => {
     if (project.status === 'In Progress' || project.status === 'Completed') {
       alert(`Project "${project.title}" is currently ${project.status} with a hired freelancer and cannot be simply closed.`);
       return;
     }
     if (window.confirm(`Are you sure you want to close project "${project.title}"?\n\nClosing the posting will prevent new freelancer applications.`)) {
-      const updated = clientProjects.map(p => p.id === project.id ? { ...p, status: 'Closed' } : p);
+      const updated = clientProjects.map(p => (p.id === project.id || (p.title && project.title && p.title.trim().toLowerCase() === project.title.trim().toLowerCase())) ? { ...p, status: 'Closed' } : p);
       setClientProjects(updated);
-      localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+      
+      const key1 = `freematch_user_${currentUserId}_projects`;
+      const key2 = `freematch_projects_${currentUserId}`;
+      localStorage.setItem(key1, JSON.stringify(updated));
+      localStorage.setItem(key2, JSON.stringify(updated));
+      if (isDemoUser) {
+        localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+      }
 
       const updatedProps = proposals.map(pr => 
         (pr.projectId === project.id || pr.projectTitle === project.title) 
@@ -1450,11 +1855,57 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           : pr
       );
       setProposals(updatedProps);
-      localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProps));
+      if (isDemoUser) {
+        localStorage.setItem('freematch_shared_proposals', JSON.stringify(updatedProps));
+      }
+
+      // Persist to Django backend API
+      try {
+        const cleanId = String(project.id || '').trim();
+        if (cleanId) {
+          await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Closed' })
+          });
+        }
+      } catch (err) {
+        console.warn('Backend update error:', err);
+      }
 
       setToast({ message: `Project "${project.title}" posting is now Closed.`, type: 'info' });
       window.dispatchEvent(new Event('freematch_shared_event'));
     }
+  };
+
+  const handleReopenPosting = async (project) => {
+    const updated = clientProjects.map(p => (p.id === project.id || (p.title && project.title && p.title.trim().toLowerCase() === project.title.trim().toLowerCase())) ? { ...p, status: 'Open for Bids' } : p);
+    setClientProjects(updated);
+    
+    const key1 = `freematch_user_${currentUserId}_projects`;
+    const key2 = `freematch_projects_${currentUserId}`;
+    localStorage.setItem(key1, JSON.stringify(updated));
+    localStorage.setItem(key2, JSON.stringify(updated));
+    if (isDemoUser) {
+      localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+    }
+
+    // Persist to Django backend API
+    try {
+      const cleanId = String(project.id || '').trim();
+      if (cleanId) {
+        await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Open' })
+        });
+      }
+    } catch (err) {
+      console.warn('Backend update error:', err);
+    }
+
+    setToast({ message: `Project "${project.title}" reopened for bids!`, type: 'success' });
+    window.dispatchEvent(new Event('freematch_shared_event'));
   };
 
   const searchClean = searchQuery.toLowerCase().trim();
@@ -1475,10 +1926,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     if (!matchesSearch) return false;
 
     const pProg = getProjectProgress(p);
-    const isHiring = p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open' || (pProg === 0 && p.status !== 'Closed' && p.status !== 'Completed');
-    const isCompleted = p.status === 'Completed' || pProg === 100;
     const isClosed = p.status === 'Closed' || p.status === 'Cancelled';
-    const isInProgress = p.status === 'In Progress' || (!isHiring && !isCompleted && !isClosed);
+    const isCompleted = (p.status === 'Completed' || pProg === 100) && !isClosed;
+    const isHiring = !isClosed && (p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open' || (pProg === 0 && p.status !== 'Completed'));
+    const isInProgress = !isHiring && !isCompleted && !isClosed;
 
     if (projectFilter === 'Hiring') return isHiring;
     if (projectFilter === 'In Progress') return isInProgress;
@@ -1539,7 +1990,15 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => item.action ? item.action() : setActiveTab(item.id)}
+                    onClick={() => {
+                      if (item.action) {
+                        item.action();
+                      } else {
+                        if (item.id === 'applications') setSelectedProjectApplicationsFilter(null);
+                        if (item.id === 'projects') setProjectFilter('All');
+                        setActiveTab(item.id);
+                      }
+                    }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-[#2563eb] text-white shadow-xs' 
@@ -1624,7 +2083,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             {/* 4. AI POWERED */}
             <div className="space-y-1">
               <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">AI POWERED</p>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50/60 p-3 rounded-2xl border border-blue-100/80 flex items-center space-x-3">
+              <button
+                onClick={() => setActiveTab('ai-assistant')}
+                className={`w-full text-left bg-gradient-to-br from-blue-50 to-indigo-50/60 p-3 rounded-2xl border transition-all cursor-pointer flex items-center space-x-3 ${
+                  activeTab === 'ai-assistant' ? 'border-[#2563eb] ring-2 ring-blue-500/20 shadow-xs bg-blue-100/50' : 'border-blue-100/80 hover:border-blue-300'
+                }`}
+                title="AI Candidate Matching & Smart Recommendations"
+              >
                 <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
@@ -1632,7 +2097,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <p className="text-xs font-extrabold text-slate-900">AI Assistant</p>
                   <p className="text-xs text-blue-600 font-bold">Smart NLP Auto-Match</p>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* 5. ACCOUNT */}
@@ -1665,87 +2130,370 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         
         {/* Top Navigation Header */}
         <header className="sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
-          <div className="relative w-full max-w-md">
+          <div className="relative w-full max-w-md" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300 text-xs">🔍</span>
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (!isSearchOpen && e.target.value.trim() !== '') setIsSearchOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim() !== '') setIsSearchOpen(true);
+              }}
               placeholder="Search projects by title, category, skills, freelancer, or contract ID..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+              className="w-full pl-10 pr-8 py-2.5 bg-white border border-slate-200/80 rounded-full text-xs text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
             />
-            {searchQuery.trim() !== '' && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-50 p-3 space-y-3">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setIsSearchOpen(false); }}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+
+            {isSearchOpen && debouncedSearchQuery.trim() !== '' && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden z-50 p-3 space-y-3 max-h-96 overflow-y-auto">
                 {(() => {
-                  const q = searchQuery.toLowerCase().trim();
-                  const matchingProjects = clientProjects.filter(p => 
-                    p.title.toLowerCase().includes(q) || 
-                    p.category.toLowerCase().includes(q) || 
-                    (Array.isArray(p.skills) ? p.skills.join(' ') : p.skills).toLowerCase().includes(q)
-                  ).slice(0, 3);
+                  const q = debouncedSearchQuery.toLowerCase().trim();
 
-                  const matchingFreelancers = Array.from(new Set([
-                    ...proposals.map(pr => pr.freelancer),
-                    ...clientProjects.map(p => p.hiredFreelancer || p.freelancer).filter(Boolean),
-                    'Alex Mercer', 'Haines JP', 'Lana Kim', 'Sarah Chen'
-                  ])).filter(name => name.toLowerCase().includes(q)).slice(0, 3);
+                  // 1. PROJECTS
+                  const localProjects = clientProjects.filter(p => {
+                    const title = (p.title || '').toLowerCase();
+                    const cat = (p.category || '').toLowerCase();
+                    const skills = (Array.isArray(p.skills) ? p.skills.join(' ') : (p.skills || '')).toLowerCase();
+                    const stat = (p.status || '').toLowerCase();
+                    const desc = (p.description || '').toLowerCase();
+                    return title.includes(q) || cat.includes(q) || skills.includes(q) || stat.includes(q) || desc.includes(q);
+                  });
+                  const apiProjs = apiSearchResults?.projects || [];
+                  const seenProjKeys = new Set();
+                  const matchingProjects = [];
+                  [...localProjects, ...apiProjs].forEach(p => {
+                    const k = (p.title || p.id || '').toLowerCase().trim();
+                    if (!seenProjKeys.has(k)) {
+                      seenProjKeys.add(k);
+                      matchingProjects.push(p);
+                    }
+                  });
 
-                  const matchingContracts = contracts.filter(c => 
-                    c.id.toLowerCase().includes(q) || c.title.toLowerCase().includes(q)
-                  ).slice(0, 3);
+                  // 2. APPLICATIONS
+                  const localApps = proposals.filter(pr => {
+                    const pTitle = (pr.projectTitle || pr.project || '').toLowerCase();
+                    const fl = (pr.freelancer || pr.freelancerName || '').toLowerCase();
+                    const flEmail = (pr.freelancerEmail || pr.email || pr.freelancerId || '').toLowerCase();
+                    const stat = (pr.status || '').toLowerCase();
+                    return pTitle.includes(q) || fl.includes(q) || flEmail.includes(q) || stat.includes(q);
+                  });
+                  const apiApps = apiSearchResults?.applications || [];
+                  const seenAppKeys = new Set();
+                  const matchingApplications = [];
+                  [...localApps, ...apiApps].forEach(app => {
+                    const k = `${app.projectTitle || app.project}_${app.freelancer || app.freelancerName}`.toLowerCase().trim();
+                    if (!seenAppKeys.has(k)) {
+                      seenAppKeys.add(k);
+                      matchingApplications.push(app);
+                    }
+                  });
 
-                  const totalMatches = matchingProjects.length + matchingFreelancers.length + matchingContracts.length;
+                  // 3. FREELANCERS (Hired, Saved & Candidate Talent)
+                  const PLATFORM_TALENT_CANDIDATES = [
+                    { id: 'cand_alex', name: 'Alex Mercer', username: 'alex_mercer', email: 'alex.mercer@freematch.ai', title: 'Full Stack & AI Architect', skills: ['React', 'Python', 'AI/ML'], rate: '₹75/hr', score: '98%' },
+                    { id: 'cand_sarah', name: 'Sarah Chen', username: 'sarah_chen', email: 'sarah.chen@freematch.ai', title: 'Data Platform Engineer', skills: ['PostgreSQL', 'FastAPI', 'Data Analytics'], rate: '₹85/hr', score: '95%' },
+                    { id: 'cand_david', name: 'David Kumar', username: 'david_kumar', email: 'david.kumar@freematch.ai', title: 'Cloud & Backend Specialist', skills: ['Node.js', 'Docker', 'AWS'], rate: '₹65/hr', score: '92%' }
+                  ];
+
+                  const allCandidates = [
+                    ...hiredFreelancers.map(f => ({ ...f, isHired: true })),
+                    ...savedFreelancers.map(f => ({ ...f, isSaved: true })),
+                    ...PLATFORM_TALENT_CANDIDATES,
+                    ...(apiSearchResults?.freelancers || [])
+                  ];
+                  const seenFlKeys = new Set();
+                  const matchingFreelancers = [];
+                  allCandidates.forEach(fl => {
+                    const name = (fl.name || fl.freelancer || fl.username || '').toLowerCase();
+                    const email = (fl.email || '').toLowerCase();
+                    const uname = (fl.username || fl.freelancer_id || '').toLowerCase();
+                    const skills = (Array.isArray(fl.skills) ? fl.skills.join(' ') : (fl.skills || '')).toLowerCase();
+                    const title = (fl.title || '').toLowerCase();
+                    const proj = (fl.project || fl.projectTitle || '').toLowerCase();
+                    if (name.includes(q) || email.includes(q) || uname.includes(q) || skills.includes(q) || title.includes(q) || proj.includes(q)) {
+                      const k = (fl.email || fl.username || fl.name || '').toLowerCase().trim();
+                      if (k && !seenFlKeys.has(k)) {
+                        seenFlKeys.add(k);
+                        matchingFreelancers.push(fl);
+                      }
+                    }
+                  });
+
+                  // 4. CONTRACTS
+                  const localContracts = contracts.filter(c => {
+                    const cid = (c.id || c.contractId || '').toLowerCase();
+                    const pName = (c.projectName || c.project || c.title || '').toLowerCase();
+                    const fl = (c.freelancer || c.freelancerName || '').toLowerCase();
+                    const flEmail = (c.freelancerEmail || c.freelancerId || '').toLowerCase();
+                    const stat = (c.status || '').toLowerCase();
+                    return cid.includes(q) || pName.includes(q) || fl.includes(q) || flEmail.includes(q) || stat.includes(q);
+                  });
+                  const apiCtrs = apiSearchResults?.contracts || [];
+                  const seenCtrKeys = new Set();
+                  const matchingContracts = [];
+                  [...localContracts, ...apiCtrs].forEach(c => {
+                    const k = (c.id || c.contractId || c.projectName || '').toLowerCase().trim();
+                    if (!seenCtrKeys.has(k)) {
+                      seenCtrKeys.add(k);
+                      matchingContracts.push(c);
+                    }
+                  });
+
+                  // 5. PAYMENTS & ESCROW
+                  const allPayments = [
+                    ...(clientFinancials?.transactions || []),
+                    ...(payments || []),
+                    ...(apiSearchResults?.payments || [])
+                  ];
+                  const seenPayKeys = new Set();
+                  const matchingPayments = [];
+                  allPayments.forEach(pm => {
+                    const pName = (pm.project || pm.projectName || '').toLowerCase();
+                    const cid = (pm.contractId || pm.contract || '').toLowerCase();
+                    const txId = (pm.transactionId || pm.id || '').toLowerCase();
+                    const typeStr = (pm.type || pm.paymentType || pm.type_label || pm.milestone || '').toLowerCase();
+                    if (pName.includes(q) || cid.includes(q) || txId.includes(q) || typeStr.includes(q)) {
+                      const k = (pm.transactionId || pm.id || `${pm.project}_${pm.amount}`).toLowerCase().trim();
+                      if (!seenPayKeys.has(k)) {
+                        seenPayKeys.add(k);
+                        matchingPayments.push(pm);
+                      }
+                    }
+                  });
+
+                  // 6. MESSAGES
+                  const allMessages = [
+                    ...(liveConversations || []),
+                    ...(apiSearchResults?.messages || [])
+                  ];
+                  const seenMsgKeys = new Set();
+                  const matchingMessages = [];
+                  allMessages.forEach(msg => {
+                    const cp = (msg.counterpart || msg.name || msg.username || '').toLowerCase();
+                    const cpId = (msg.counterpartId || msg.email || '').toLowerCase();
+                    const snip = (msg.snippet || msg.last_message || msg.content || '').toLowerCase();
+                    if (cp.includes(q) || cpId.includes(q) || snip.includes(q)) {
+                      const k = (msg.counterpartId || msg.username || msg.counterpart || msg.name || '').toLowerCase().trim();
+                      if (k && !seenMsgKeys.has(k)) {
+                        seenMsgKeys.add(k);
+                        matchingMessages.push(msg);
+                      }
+                    }
+                  });
+
+                  const totalMatches = matchingProjects.length + matchingApplications.length + matchingFreelancers.length + matchingContracts.length + matchingPayments.length + matchingMessages.length;
 
                   if (totalMatches === 0) {
                     return (
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium text-center py-2">No matching results found for "{searchQuery}"</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium text-center py-4">No matching results found for "{searchQuery}"</p>
                     );
                   }
 
                   return (
-                    <>
+                    <div className="space-y-3">
+                      {/* PROJECTS GROUP */}
                       {matchingProjects.length > 0 && (
                         <div>
-                          <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1">PROJECTS</p>
+                          <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>MY PROJECTS</span>
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full">{matchingProjects.length}</span>
+                          </p>
                           <div className="space-y-1">
-                            {matchingProjects.map(p => (
-                              <div key={p.id} onClick={() => { setActiveTab('projects'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
-                                <span className="font-extrabold text-slate-900">{p.title}</span>
-                                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{p.status}</span>
+                            {matchingProjects.slice(0, 4).map(p => (
+                              <div
+                                key={p.id || p.title}
+                                onClick={() => {
+                                  setSelectedProjectDetailView(p);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open Project Details"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{p.title}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">{p.category || 'General'} • {p.budget || 'Budget TBD'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">{p.status || 'Active'}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
+                      {/* APPLICATIONS GROUP */}
+                      {matchingApplications.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>PROJECT APPLICATIONS</span>
+                            <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-full">{matchingApplications.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingApplications.slice(0, 4).map(app => (
+                              <div
+                                key={app.id || `${app.projectTitle}_${app.freelancer}`}
+                                onClick={() => {
+                                  setSelectedProjectApplicationsFilter(app.projectTitle || app.project);
+                                  setApplicationFilter('All');
+                                  setActiveTab('applications');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="View Application in Applications Tab"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{app.freelancer || app.freelancerName}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">For: {app.projectTitle || app.project}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full shrink-0">{app.status || 'Pending'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* FREELANCERS GROUP */}
                       {matchingFreelancers.length > 0 && (
                         <div>
-                          <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider mb-1">FREELANCERS</p>
+                          <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>FREELANCERS</span>
+                            <span className="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded-full">{matchingFreelancers.length}</span>
+                          </p>
                           <div className="space-y-1">
-                            {matchingFreelancers.map(name => (
-                              <div key={name} onClick={() => { setActiveTab('freelancers'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
-                                <span className="font-extrabold text-slate-900">{name}</span>
-                                <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Hired Candidate</span>
+                            {matchingFreelancers.slice(0, 4).map(fl => {
+                              const displayName = fl.name || fl.freelancer || fl.username;
+                              const displayRole = fl.title || 'Freelancer Specialist';
+                              return (
+                                <div
+                                  key={fl.id || displayName}
+                                  onClick={() => {
+                                    setSelectedProfileFreelancer(fl);
+                                    setIsSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                  title="Open Freelancer Profile"
+                                >
+                                  <div className="truncate pr-2">
+                                    <p className="font-extrabold text-slate-900 truncate">{displayName}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{displayRole} {fl.email ? `• ${fl.email}` : ''}</p>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full shrink-0">
+                                    {fl.isHired ? 'Hired' : (fl.isSaved ? 'Saved' : 'Candidate')}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CONTRACTS GROUP */}
+                      {matchingContracts.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>CONTRACTS</span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">{matchingContracts.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingContracts.slice(0, 4).map(c => (
+                              <div
+                                key={c.id || c.contractId}
+                                onClick={() => {
+                                  setSelectedContractDetail(c);
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="Open Contract Details"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{c.id || c.contractId} — {c.projectName || c.project || c.title}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">With: {c.freelancer || c.freelancerName} {c.freelancerEmail ? `(${c.freelancerEmail})` : ''}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">{c.status || 'Active'}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {matchingContracts.length > 0 && (
+                      {/* PAYMENTS & ESCROW GROUP */}
+                      {matchingPayments.length > 0 && (
                         <div>
-                          <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider mb-1">CONTRACTS</p>
+                          <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>PAYMENTS & ESCROW</span>
+                            <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full">{matchingPayments.length}</span>
+                          </p>
                           <div className="space-y-1">
-                            {matchingContracts.map(c => (
-                              <div key={c.id} onClick={() => { setActiveTab('contracts'); setSearchQuery(''); }} className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs">
-                                <span className="font-extrabold text-slate-900">{c.id} — {c.title}</span>
-                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{c.status}</span>
+                            {matchingPayments.slice(0, 4).map((pm, idx) => (
+                              <div
+                                key={pm.transactionId || pm.id || idx}
+                                onClick={() => {
+                                  setActiveTab('payments');
+                                  setIsSearchOpen(false);
+                                  setSearchQuery('');
+                                }}
+                                className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                title="View in Payments & Escrow"
+                              >
+                                <div className="truncate pr-2">
+                                  <p className="font-extrabold text-slate-900 truncate">{pm.project || pm.projectName || 'Milestone Escrow'} — {pm.amount || '₹0'}</p>
+                                  <p className="text-[11px] text-slate-500 truncate">{pm.type || pm.paymentType || pm.type_label || 'Payment'} • Ref: {pm.contractId || pm.transactionId || pm.id || 'N/A'}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">Ledger</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
-                    </>
+
+                      {/* MESSAGES GROUP */}
+                      {matchingMessages.length > 0 && (
+                        <div>
+                          <p className="text-xs font-extrabold text-sky-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span>MESSAGES</span>
+                            <span className="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-full">{matchingMessages.length}</span>
+                          </p>
+                          <div className="space-y-1">
+                            {matchingMessages.slice(0, 3).map((msg, idx) => {
+                              const cpName = msg.counterpart || msg.name || msg.username || 'Chat User';
+                              return (
+                                <div
+                                  key={msg.id || idx}
+                                  onClick={() => {
+                                    setActiveTab('messages');
+                                    setIsSearchOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className="p-2 hover:bg-slate-50 rounded-xl cursor-pointer flex justify-between items-center text-xs transition-colors"
+                                  title="Open Chat in Messages"
+                                >
+                                  <div className="truncate pr-2">
+                                    <p className="font-extrabold text-slate-900 truncate">{cpName}</p>
+                                    <p className="text-[11px] text-slate-500 truncate">{msg.snippet || msg.last_message || msg.content || 'Active conversation'}</p>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full shrink-0">Chat</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
               </div>
@@ -1871,8 +2619,20 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           ).length;
 
           const inProgressCount = clientProjects.filter(p => p.status === 'In Progress').length;
-          const pendingAppsCount = proposals.filter(p => p.status === 'Pending').length;
-          const pendingReviewCount = proposals.filter(p => p.status === 'Pending').length;
+          const pendingAppsList = proposals.filter(p => {
+            const st = (p.status || '').toLowerCase();
+            return st === 'pending' || st === 'under review';
+          });
+          const pendingContractsList = contracts.filter(c => (c.status || '').toLowerCase() === 'pending');
+          const pendingMilestonesList = contracts.filter(c => 
+            Array.isArray(c.milestones) && c.milestones.some(m => {
+              const mst = (m.status || '').toLowerCase();
+              return mst === 'pending_approval' || mst === 'under review' || mst === 'review';
+            })
+          );
+          const hasActionRequired = pendingAppsList.length > 0 || pendingContractsList.length > 0 || pendingMilestonesList.length > 0;
+          const pendingAppsCount = pendingAppsList.length;
+          const pendingReviewCount = pendingAppsList.length;
 
           const totalBudgetSum = clientProjects.reduce((sum, p) => sum + parseCurrency(p.budget), 0);
           const formattedTotalBudget = `₹${totalBudgetSum.toLocaleString('en-IN')}`;
@@ -1913,70 +2673,86 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   
                   {/* Card 1: ACTIVE PROJECTS */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
+                  <div 
+                    onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
+                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                    title="View My Projects"
+                  >
                     <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
+                      <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider group-hover:underline">ACTIVE PROJECTS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{activeProjectsCount}</p>
                       <p className="text-xs text-slate-700 font-semibold">{inProgressCount} in progress</p>
                       <div className="pt-2">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          ↑ 2 this month
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                          {activeProjectsCount > 0 ? `${activeProjectsCount} active` : '0 active'}
                         </span>
                       </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                       <FolderKanban className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
 
                   {/* Card 2: PENDING APPLICATIONS */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
+                  <div 
+                    onClick={() => { setApplicationFilter('Pending Review'); setActiveTab('applications'); }}
+                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
+                    title="View Project Applications"
+                  >
                     <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
+                      <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider group-hover:underline">PENDING APPLICATIONS</p>
                       <p className="text-3xl font-extrabold text-slate-900">{pendingAppsCount}</p>
                       <p className="text-xs text-slate-700 font-semibold">{pendingReviewCount} require your review</p>
                       <div className="pt-2">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          ↑ 3 new
+                        <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                          {pendingAppsCount > 0 ? `${pendingAppsCount} pending` : '0 pending'}
                         </span>
                       </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                       <Users className="w-6 h-6 text-purple-600" />
                     </div>
                   </div>
 
                   {/* Card 3: TOTAL PROJECT VALUE */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
+                  <div 
+                    onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
+                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group"
+                    title="View Projects Budget"
+                  >
                     <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL PROJECT VALUE</p>
+                      <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider group-hover:underline">TOTAL PROJECT VALUE</p>
                       <p className="text-3xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
                       <p className="text-xs text-slate-700 font-semibold">Across all active projects</p>
                       <div className="pt-2">
                         <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          ↑ 12% this month
+                          {totalBudgetSum > 0 ? 'Active Budget' : '₹0 Budget'}
                         </span>
                       </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                       <span className="text-2xl font-black text-emerald-600">₹</span>
                     </div>
                   </div>
 
-                  {/* Card 4: ESCROW BALANCE */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between">
+                  {/* Card 4: AVAILABLE WALLET & ESCROW BALANCE */}
+                  <div 
+                    onClick={() => setActiveTab('payments')}
+                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group"
+                    title="Open Payments & Escrow Hub"
+                  >
                     <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider">ESCROW BALANCE</p>
-                      <p className="text-3xl font-extrabold text-slate-900">{formattedPendingEscrow}</p>
-                      <p className="text-xs text-slate-700 font-semibold">₹2,400 available</p>
+                      <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider group-hover:underline">AVAILABLE WALLET BALANCE</p>
+                      <p className="text-3xl font-extrabold text-slate-900">{clientFinancials?.available_balance_str || '₹0'}</p>
+                      <p className="text-xs text-slate-700 font-semibold">Escrow Locked: {clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
                       <div className="pt-2">
-                        <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100">
-                          ↓ ₹300 this month
+                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                          {clientFinancials?.escrow_balance > 0 ? 'Active Escrow' : '₹0 Balance'}
                         </span>
                       </div>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                      <Lock className="w-6 h-6 text-amber-600" />
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Wallet className="w-6 h-6 text-amber-600" />
                     </div>
                   </div>
 
@@ -1990,7 +2766,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-lg text-slate-900">Active Projects</h3>
                   <button 
-                    onClick={() => setActiveTab('projects')}
+                    onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
                     className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
                   >
                     <span>View All Projects</span>
@@ -2032,7 +2808,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               </div>
                               <div>
                                 <div className="flex items-center space-x-2">
-                                  <h4 className="font-extrabold text-slate-900 text-sm">{formatTitle(p.title)}</h4>
+                                  <h4 
+                                    onClick={() => setSelectedProjectDetailView(p)}
+                                    className="font-extrabold text-slate-900 text-sm hover:text-[#2563eb] cursor-pointer transition-colors"
+                                    title="View project details"
+                                  >
+                                    {formatTitle(p.title)}
+                                  </h4>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                                     isHiring ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
                                   }`}>
@@ -2064,12 +2846,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                           <div className="flex items-center justify-between pt-1 text-xs">
                             {hiredFreelancer ? (
-                              <div className="flex items-center space-x-2">
+                              <div 
+                                onClick={() => {
+                                  const targetFl = hiredFreelancers.find(f => f.name.toLowerCase() === hiredFreelancer.toLowerCase());
+                                  setSelectedProfileFreelancer(targetFl || { name: hiredFreelancer, title: 'Hired Freelancer' });
+                                }}
+                                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                                title="View freelancer profile"
+                              >
                                 <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center">
                                   {initials}
                                 </div>
                                 <div>
-                                  <p className="text-xs font-bold text-slate-800">{hiredFreelancer}</p>
+                                  <p className="text-xs font-bold text-slate-800 hover:text-[#2563eb]">{hiredFreelancer}</p>
                                   <p className="text-xs text-slate-600 font-semibold">Hired Freelancer</p>
                                 </div>
                               </div>
@@ -2089,7 +2878,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                     <p className="text-xs text-slate-700 font-extrabold">DURATION</p>
                                   </div>
                                   <button 
-                                    onClick={() => { setApplicationFilter('All'); setActiveTab('applications'); }}
+                                    onClick={() => { 
+                                      setSelectedProjectApplicationsFilter(p.title || p.id);
+                                      setApplicationFilter('All'); 
+                                      setActiveTab('applications'); 
+                                    }}
                                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
                                   >
                                     View Applications
@@ -2129,13 +2922,25 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <Zap className="w-5 h-5 text-amber-500" />
                     <h3 className="font-extrabold text-lg text-slate-900">Action Required</h3>
                   </div>
-                  <button onClick={() => setActiveTab('applications')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button 
+                    onClick={() => {
+                      if (pendingAppsList.length > 0) {
+                        setApplicationFilter('Pending Review');
+                        setActiveTab('applications');
+                      } else if (pendingContractsList.length > 0 || pendingMilestonesList.length > 0) {
+                        setActiveTab('contracts');
+                      } else {
+                        setActiveTab('applications');
+                      }
+                    }} 
+                    className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer"
+                  >
                     View All →
                   </button>
                 </div>
 
                 <div className="space-y-4 flex-1">
-                  {pendingAppsCount === 0 && activeContracts.length === 0 ? (
+                  {!hasActionRequired ? (
                     <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex-1 flex flex-col justify-center items-center min-h-[160px]">
                       <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
                         <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -2145,46 +2950,60 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     </div>
                   ) : (
                     <>
-                      {pendingAppsCount > 0 && (
+                      {pendingAppsList.length > 0 && (
                         <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
                           <div className="flex items-start space-x-3">
                             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                               <Users className="w-4 h-4 text-amber-700" />
                             </div>
                             <div>
-                              <p className="text-xs font-extrabold text-slate-900">{pendingAppsCount} proposals waiting for review</p>
+                              <p className="text-xs font-extrabold text-slate-900">{pendingAppsList.length} proposal{pendingAppsList.length > 1 ? 's' : ''} waiting for review</p>
                               <p className="text-xs text-slate-600 dark:text-slate-300">Review and shortlist candidates</p>
                             </div>
                           </div>
                           <button 
-                            onClick={() => setActiveTab('applications')}
+                            onClick={() => { setApplicationFilter('Pending Review'); setActiveTab('applications'); }}
                             className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
                           >
                             Review
                           </button>
                         </div>
                       )}
-                      {activeContracts.length > 0 && (
+                      {pendingContractsList.length > 0 && (
                         <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
                           <div className="flex items-start space-x-3">
                             <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
                               <FileText className="w-4 h-4 text-purple-700" />
                             </div>
                             <div>
-                              <p className="text-xs font-extrabold text-slate-900">Milestone active on contract</p>
-                              <p className="text-xs text-slate-600 dark:text-slate-300">{activeContracts[0].projectName || activeContracts[0].project}</p>
+                              <p className="text-xs font-extrabold text-slate-900">Contract pending activation</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[130px]">{pendingContractsList[0].projectName || pendingContractsList[0].project}</p>
                             </div>
                           </div>
                           <button 
-                            onClick={() => {
-                              const projTitle = activeContracts[0]?.projectName || activeContracts[0]?.project || 'All';
-                              setSelectedKanbanProject(projTitle);
-                              setActiveTab('kanban');
-                              window.dispatchEvent(new Event('freematch_kanban_event'));
-                            }}
+                            onClick={() => setSelectedContractDetail(pendingContractsList[0])}
                             className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
                           >
-                            View
+                            Review
+                          </button>
+                        </div>
+                      )}
+                      {pendingMilestonesList.length > 0 && (
+                        <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
+                              <ShieldCheck className="w-4 h-4 text-blue-700" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold text-slate-900">Milestone review requested</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[130px]">{pendingMilestonesList[0].projectName || pendingMilestonesList[0].project}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setSelectedContractDetail(pendingMilestonesList[0])}
+                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
+                          >
+                            Review
                           </button>
                         </div>
                       )}
@@ -2197,28 +3016,40 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <div className="lg:col-span-3 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col justify-between space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-lg text-slate-900">Hiring Activity</h3>
-                  <button onClick={() => setActiveTab('notifications')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button onClick={() => setActiveTab('applications')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
                     View All →
                   </button>
                 </div>
 
                 <div className="space-y-4 flex-1">
-                  {notifications.length === 0 && proposals.length === 0 ? (
+                  {proposals.length === 0 ? (
                     <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex-1 flex flex-col justify-center items-center min-h-[160px]">
                       <p className="text-xs font-extrabold text-slate-800">No hiring activity yet.</p>
                       <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Activity will appear when proposals are submitted.</p>
                     </div>
                   ) : (
-                    (notifications.length > 0 ? notifications : proposals).slice(0, 3).map((item, idx) => (
-                      <div key={item.id || idx} className="flex items-start space-x-3 text-xs">
+                    proposals.slice(0, 3).map((item, idx) => (
+                      <div 
+                        key={item.id || idx} 
+                        onClick={() => { 
+                          if (item.projectTitle || item.project) {
+                            setSelectedProjectApplicationsFilter(item.projectTitle || item.project);
+                          }
+                          setApplicationFilter('All'); 
+                          setActiveTab('applications'); 
+                        }}
+                        className="flex items-start space-x-3 text-xs p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors border border-transparent hover:border-slate-200"
+                        title="View application in Project Applications"
+                      >
                         <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-extrabold text-slate-900">{item.title || 'Activity Event'}</p>
-                          <p className="text-slate-700 dark:text-slate-300 truncate text-xs">{item.message || item.coverLetter || 'Update recorded'}</p>
+                          <p className="font-extrabold text-slate-900 truncate">{item.freelancer || item.freelancerName || 'Candidate'}</p>
+                          <p className="text-slate-700 dark:text-slate-300 truncate text-xs">{item.projectTitle || item.project || 'Proposal submitted'}</p>
+                          <span className="text-xs font-bold text-[#2563eb]">{item.bid || item.bidAmount || 'Bid'}</span>
                         </div>
-                        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium shrink-0">Just now</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium shrink-0">{item.status || 'Active'}</span>
                       </div>
                     ))
                   )}
@@ -2234,7 +3065,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-base text-slate-900">Milestone Progress Overview</h3>
-                  <button onClick={() => setActiveTab('kanban')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button onClick={() => setActiveTab('contracts')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
                     View All Milestones →
                   </button>
                 </div>
@@ -2246,40 +3077,65 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Milestones will appear when contracts are activated.</p>
                     </div>
                   ) : (
-                    contracts.slice(0, 2).map((c, idx) => (
-                      <div key={c.id || idx} className="space-y-3">
-                        <div className="flex items-center space-x-2 font-bold text-slate-800">
-                          <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-xs">🧠</span>
-                          <span>{c.projectName || c.project}</span>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-slate-600 font-semibold">Milestone 1</span>
-                              <span className="text-emerald-600 font-bold flex items-center space-x-1">
-                                <span>100%</span>
-                                <span>✓</span>
-                              </span>
+                    contracts.slice(0, 2).map((c, idx) => {
+                      const hasMilestones = Array.isArray(c.milestones) && c.milestones.length > 0;
+                      return (
+                        <div 
+                          key={c.id || idx} 
+                          onClick={() => setSelectedContractDetail(c)}
+                          className="space-y-3 p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:border-blue-200 hover:bg-blue-50/20 transition-all cursor-pointer group"
+                          title="Click to view full milestone deliverables"
+                        >
+                          <div className="flex items-center justify-between font-bold text-slate-800">
+                            <div className="flex items-center space-x-2">
+                              <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-xs">🧠</span>
+                              <span className="group-hover:text-[#2563eb] transition-colors">{c.projectName || c.project}</span>
                             </div>
-                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-emerald-500 h-full rounded-full" style={{ width: '100%' }}></div>
-                            </div>
+                            <span className="text-xs text-[#2563eb] font-extrabold group-hover:underline">View Details →</span>
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-slate-600 font-semibold">Milestone 2</span>
-                              <span className="text-blue-600 font-bold flex items-center space-x-1">
-                                <span>60%</span>
-                                <span>🕒</span>
-                              </span>
-                            </div>
-                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                              <div className="bg-[#2563eb] h-full rounded-full" style={{ width: '60%' }}></div>
-                            </div>
+                          <div className="space-y-2">
+                            {hasMilestones ? (
+                              c.milestones.slice(0, 2).map((m, mIdx) => {
+                                const isDone = ['approved', 'completed', 'paid', 'done'].includes((m.status || '').toLowerCase());
+                                const isReview = ['under review', 'in review', 'pending_approval'].includes((m.status || '').toLowerCase());
+                                const isDoing = ['in progress', 'doing'].includes((m.status || '').toLowerCase());
+                                const pct = isDone ? 100 : isReview ? 70 : isDoing ? 40 : 10;
+                                const color = isDone ? 'bg-emerald-500' : isReview ? 'bg-purple-600' : 'bg-[#2563eb]';
+                                const textColor = isDone ? 'text-emerald-600' : isReview ? 'text-purple-600' : 'text-blue-600';
+
+                                return (
+                                  <div key={m.id || mIdx} className="space-y-1">
+                                    <div className="flex justify-between text-xs">
+                                      <span className="text-slate-600 font-semibold truncate max-w-[170px]">{m.title || `Milestone ${m.number || mIdx + 1}`}</span>
+                                      <span className={`${textColor} font-bold flex items-center space-x-1`}>
+                                        <span>{formatCurrency(m.amount)}</span>
+                                        <span>{isDone ? '✓' : isReview ? '🔍' : '🕒'}</span>
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                      <div className={`${color} h-full rounded-full transition-all duration-300`} style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-600 font-semibold">Agreed Deliverables</span>
+                                  <span className="text-blue-600 font-bold flex items-center space-x-1">
+                                    <span>{formatCurrency(c.agreedAmount || c.amount)}</span>
+                                    <span>🕒</span>
+                                  </span>
+                                </div>
+                                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                  <div className="bg-[#2563eb] h-full rounded-full" style={{ width: '40%' }}></div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -2312,19 +3168,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <div className="grid grid-cols-4 gap-2 pt-1 text-center">
                     <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
                       <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Escrow Funded</p>
-                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{formattedPendingEscrow}</p>
+                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
                     </div>
                     <div className="p-2 rounded-xl bg-blue-50/50 border border-blue-100/60">
                       <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Released</p>
-                      <p className="text-xs font-extrabold text-blue-600 mt-0.5">₹0</p>
+                      <p className="text-xs font-extrabold text-blue-600 mt-0.5">{clientFinancials?.released_payments_str || '₹0'}</p>
                     </div>
                     <div className="p-2 rounded-xl bg-amber-50/50 border border-amber-100/60">
                       <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Pending</p>
-                      <p className="text-xs font-extrabold text-amber-600 mt-0.5">{formattedPendingEscrow}</p>
+                      <p className="text-xs font-extrabold text-amber-600 mt-0.5">{clientFinancials?.pending_release_str || '₹0'}</p>
                     </div>
                     <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
                       <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Available</p>
-                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">₹0</p>
+                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{clientFinancials?.available_balance_str || '₹0'}</p>
                     </div>
                   </div>
 
@@ -2358,22 +3214,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                 <div className="space-y-4">
                   {hiredFreelancers.length === 0 ? (
-                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px]">
+                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px] space-y-2">
                       <p className="text-xs font-extrabold text-slate-800">Hired Freelancers (0)</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">No freelancers hired yet.</p>
-                      <button onClick={() => setActiveTab('applications')} className="mt-2 text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
-                        View Applications →
-                      </button>
+                      <p className="text-xs text-slate-600 dark:text-slate-300">No freelancers hired yet.</p>
+                      <div className="flex items-center justify-center gap-3">
+                        <button onClick={() => { setSelectedProjectApplicationsFilter(null); setActiveTab('applications'); }} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
+                          View Applications →
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button onClick={() => setActiveTab('ai-assistant')} className="text-xs font-extrabold text-purple-600 hover:underline cursor-pointer">
+                          Find Candidates →
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     hiredFreelancers.slice(0, 3).map((fl, idx) => (
                       <div key={fl.id || idx} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50/40">
-                        <div className="flex items-center space-x-3">
+                        <div 
+                          onClick={() => setSelectedProfileFreelancer(fl)}
+                          className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+                          title="View freelancer profile"
+                        >
                           <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
                             {fl.avatar || (fl.name ? fl.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'FL')}
                           </div>
                           <div>
-                            <h4 className="font-extrabold text-slate-900 text-xs">{fl.name}</h4>
+                            <h4 className="font-extrabold text-slate-900 text-xs hover:text-[#2563eb] transition-colors">{fl.name}</h4>
                             <p className="text-xs text-slate-600 dark:text-slate-300">{fl.title || 'Senior Software Specialist'}</p>
                             <div className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 font-semibold mt-0.5">
                               <span className="text-amber-500">⭐ 4.9</span>
@@ -2383,7 +3249,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </div>
                         </div>
                         <button 
-                          onClick={() => setActiveTab('freelancers')}
+                          onClick={() => setSelectedProfileFreelancer(fl)}
                           className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0"
                         >
                           View Profile
@@ -2440,12 +3306,16 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
 
                 <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-                  <div className="bg-white p-2.5 px-4 rounded-2xl border border-slate-200/80 flex items-center space-x-3 shadow-2xs">
+                  <div 
+                    onClick={() => setActiveTab('ai-assistant')}
+                    className="bg-white p-2.5 px-4 rounded-2xl border border-slate-200/80 flex items-center space-x-3 shadow-2xs cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
+                    title="Open AI Assistant & Smart Match"
+                  >
                     <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
                       AI
                     </div>
                     <div>
-                      <p className="text-xs font-extrabold text-slate-900">Smart Candidate Match</p>
+                      <p className="text-xs font-extrabold text-slate-900 group-hover:text-[#2563eb] transition-colors">Smart Candidate Match</p>
                       <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">NLP Skill Indexing</p>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 ml-1">
@@ -2490,15 +3360,20 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 all: clientProjects.length,
                 hiring: clientProjects.filter(p => {
                   const pProg = getProjectProgress(p);
-                  return p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open' || (pProg === 0 && p.status !== 'Closed' && p.status !== 'Completed');
+                  const isClosed = p.status === 'Closed' || p.status === 'Cancelled';
+                  return !isClosed && (p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open' || (pProg === 0 && p.status !== 'Completed'));
                 }).length,
                 inProgress: clientProjects.filter(p => {
                   const pProg = getProjectProgress(p);
-                  return p.status === 'In Progress' || (pProg > 0 && pProg < 100 && p.status !== 'Closed');
+                  const isClosed = p.status === 'Closed' || p.status === 'Cancelled';
+                  const isComp = p.status === 'Completed' || pProg === 100;
+                  const isHir = !isClosed && (p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open' || (pProg === 0 && p.status !== 'Completed'));
+                  return !isClosed && !isComp && !isHir;
                 }).length,
                 completed: clientProjects.filter(p => {
                   const pProg = getProjectProgress(p);
-                  return p.status === 'Completed' || pProg === 100;
+                  const isClosed = p.status === 'Closed' || p.status === 'Cancelled';
+                  return !isClosed && (p.status === 'Completed' || pProg === 100);
                 }).length,
                 closed: clientProjects.filter(p => p.status === 'Closed' || p.status === 'Cancelled').length,
                 drafts: savedDraftsList.length
@@ -2586,17 +3461,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-3 shrink-0">
+                        <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-2">
+                          <button
+                            onClick={() => handlePublishDraftDirectly(draft)}
+                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                            title="Instantly publish this draft to the marketplace"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Publish Now</span>
+                          </button>
                           <button
                             onClick={() => handleResumeDraft(draft)}
-                            className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                            className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                            title="Review and modify draft details before posting"
                           >
-                            <span>Resume & Publish Draft</span>
+                            <span>Resume & Edit</span>
                             <span>→</span>
                           </button>
                           <button
                             onClick={() => handleDeleteDraft(draft.id)}
-                            className="px-3 py-2.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl text-sm font-bold transition-all cursor-pointer"
+                            className="px-3 py-2.5 text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
                           >
                             Delete
                           </button>
@@ -2632,10 +3516,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   const linkedContract = contracts.find(c => (c.projectName || c.project || '').toLowerCase().trim() === (p.title || '').toLowerCase().trim());
                   const contractCode = p.contractId || (linkedContract ? (linkedContract.contractId || linkedContract.id) : null);
 
-                  const isCompleted = p.status === 'Completed' || pProgressPct === 100;
                   const isClosed = p.status === 'Closed' || p.status === 'Cancelled';
-                  const isHiring = !hiredName && !linkedContract && (p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open');
+                  const isCompleted = (p.status === 'Completed' || pProgressPct === 100) && !isClosed;
+                  const isHiring = !isClosed && !hiredName && !linkedContract && (p.status === 'Open for Bids' || p.status === 'Hiring' || p.status === 'Open');
                   const isInProgress = !isHiring && !isCompleted && !isClosed;
+                  const isProjectAssigned = Boolean(
+                    hiredName || 
+                    (linkedContract && (linkedContract.status || '').toLowerCase() !== 'cancelled') || 
+                    isInProgress || 
+                    isCompleted ||
+                    p.status === 'In Progress' ||
+                    p.status === 'Completed'
+                  );
 
                   return (
                     <div 
@@ -2720,10 +3612,29 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       {/* Action Buttons */}
                       <div className="flex items-center justify-between pt-2 flex-wrap gap-3">
                         <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
-                          {isHiring ? (
+                          {isClosed ? (
+                            <>
+                              <button 
+                                onClick={() => setSelectedProjectDetailView(p)}
+                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
+                              >
+                                <span>👁️</span>
+                                <span>View Project Details</span>
+                              </button>
+
+                              <button 
+                                onClick={() => handleReopenPosting(p)}
+                                className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold cursor-pointer transition-colors flex items-center space-x-1.5"
+                              >
+                                <span>🔓</span>
+                                <span>Reopen Posting</span>
+                              </button>
+                            </>
+                          ) : isHiring ? (
                             <>
                               <button 
                                 onClick={() => {
+                                  setSelectedProjectApplicationsFilter(p.title || p.id);
                                   setApplicationFilter('All');
                                   setActiveTab('applications');
                                 }}
@@ -2781,12 +3692,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
 
                         <div className="text-right">
-                          <button 
-                            onClick={() => handleDeleteProject(p.id, p.title)}
-                            className="text-xs text-rose-500 hover:text-rose-700 font-bold cursor-pointer transition-colors"
-                          >
-                            Delete Project
-                          </button>
+                          {isProjectAssigned ? (
+                            <button 
+                              onClick={() => {
+                                const blockedMsg = "This project cannot be deleted because a freelancer has already been assigned to it. Please complete or close the project instead.";
+                                setToast({ message: blockedMsg, type: 'error' });
+                                alert(blockedMsg);
+                              }}
+                              className="text-xs text-slate-400 hover:text-rose-500 font-bold cursor-not-allowed transition-colors"
+                              title="This project cannot be deleted because a freelancer has already been assigned to it. Please complete or close the project instead."
+                            >
+                              Delete Project
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleDeleteProject(p.id, p.title)}
+                              className="text-xs text-rose-500 hover:text-rose-700 font-bold cursor-pointer transition-colors"
+                            >
+                              Delete Project
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2829,6 +3754,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             </div>
 
             <div className="space-y-4">
+              {selectedProjectApplicationsFilter && (
+                <div className="flex items-center justify-between p-3.5 bg-blue-50/80 border border-blue-200 rounded-2xl text-xs font-bold text-blue-900">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2.5 py-0.5 bg-[#2563eb] text-white text-xs rounded-lg font-extrabold">Project Filter</span>
+                    <span>Showing applications for: <strong className="text-blue-700 font-extrabold">{selectedProjectApplicationsFilter}</strong></span>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedProjectApplicationsFilter(null)}
+                    className="text-xs text-blue-600 hover:text-blue-800 underline font-extrabold cursor-pointer"
+                  >
+                    Show All Applications ✕
+                  </button>
+                </div>
+              )}
+
               {proposals.length === 0 ? (
                 <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-3">
                   <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center text-3xl mx-auto font-bold">
@@ -2839,15 +3779,41 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     Applications submitted by freelancers for your posted projects will appear here for review.
                   </p>
                 </div>
-              ) : (
-                proposals
-                  .filter(pr => {
-                    const isAccepted = pr.status === 'Accepted' || pr.status === 'Hired';
-                    if (applicationFilter === 'Pending Review') return !isAccepted;
-                    if (applicationFilter === 'Hired / Active') return isAccepted;
-                    return true;
-                  })
-                  .map(pr => {
+              ) : (() => {
+                const filteredProposals = proposals.filter(pr => {
+                  if (selectedProjectApplicationsFilter) {
+                    const pTitle = (pr.projectTitle || pr.project || '').toLowerCase().trim();
+                    const filterTarget = selectedProjectApplicationsFilter.toLowerCase().trim();
+                    const pId = String(pr.projectId || pr.project_id || '');
+                    if (pTitle !== filterTarget && pId !== filterTarget) return false;
+                  }
+                  const isAccepted = pr.status === 'Accepted' || pr.status === 'Hired';
+                  if (applicationFilter === 'Pending Review') return !isAccepted;
+                  if (applicationFilter === 'Hired / Active') return isAccepted;
+                  return true;
+                });
+
+                if (filteredProposals.length === 0) {
+                  return (
+                    <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-xl font-bold">
+                        🔍
+                      </div>
+                      <h4 className="font-extrabold text-slate-900 text-base">No matching applications</h4>
+                      <p className="text-xs text-slate-600 max-w-sm mx-auto font-medium">
+                        No proposals matched {selectedProjectApplicationsFilter ? `"${selectedProjectApplicationsFilter}"` : `the "${applicationFilter}" filter`}.
+                      </p>
+                      <button 
+                        onClick={() => { setSelectedProjectApplicationsFilter(null); setApplicationFilter('All'); }}
+                        className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-xs font-bold cursor-pointer transition-colors inline-block"
+                      >
+                        Reset All Filters
+                      </button>
+                    </div>
+                  );
+                }
+
+                return filteredProposals.map(pr => {
                     const isAccepted = pr.status === 'Accepted' || pr.status === 'Hired';
 
                     return (
@@ -2893,12 +3859,56 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </p>
 
                         <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                          <button
+                            onClick={() => setSelectedProfileFreelancer({
+                              name: pr.freelancer,
+                              freelancer: pr.freelancer,
+                              title: pr.title,
+                              rate: pr.bid,
+                              rating: pr.rating,
+                              avatar: pr.avatar
+                            })}
+                            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
+                          >
+                            <span>👤</span>
+                            <span>View Profile</span>
+                          </button>
+
                           <button 
                             onClick={() => { setSelectedChat(pr.freelancer); setActiveTab('messages'); }} 
                             className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
                           >
                             <span>💬</span>
                             <span>Send Message</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleToggleSaveFreelancer({
+                              freelancer_id: pr.freelancerId || pr.freelancer,
+                              name: pr.freelancer,
+                              title: pr.title,
+                              hourly_rate: pr.bid,
+                              rating: pr.rating,
+                              avatar: pr.avatar
+                            })}
+                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                              isFreelancerSaved(pr.freelancerId || pr.freelancer)
+                                ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                            }`}
+                            title={isFreelancerSaved(pr.freelancerId || pr.freelancer) ? 'Click to Unsave' : 'Click to Save / Bookmark'}
+                          >
+                            {isFreelancerSaved(pr.freelancerId || pr.freelancer) ? (
+                              <>
+                                <BookmarkCheck className="w-4 h-4 text-amber-600" />
+                                <span>Saved</span>
+                              </>
+                            ) : (
+                              <>
+                                <Bookmark className="w-4 h-4 text-slate-500" />
+                                <span>Save</span>
+                              </>
+                            )}
                           </button>
 
                           {isAccepted ? (
@@ -2945,8 +3955,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
                       </div>
                     );
-                  })
-              )}
+                  });
+              })()}
             </div>
           </div>
         )}
@@ -2954,13 +3964,44 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 5: HIRED FREELANCERS ROSTER */}
         {activeTab === 'freelancers' && (
           <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Hired Freelancers Roster ({hiredFreelancers.length})
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
-                Active contracts, performance tracking, and direct communication.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Hired Freelancers Roster ({hiredFreelancers.length})
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
+                  Active contracts, performance tracking, and direct communication.
+                </p>
+
+                {/* Sub-Navigation Switch between Hired and Saved Freelancers */}
+                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-3">
+                  <button
+                    onClick={() => setActiveTab('freelancers')}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all bg-[#2563eb] text-white shadow-xs flex items-center space-x-1.5"
+                  >
+                    <span>👥</span>
+                    <span>Hired Freelancers ({hiredFreelancers.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('saved-freelancers')}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-[#2563eb] hover:bg-slate-100 transition-all cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <span>⭐</span>
+                    <span>Saved Freelancers ({savedFreelancers.length})</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setActiveTab('saved-freelancers')}
+                  className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-2 shadow-2xs"
+                  title="View your saved / bookmarked freelancers"
+                >
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <span>Saved Freelancers ({savedFreelancers.length}) →</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2975,12 +4016,30 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       When you accept a freelancer proposal, your hired talent roster will be displayed here.
                     </p>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('applications')}
-                    className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
-                  >
-                    <span>View Applications →</span>
-                  </button>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <button 
+                      onClick={() => { setSelectedProjectApplicationsFilter(null); setActiveTab('applications'); }}
+                      className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
+                    >
+                      <span>View Applications →</span>
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('ai-assistant')}
+                      className="px-5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
+                    >
+                      <Bot className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Find Freelancers (AI Match) →</span>
+                    </button>
+                    {savedFreelancers.length > 0 && (
+                      <button 
+                        onClick={() => setActiveTab('saved-freelancers')}
+                        className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
+                      >
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span>Saved Freelancers ({savedFreelancers.length}) →</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 hiredFreelancers.map(hf => (
@@ -3037,13 +4096,37 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                     {/* Actions Buttons */}
                     <div className="space-y-2.5 pt-2">
-                      <button 
-                        onClick={() => setSelectedProfileFreelancer(hf)} 
-                        className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-sm font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
-                      >
-                        <span>👤</span>
-                        <span>View Profile & Reviews</span>
-                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => setSelectedProfileFreelancer(hf)} 
+                          className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1 shadow-2xs"
+                        >
+                          <span>👤</span>
+                          <span>Profile & Reviews</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleSaveFreelancer(hf)}
+                          className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 border ${
+                            isFreelancerSaved(hf)
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 shadow-2xs'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                          }`}
+                          title={isFreelancerSaved(hf) ? 'Remove from Saved Freelancers' : 'Bookmark to Saved Freelancers'}
+                        >
+                          {isFreelancerSaved(hf) ? (
+                            <>
+                              <BookmarkCheck className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Saved</span>
+                            </>
+                          ) : (
+                            <>
+                              <Bookmark className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Save</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-2.5">
                         <button 
@@ -3194,24 +4277,53 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB: SAVED FREELANCERS ROSTER */}
         {activeTab === 'saved-freelancers' && (
           <div className="p-8 space-y-6 max-w-6xl mx-auto w-full">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Saved Freelancers ({savedFreelancers.length})</h2>
                 <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-1">
                   Manage your bookmarked talent, view candidate profiles, and hire freelancers directly into active projects.
                 </p>
+
+                {/* Sub-Navigation Switch between Hired and Saved Freelancers */}
+                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-3">
+                  <button
+                    onClick={() => setActiveTab('freelancers')}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-[#2563eb] hover:bg-slate-100 transition-all cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <span>👥</span>
+                    <span>Hired Freelancers ({hiredFreelancers.length})</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('saved-freelancers')}
+                    className="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all bg-[#2563eb] text-white shadow-xs flex items-center space-x-1.5"
+                  >
+                    <span>⭐</span>
+                    <span>Saved Freelancers ({savedFreelancers.length})</span>
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setActiveTab('applications')} className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-sm font-extrabold cursor-pointer border border-blue-200">
+
+              <button onClick={() => setActiveTab('applications')} className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-sm font-extrabold cursor-pointer border border-blue-200 shrink-0">
                 Explore Candidates →
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {savedFreelancers.length === 0 ? (
-                <div className="col-span-full p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
+                <div className="col-span-full p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-4">
                   <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mx-auto">⭐</div>
-                  <h3 className="font-extrabold text-slate-900 text-base">No Saved Freelancers Yet</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium">Bookmark top talent from proposals or candidate search to quickly hire them for future projects.</p>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-base">No Saved Freelancers Yet</h3>
+                    <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium mt-1">
+                      Bookmark top talent from proposals, candidate search, or profiles to quickly access and hire them for future projects.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('applications')}
+                    className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-1.5"
+                  >
+                    <span>Explore Candidates / Applications →</span>
+                  </button>
                 </div>
               ) : (
                 savedFreelancers.map((sf, idx) => (
@@ -3271,7 +4383,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 7: PROJECT PROGRESS (4 KANBAN COLUMNS: To-Do, In Progress, Under Review, Done) */}
         {activeTab === 'kanban' && (
           <div className="p-8">
-            <KanbanBoard role="client" currentUserName={userSession?.name || 'Abhilash K K'} initialProjectFilter={selectedKanbanProject} isDark={isDark} />
+            <KanbanBoard role="client" currentUserName={userSession?.name || userSession?.username || 'Client'} initialProjectFilter={selectedKanbanProject} isDark={isDark} />
           </div>
         )}
 
@@ -3296,64 +4408,99 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <p className="text-xs text-slate-600 dark:text-slate-300">Track milestone deposits, release funds to freelancers, and download tax invoices.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className={`p-6 rounded-3xl border border-blue-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
+                <p className="text-xs font-bold text-blue-500 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
+                <p className="text-3xl font-extrabold text-blue-600 mt-2">{clientFinancials?.available_balance_str || '₹0'}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Ready for projects and milestone funding</p>
+              </div>
+
               <div className={`p-6 rounded-3xl border border-amber-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-xs font-bold text-amber-400 uppercase tracking-wider">ESCROW LOCKED BALANCE</p>
-                <p className="text-3xl font-extrabold text-amber-400 mt-2">₹6,500</p>
+                <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">ESCROW LOCKED BALANCE</p>
+                <p className="text-3xl font-extrabold text-amber-500 mt-2">{clientFinancials?.escrow_balance_str || '₹0'}</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Held securely in milestone escrow</p>
               </div>
 
               <div className={`p-6 rounded-3xl border border-emerald-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider">TOTAL RELEASED PAYMENTS</p>
-                <p className="text-3xl font-extrabold text-emerald-400 mt-2">₹36,000</p>
+                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">TOTAL RELEASED PAYMENTS</p>
+                <p className="text-3xl font-extrabold text-emerald-500 mt-2">{clientFinancials?.released_payments_str || '₹0'}</p>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Successfully paid to freelancers</p>
               </div>
 
               <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">CONNECTED GATEWAY</p>
-                <p className={`text-xl font-bold mt-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>Stripe & Razorpay</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Auto-escrow verification active</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">CONNECTED GATEWAY</p>
+                <p className={`text-base font-extrabold mt-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Payment gateway not configured</p>
+                <p className="text-xs text-slate-500 mt-2">Razorpay & Stripe inactive • ₹0</p>
+              </div>
+            </div>
+
+            {/* Additional Metrics Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/70 border-slate-200/80'}`}>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Pending Milestone Release:</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{clientFinancials?.pending_release_str || '₹0'}</span>
+              </div>
+              <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/70 border-slate-200/80'}`}>
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Completed Withdrawals:</span>
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{clientFinancials?.total_withdrawn_str || '₹0'}</span>
               </div>
             </div>
 
             {/* Transaction Invoice Table */}
             <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-              <h3 className="font-bold text-sm mb-4">Milestone Transaction History</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-600 dark:text-slate-300' : 'border-slate-200 text-slate-700 dark:text-slate-300'}`}>
-                      <th className="pb-3 font-bold">Invoice ID</th>
-                      <th className="pb-3 font-bold">Date</th>
-                      <th className="pb-3 font-bold">Project & Milestone</th>
-                      <th className="pb-3 font-bold">Type</th>
-                      <th className="pb-3 font-bold">Amount</th>
-                      <th className="pb-3 font-bold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {payments.map(py => (
-                      <tr key={py.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-3 font-bold text-blue-400">{py.id}</td>
-                        <td className="py-3 text-slate-600 dark:text-slate-300">{py.date}</td>
-                        <td className="py-3">
-                          <p className="font-bold">{py.project}</p>
-                          <p className="text-xs text-slate-600 dark:text-slate-300">{py.milestone}</p>
-                        </td>
-                        <td className={`py-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{py.type}</td>
-                        <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(py.amount)}</td>
-                        <td className="py-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
-                            py.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          }`}>
-                            {py.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-sm">Milestone Transaction History</h3>
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {payments.length} {payments.length === 1 ? 'transaction' : 'transactions'}
+                </span>
               </div>
+              {payments.length === 0 ? (
+                <div className="text-center py-12 space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] flex items-center justify-center mx-auto">
+                    <ShieldCheck className="w-6 h-6 text-[#2563eb]" />
+                  </div>
+                  <h4 className="font-extrabold text-sm text-slate-900">No Payment Transactions Yet</h4>
+                  <p className="text-xs text-slate-700 max-w-sm mx-auto font-medium">
+                    Milestone releases, escrow deposits, and invoices will appear here once payment transactions occur.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-600 dark:text-slate-300' : 'border-slate-200 text-slate-700 dark:text-slate-300'}`}>
+                        <th className="pb-3 font-bold">Invoice ID</th>
+                        <th className="pb-3 font-bold">Date</th>
+                        <th className="pb-3 font-bold">Project & Milestone</th>
+                        <th className="pb-3 font-bold">Type</th>
+                        <th className="pb-3 font-bold">Amount</th>
+                        <th className="pb-3 font-bold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {payments.map(py => (
+                        <tr key={py.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-3 font-bold text-blue-400">{py.id}</td>
+                          <td className="py-3 text-slate-600 dark:text-slate-300">{py.date}</td>
+                          <td className="py-3">
+                            <p className="font-bold">{py.project}</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">{py.milestone}</p>
+                          </td>
+                          <td className={`py-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{py.type}</td>
+                          <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(py.amount)}</td>
+                          <td className="py-3">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                              py.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            }`}>
+                              {py.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3367,127 +4514,154 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             </div>
 
             {/* 1. Review Submission Form with Target Candidate Selector */}
-            <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <h3 className="font-black text-lg text-slate-900">Leave Performance Rating for Completed Contract</h3>
-                  <p className="text-sm font-semibold text-slate-700 mt-0.5">Submitted ratings feed into freelancer public profiles and AI matching algorithms.</p>
+            {(!selectedCandidate || REVIEWABLE_CANDIDATES.length === 0) ? (
+              <div className="p-8 sm:p-12 rounded-3xl border border-slate-200 bg-white shadow-xs text-center space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto">
+                  <Star className="w-8 h-8 text-blue-600 fill-blue-600/20" />
                 </div>
-
-                <div className="w-full sm:w-auto">
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-900 mb-1.5">SELECT COMPLETED FREELANCER / PROJECT</label>
-                  <select
-                    value={selectedCandidate.id}
-                    onChange={(e) => {
-                      const found = REVIEWABLE_CANDIDATES.find(c => c.id === e.target.value);
-                      if (found) setSelectedCandidate(found);
-                    }}
-                    className="w-full sm:w-auto p-3 border rounded-xl text-sm font-extrabold focus:outline-none focus:border-blue-500 bg-slate-50 border-slate-300 text-slate-900 shadow-2xs cursor-pointer"
-                  >
-                    {REVIEWABLE_CANDIDATES.map(cand => (
-                      <option key={cand.id} value={cand.id}>
-                        {cand.freelancer} — {cand.projectTitle}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-1">
+                  <h3 className="font-black text-xl text-slate-900">No Reviewable Freelancers Yet</h3>
+                  <p className="text-sm font-semibold text-slate-600 max-w-md mx-auto">
+                    Once you accept a freelancer's proposal and award an active contract, you can leave granular performance feedback, code ratings, and communication scores here.
+                  </p>
                 </div>
               </div>
-
-              {/* Target Candidate Preview Banner */}
-              <div className="p-4.5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 shadow-2xs">
-                <div className="flex items-center space-x-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-base shadow-md">
-                    {selectedCandidate.avatar}
-                  </div>
+            ) : (
+              <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
                   <div>
-                    <h4 className="font-black text-base text-slate-900">{selectedCandidate.freelancer}</h4>
-                    <p className="text-sm text-blue-700 font-extrabold mt-0.5">Project: {selectedCandidate.projectTitle}</p>
+                    <h3 className="font-black text-lg text-slate-900">Leave Performance Rating for Completed Contract</h3>
+                    <p className="text-sm font-semibold text-slate-700 mt-0.5">Submitted ratings feed into freelancer public profiles and AI matching algorithms.</p>
+                  </div>
+
+                  <div className="w-full sm:w-auto">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-900 mb-1.5">SELECT COMPLETED FREELANCER / PROJECT</label>
+                    <select
+                      value={selectedCandidate?.id || ''}
+                      onChange={(e) => {
+                        const found = REVIEWABLE_CANDIDATES.find(c => c.id === e.target.value);
+                        if (found) setSelectedCandidate(found);
+                      }}
+                      className="w-full sm:w-auto p-3 border rounded-xl text-sm font-extrabold focus:outline-none focus:border-blue-500 bg-slate-50 border-slate-300 text-slate-900 shadow-2xs cursor-pointer"
+                    >
+                      {REVIEWABLE_CANDIDATES.map(cand => (
+                        <option key={cand.id} value={cand.id}>
+                          {cand.freelancer} — {cand.projectTitle}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-                <span className="text-sm font-black text-slate-900 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">Agreed Rate: {formatHourlyRate(selectedCandidate.rate)}</span>
-              </div>
 
-              <form onSubmit={handleAddReview} className="space-y-5">
-                
-                {/* 4. Granular Category Ratings */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 p-5 rounded-2xl border bg-slate-100/90 border-slate-300 shadow-2xs">
+                {/* Target Candidate Preview Banner */}
+                <div className="p-4.5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 shadow-2xs">
+                  <div className="flex items-center space-x-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-base shadow-md">
+                      {selectedCandidate?.avatar || 'FL'}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-base text-slate-900">{selectedCandidate?.freelancer || 'Freelancer'}</h4>
+                      <p className="text-sm text-blue-700 font-extrabold mt-0.5">Project: {selectedCandidate?.projectTitle || 'Project'}</p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-black text-slate-900 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">Agreed Rate: {formatHourlyRate(selectedCandidate?.rate)}</span>
+                </div>
+
+                <form onSubmit={handleAddReview} className="space-y-5">
                   
-                  {/* Communication */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-black block text-slate-900">💬 Communication</label>
-                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <button 
-                          type="button" 
-                          key={s} 
-                          onClick={() => setCommRating(s)}
-                          className={`cursor-pointer transition-transform hover:scale-110 ${commRating >= s ? 'opacity-100' : 'opacity-30'}`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="text-sm font-black text-slate-900 ml-2">{commRating}/5</span>
+                  {/* 4. Granular Category Ratings */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 p-5 rounded-2xl border bg-slate-100/90 border-slate-300 shadow-2xs">
+                    
+                    {/* Communication */}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-black block text-slate-900">💬 Communication</label>
+                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button 
+                            type="button" 
+                            key={s} 
+                            onClick={() => setCommRating(s)}
+                            className={`cursor-pointer transition-transform hover:scale-110 ${commRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        <span className="text-sm font-black text-slate-900 ml-2">{commRating}/5</span>
+                      </div>
                     </div>
+
+                    {/* Code Quality */}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-black block text-slate-900">💻 Code Quality</label>
+                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button 
+                            type="button" 
+                            key={s} 
+                            onClick={() => setCodeRating(s)}
+                            className={`cursor-pointer transition-transform hover:scale-110 ${codeRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        <span className="text-sm font-black text-slate-900 ml-2">{codeRating}/5</span>
+                      </div>
+                    </div>
+
+                    {/* Deadline Adherence */}
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-black block text-slate-900">⏱️ Deadline Adherence</label>
+                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <button 
+                            type="button" 
+                            key={s} 
+                            onClick={() => setDeadlineRating(s)}
+                            className={`cursor-pointer transition-transform hover:scale-110 ${deadlineRating >= s ? 'opacity-100' : 'opacity-30'}`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        <span className="text-sm font-black text-slate-900 ml-2">{deadlineRating}/5</span>
+                      </div>
+                    </div>
+
                   </div>
 
-                  {/* Code Quality */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-black block text-slate-900">💻 Code Quality</label>
-                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <button 
-                          type="button" 
-                          key={s} 
-                          onClick={() => setCodeRating(s)}
-                          className={`cursor-pointer transition-transform hover:scale-110 ${codeRating >= s ? 'opacity-100' : 'opacity-30'}`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="text-sm font-black text-slate-900 ml-2">{codeRating}/5</span>
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xs">
+                      Overall Computed Score: {Math.round((commRating + codeRating + deadlineRating) / 3.0)} / 5 Stars ★
+                    </span>
                   </div>
 
-                  {/* Deadline Adherence */}
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-black block text-slate-900">⏱️ Deadline Adherence</label>
-                    <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <button 
-                          type="button" 
-                          key={s} 
-                          onClick={() => setDeadlineRating(s)}
-                          className={`cursor-pointer transition-transform hover:scale-110 ${deadlineRating >= s ? 'opacity-100' : 'opacity-30'}`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="text-sm font-black text-slate-900 ml-2">{deadlineRating}/5</span>
-                    </div>
-                  </div>
+                  <textarea
+                    rows="3"
+                    required
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder={`Write detailed evaluation for ${selectedCandidate?.freelancer || 'freelancer'} regarding sprint deliverables, unit testing, and communication...`}
+                    className="w-full p-4 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-900 border-slate-300 placeholder:text-slate-500 shadow-2xs"
+                  ></textarea>
 
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xs">
-                    Overall Computed Score: {Math.round((commRating + codeRating + deadlineRating) / 3.0)} / 5 Stars ★
-                  </span>
-                </div>
-
-                <textarea
-                  rows="3"
-                  required
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  placeholder={`Write detailed evaluation for ${selectedCandidate.freelancer} regarding sprint deliverables, unit testing, and communication...`}
-                  className="w-full p-4 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-900 border-slate-300 placeholder:text-slate-500 shadow-2xs"
-                ></textarea>
-
-                <button type="submit" className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black shadow-md cursor-pointer transition-all">
-                  Submit Review & Boost AI Match Score
-                </button>
-              </form>
-            </div>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmittingReview}
+                    className={`px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center space-x-2 ${
+                      isSubmittingReview ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
+                    {isSubmittingReview ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Submitting Review & Boosting Score...</span>
+                      </>
+                    ) : (
+                      <span>Submit Review & Boost AI Match Score</span>
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
 
             {/* 3. Separate Given vs Received Filter Tabs */}
             <div className="space-y-4 pt-4">
@@ -3520,38 +4694,54 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
               {/* 2. Review History Cards with Project Context */}
               <div className="space-y-3.5">
-                {reviews.filter(r => r.type === reviewTab).map(rv => (
-                  <div key={rv.id} className="p-5 sm:p-6 rounded-2xl border space-y-3 bg-white border-slate-200 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2 flex-wrap">
-                        <span className="font-black text-base text-slate-900">{rv.reviewer}</span>
-                        <span className="text-slate-600 font-extrabold text-sm mx-1">➔</span>
-                        <span className="text-blue-700 text-base font-black">{rv.reviewee}</span>
-                        {/* Project Context */}
-                        <span className="text-sm font-bold text-slate-700">
-                          (Project: <span className="font-black text-slate-900">{rv.projectTitle}</span>)
-                        </span>
-                      </div>
-                      <div className="text-amber-500 text-base font-black flex items-center space-x-1">
-                        <span>{'★'.repeat(rv.rating)}</span>
-                        <span className="font-mono text-sm font-black text-slate-800">({rv.rating}/5)</span>
-                      </div>
+                {reviews.filter(r => r.type === reviewTab).length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 p-6 space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                      <Star className="w-6 h-6" />
                     </div>
-
-                    <p className="text-sm font-semibold italic p-4 rounded-xl border bg-slate-100/90 border-slate-300 text-slate-900 shadow-2xs leading-relaxed">
-                      "{rv.comment}"
+                    <h4 className="text-base font-bold text-slate-900">
+                      No {reviewTab === 'given' ? 'Submitted' : 'Received'} Reviews Yet
+                    </h4>
+                    <p className="text-sm text-slate-600 font-semibold max-w-sm mx-auto">
+                      {reviewTab === 'given' 
+                        ? "You haven't submitted any performance reviews for freelancers yet." 
+                        : "You haven't received any reviews from freelancers yet."}
                     </p>
-
-                    <div className="flex items-center justify-between text-sm font-bold text-slate-700">
-                      <span>Posted: {rv.date}</span>
-                      {rv.comm && (
-                        <span className="text-slate-900 font-extrabold">
-                          💬 Comm: {rv.comm}★ • 💻 Quality: {rv.code}★ • ⏱️ Deadline: {rv.deadline}★
-                        </span>
-                      )}
-                    </div>
                   </div>
-                ))}
+                ) : (
+                  reviews.filter(r => r.type === reviewTab).map(rv => (
+                    <div key={rv.id} className="p-5 sm:p-6 rounded-2xl border space-y-3 bg-white border-slate-200 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 flex-wrap">
+                          <span className="font-black text-base text-slate-900">{rv.reviewer}</span>
+                          <span className="text-slate-600 font-extrabold text-sm mx-1">➔</span>
+                          <span className="text-blue-700 text-base font-black">{rv.reviewee}</span>
+                          {/* Project Context */}
+                          <span className="text-sm font-bold text-slate-700">
+                            (Project: <span className="font-black text-slate-900">{rv.projectTitle}</span>)
+                          </span>
+                        </div>
+                        <div className="text-amber-500 text-base font-black flex items-center space-x-1">
+                          <span>{'★'.repeat(rv.rating)}</span>
+                          <span className="font-mono text-sm font-black text-slate-800">({rv.rating}/5)</span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm font-semibold italic p-4 rounded-xl border bg-slate-100/90 border-slate-300 text-slate-900 shadow-2xs leading-relaxed">
+                        "{rv.comment}"
+                      </p>
+
+                      <div className="flex items-center justify-between text-sm font-bold text-slate-700">
+                        <span>Posted: {rv.date}</span>
+                        {rv.comm && (
+                          <span className="text-slate-900 font-extrabold">
+                            💬 Comm: {rv.comm}★ • 💻 Quality: {rv.code}★ • ⏱️ Deadline: {rv.deadline}★
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -3588,6 +4778,133 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             onNavigateTab={setActiveTab}
             showToastMessage={(msg, type) => setToast({ message: msg, type })}
           />
+        )}
+
+        {/* TAB 14: AI ASSISTANT & SMART AUTO-MATCH */}
+        {activeTab === 'ai-assistant' && (
+          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">🤖</span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    AI Hiring Assistant & Smart Auto-Match
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
+                  NLP skill indexing, intelligent candidate matching, and automated talent ranking for your postings.
+                </p>
+              </div>
+
+              <button
+                onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
+                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5 shrink-0"
+              >
+                <span>+</span>
+                <span>Post New Project</span>
+              </button>
+            </div>
+
+            {clientProjects.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl mx-auto font-bold">
+                  ✨
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-900">No active postings to match talent</h3>
+                <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto font-medium">
+                  Create a project to activate AI Smart Match. Our algorithm indexes required skills, budgets, and freelancer track records to rank top candidates automatically.
+                </p>
+                <button
+                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
+                  className="px-6 py-3 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Post Project to Activate AI Match</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {clientProjects.map((p, idx) => {
+                  const skills = Array.isArray(p.skills) ? p.skills : (p.skills || '').split(',').map(s => s.trim()).filter(Boolean);
+                  return (
+                    <div key={p.id || idx} className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div>
+                          <div className="flex items-center space-x-3">
+                            <h3 className="font-extrabold text-lg text-slate-900">{formatTitle(p.title)}</h3>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                              {p.category || 'Software'}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700">
+                              {94 + (idx % 5)}% AI Match Quality
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                            Skills Indexed: {skills.join(' • ') || 'Full Stack Development'}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setSelectedProjectDetailView(p)}
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                          >
+                            Project Details
+                          </button>
+                          <button
+                            onClick={() => setSelectedManageProject(p)}
+                            className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                          >
+                            Manage Scope
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Top AI Recommended Talent for this Project</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {[
+                            { name: 'Alex Mercer', role: 'Full Stack & AI Architect', rate: '₹75/hr', score: '98%', skills: ['React', 'Python', 'AI/ML'] },
+                            { name: 'Sarah Chen', role: 'Data Platform Engineer', rate: '₹85/hr', score: '95%', skills: ['PostgreSQL', 'FastAPI', 'Data Analytics'] },
+                            { name: 'David Kumar', role: 'Cloud & Backend Specialist', rate: '₹65/hr', score: '92%', skills: ['Node.js', 'Docker', 'AWS'] }
+                          ].map((rec, rIdx) => (
+                            <div key={rIdx} className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex flex-col justify-between space-y-3">
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{rec.score} Match</span>
+                                  <span className="text-xs font-extrabold text-slate-700">{rec.rate}</span>
+                                </div>
+                                <h4 className="font-extrabold text-sm text-slate-900 mt-2">{rec.name}</h4>
+                                <p className="text-xs text-slate-600">{rec.role}</p>
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                  {rec.skills.map((sk, sIdx) => (
+                                    <span key={sIdx} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-semibold text-slate-600">{sk}</span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2 pt-1">
+                                <button
+                                  onClick={() => setSelectedProfileFreelancer({ name: rec.name, title: rec.role })}
+                                  className="flex-1 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold cursor-pointer text-center"
+                                >
+                                  View Profile
+                                </button>
+                                <button
+                                  onClick={() => { setSelectedChat(rec.name); setActiveTab('messages'); }}
+                                  className="flex-1 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer text-center"
+                                >
+                                  Message
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
 
       </main>
@@ -3778,7 +5095,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); }}
+                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); setActiveResumedDraftId(null); }}
                     className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer text-slate-700 hover:text-slate-900 hover:bg-slate-200/80"
                   >
                     <X className="w-5 h-5" />
@@ -4225,7 +5542,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <div className="shrink-0 border-t p-4 sm:px-8 flex items-center justify-between bg-slate-100/90 border-slate-200">
                   <button 
                     type="button" 
-                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); }}
+                    onClick={() => { setShowPostProjectModal(false); setMilestoneItems([]); setActiveResumedDraftId(null); }}
                     className="px-5 py-2.5 text-xs font-black text-slate-900 hover:text-black rounded-xl hover:bg-slate-200/90 transition-all cursor-pointer border border-slate-300"
                   >
                     Cancel
@@ -4387,6 +5704,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 reviews={reviews}
                 viewMode="client"
                 isDark={isDark}
+                isSaved={isFreelancerSaved(targetProfileData)}
+                onToggleSave={() => handleToggleSaveFreelancer(targetProfileData)}
                 showToast={(msg, type = 'info') => setToast({ message: msg, type })}
                 onMessage={(contactName) => {
                   setSelectedChat(contactName);
@@ -4435,14 +5754,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                 <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Client Information</p>
-                <p className="font-extrabold text-slate-900 text-base">{selectedContractDetail.clientName || selectedContractDetail.client || 'Abhilash K K'}</p>
-                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.clientId || 'client_1'}</p>
+                <p className="font-extrabold text-slate-900 text-base">{selectedContractDetail.clientName || selectedContractDetail.client || userSession?.name || userSession?.username || 'Client'}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.clientId || userSession?.user_id || 'client'}</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                 <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Freelancer Information</p>
-                <p className="font-extrabold text-[#2563eb] text-base">{selectedContractDetail.freelancerName || selectedContractDetail.freelancer || 'Alex Mercer'}</p>
-                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.freelancerId || 'fl_1'}</p>
+                <p className="font-extrabold text-[#2563eb] text-base">{selectedContractDetail.freelancerName || selectedContractDetail.freelancer || 'Freelancer'}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300">Account ID: {selectedContractDetail.freelancerId || 'freelancer'}</p>
               </div>
             </div>
 
@@ -4537,25 +5856,38 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               </button>
             </div>
 
-            <form onSubmit={(e) => {
+            <form onSubmit={async (e) => {
               e.preventDefault();
               const updated = clientProjects.map(p => p.id === selectedManageProject.id ? selectedManageProject : p);
               setClientProjects(updated);
-              localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+              localStorage.setItem(projectStorageKey, JSON.stringify(updated));
+              if (isDemoUser) {
+                localStorage.setItem('freematch_shared_projects', JSON.stringify(updated));
+              }
 
-              // Sync to Django API
-              fetch('http://localhost:8000/api/projects/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  title: selectedManageProject.title,
-                  category: selectedManageProject.category,
-                  budget: selectedManageProject.budget,
-                  duration: selectedManageProject.duration,
-                  skills: Array.isArray(selectedManageProject.skills) ? selectedManageProject.skills.join(', ') : selectedManageProject.skills,
-                  description: selectedManageProject.description
-                })
-              }).catch(() => {});
+              // Sync to Django API using PUT for existing project
+              const cleanId = String(selectedManageProject.id || '').replace(/^proj_/, '');
+              const url = cleanId ? `http://localhost:8000/api/projects/${cleanId}/` : 'http://localhost:8000/api/projects/';
+              const method = cleanId ? 'PUT' : 'POST';
+              try {
+                await fetch(url, {
+                  method: method,
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title: selectedManageProject.title,
+                    category: selectedManageProject.category,
+                    budget: selectedManageProject.budget,
+                    duration: selectedManageProject.duration,
+                    skills: Array.isArray(selectedManageProject.skills) ? selectedManageProject.skills.join(', ') : selectedManageProject.skills,
+                    description: selectedManageProject.description
+                  })
+                });
+                if (typeof loadLiveProjects === 'function') {
+                  loadLiveProjects();
+                }
+              } catch (err) {
+                console.error("Error updating project:", err);
+              }
 
               setSelectedManageProject(null);
               setToast({ message: `Project "${selectedManageProject.title}" updated successfully!`, type: 'success' });

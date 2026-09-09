@@ -60,6 +60,28 @@ export const markAllNotificationsRead = async (userId = '') => {
   }
 };
 
+export const deleteNotification = async (id) => {
+  try {
+    await fetch(`${API_BASE}/${id}/delete/`, { method: 'POST' });
+    window.dispatchEvent(new CustomEvent('freematch_notification_event', { detail: { action: 'delete', id } }));
+  } catch (err) {
+    console.warn('Delete notification notice:', err);
+  }
+};
+
+export const clearAllNotifications = async (userId = '') => {
+  try {
+    await fetch(`${API_BASE}/clear-all/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId })
+    });
+    window.dispatchEvent(new CustomEvent('freematch_notification_event', { detail: { action: 'clear_all' } }));
+  } catch (err) {
+    console.warn('Clear all notifications notice:', err);
+  }
+};
+
 // Format relative time string e.g. "2 mins ago", "1 hour ago", "Just now"
 export const formatRelativeTime = (isoString) => {
   if (!isoString) return 'Just now';

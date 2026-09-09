@@ -55,18 +55,18 @@ const ClientProfileView = ({
       }
     } catch (e) {}
 
-    const isSeedClient = authUsername === 'user1' || authUsername === 'abhi' || authUsername === 'abhilash' || authUsername.includes('techstream') || authUsername === 'john@freematch.ai';
+    const isSeedClient = authUsername === 'demo_client';
 
     if (isSeedClient) {
       return {
-        displayName: currentUserName || 'Abhilash K K',
+        displayName: 'Demo Client',
         companyName: 'TechStream Enterprises',
         industry: 'Software Engineering & Artificial Intelligence',
         location: 'San Francisco, CA',
         website: 'https://freematch.ai',
-        contactEmail: userSession?.email || 'abhi@freematch.ai',
+        contactEmail: 'demo@freematch.ai',
         description: 'Enterprise client account on FreeMatch AI platform driving next-generation AI model execution, full-stack web engineering, and autonomous pipeline optimization.',
-        avatar_url: userSession?.avatar_url || '',
+        avatar_url: '',
         joinedDate: 'October 2023',
         verified: true
       };
@@ -81,7 +81,7 @@ const ClientProfileView = ({
       contactEmail: userSession?.email || `${authUsername}@example.com`,
       description: '',
       avatar_url: userSession?.avatar_url || '',
-      joinedDate: 'August 2026',
+      joinedDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       verified: false
     };
   });
@@ -116,9 +116,19 @@ const ClientProfileView = ({
     keyVariants.forEach(k => {
       try { localStorage.setItem(k, JSON.stringify(updatedProfile)); } catch (e) {}
     });
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('freematch_profile_event'));
-    window.dispatchEvent(new Event('freematch_user_avatar_event'));
+    try {
+      const sessionStr = localStorage.getItem('freematch_active_session');
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if ((session.user_id || session.username || '').toLowerCase() === authUsername.toLowerCase()) {
+          session.avatar_url = updatedProfile.avatar_url;
+          session.name = updatedProfile.displayName || updatedProfile.name;
+          localStorage.setItem('freematch_active_session', JSON.stringify(session));
+        }
+      }
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent('freematch_profile_event', { detail: updatedProfile }));
+    window.dispatchEvent(new CustomEvent('freematch_user_avatar_event', { detail: { avatar_url: updatedProfile.avatar_url, username: authUsername } }));
   };
 
   // ---------------------------------------------------------------------------
@@ -157,6 +167,7 @@ const ClientProfileView = ({
       showToast('Client profile picture updated successfully!', 'success');
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const confirmRemoveAvatar = () => {
@@ -376,14 +387,14 @@ const ClientProfileView = ({
                 )}
               </div>
 
-              {/* UPLOAD / CAMERA ICON OVERLAY */}
+              {/* UPLOAD / CAMERA ICON OVERLAY BUTTON */}
               <label 
                 htmlFor="client-avatar-file-input" 
-                className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center text-white text-xs font-bold cursor-pointer backdrop-blur-xs"
-                title="Change Profile Picture"
+                className="absolute -bottom-1 -right-1 w-8 h-8 sm:w-8.5 sm:h-8.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900 cursor-pointer transition-all hover:scale-110 z-10"
+                title="Upload or Change Profile Picture"
+                aria-label="Upload profile picture"
               >
-                <Camera className="w-5 h-5 mb-0.5" />
-                <span>Upload</span>
+                <Camera className="w-4 h-4 text-white" />
               </label>
               <input 
                 id="client-avatar-file-input" 
@@ -392,11 +403,6 @@ const ClientProfileView = ({
                 className="hidden" 
                 onChange={handleAvatarSelect} 
               />
-
-              {/* VERIFIED BADGE */}
-              <span className="absolute -bottom-1 -right-1 w-7 h-7 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full flex items-center justify-center text-white text-xs font-black shadow-xs">
-                ✓
-              </span>
             </div>
 
             {/* NAME & META INFO */}
@@ -787,7 +793,7 @@ const ClientProfileView = ({
                   className={`w-full px-4 py-2.5 rounded-xl border text-xs font-bold transition-all ${
                     formErrors.displayName ? 'border-red-500 ring-1 ring-red-500/30' : (isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
                   }`}
-                  placeholder="e.g. Abhilash K K"
+                  placeholder="e.g. John Doe"
                 />
                 {formErrors.displayName && <p className="text-xs font-bold text-red-500 mt-1">{formErrors.displayName}</p>}
               </div>

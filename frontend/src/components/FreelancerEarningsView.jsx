@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   X
 } from 'lucide-react';
+import { calculateFreelancerFinancials } from '../utils/freelancerFinancials';
 
 /**
  * FreelancerEarningsView Component
@@ -23,6 +24,8 @@ import {
 export default function FreelancerEarningsView({
   userSession = null,
   contracts = [],
+  apiFinancials = null,
+  onFinancialsChange = () => {},
   isDark = false,
   showToast = () => {}
 }) {
@@ -30,200 +33,60 @@ export default function FreelancerEarningsView({
 
   // Modal & Filter State
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('25000');
+  const [withdrawAmount, setWithdrawAmount] = useState('5000');
   const [selectedBank, setSelectedBank] = useState('HDFC Bank **** 4578');
   const [periodFilter, setPeriodFilter] = useState('This Month');
   const [isSubmittingWithdrawal, setIsSubmittingWithdrawal] = useState(false);
+  const [localWithdrawals, setLocalWithdrawals] = useState([]);
 
   // ---------------------------------------------------------------------------
-  // DYNAMIC FINANCIAL DATA CALCULATION FROM AUTHENTICATED FREELANCER CONTRACTS
+  // DYNAMIC FINANCIAL DATA CALCULATION (SHARED SOURCE OF TRUTH)
   // ---------------------------------------------------------------------------
   const financialData = useMemo(() => {
-    // 1. Filter contracts belonging strictly to currentFlId
-    const myAssignedContracts = (contracts || []).filter(c => {
-      if (!c) return false;
-      const cFl = (c.freelancerName || c.freelancer || c.freelancerId || '').toLowerCase().trim();
-      if (!cFl) return false;
-      
-      const isUserMatch = cFl.includes(currentFlId) || currentFlId.includes(cFl);
-      const isAlex = (currentFlId.includes('alex') || currentFlId.includes('mercer')) && cFl.includes('alex');
-      const isSarah = (currentFlId.includes('sarah') || currentFlId.includes('chen')) && cFl.includes('sarah');
-      const isHaines = (currentFlId.includes('haines') || currentFlId.includes('paulson')) && cFl.includes('haines');
-      
-      return isUserMatch || isAlex || isSarah || isHaines;
+    return calculateFreelancerFinancials({
+      userSession,
+      contracts,
+      apiFinancials,
+      withdrawals: localWithdrawals
     });
-
-    // 2. Zero-Data Condition: If freelancer has no assigned contracts/milestones
-    if (myAssignedContracts.length === 0) {
-      return {
-        hasData: false,
-        totalBalance: '₹0',
-        totalEarned: '₹0',
-        pendingRelease: '₹0',
-        totalWithdrawn: '₹0',
-        growthRate: '0%',
-        pendingCount: 0,
-        withdrawalCount: 0,
-        overview: {
-          mainTotal: '₹0',
-          growthLabel: '0% / No earnings yet',
-          milestonePayments: '₹0',
-          projectEarnings: '₹0',
-          bonuses: '₹0',
-          refunds: '₹0',
-          chartData: []
-        },
-        breakdown: {
-          available: { amount: '₹0', pct: '0%' },
-          pending: { amount: '₹0', pct: '0%' },
-          escrow: { amount: '₹0', pct: '0%' },
-          inProgress: { amount: '₹0', pct: '0%' }
-        },
-        upcomingReleases: [],
-        transactions: [],
-        lastWithdrawal: null
-      };
-    }
-
-    // 3. Calculate dynamic totals from database contracts
-    let earnedRaw = 0;
-    let pendingRaw = 0;
-    let withdrawnRaw = 0;
-    let pendingMilestonesTotalCount = 0;
-    const upcomingList = [];
-    const txList = [];
-
-    myAssignedContracts.forEach(c => {
-      const projTitle = c.projectName || c.project || 'Assigned Project';
-      const cAmtStr = (c.amount || c.agreedAmount || '₹0').toString().replace(/[^0-9]/g, '');
-      const cTotal = parseInt(cAmtStr, 10) || 0;
-
-      // Milestones calculation
-      const doneCount = Number(c.milestonesDone || 0);
-      const totalCount = Number(c.milestonesTotal || 1);
-      const remainingCount = Math.max(0, totalCount - doneCount);
-      pendingMilestonesTotalCount += remainingCount;
-
-      const mPct = totalCount > 0 ? (doneCount / totalCount) : 0;
-
-      const singleMilestoneVal = Math.round(cTotal / totalCount);
-      const cEarned = Math.round(cTotal * mPct);
-      const cPending = Math.max(0, cTotal - cEarned);
-
-      earnedRaw += cEarned;
-      pendingRaw += cPending;
-
-      if (cPending > 0) {
-        const nextMilestoneAmt = Math.min(cPending, singleMilestoneVal);
-        upcomingList.push({
-          id: `up_${c.id || c.contractId}`,
-          project: projTitle,
-          milestone: `Milestone ${doneCount + 1} - Deliverable Release`,
-          amount: `₹${nextMilestoneAmt.toLocaleString('en-IN')}`,
-          due: `In ${(doneCount + 1) * 4} days`,
-          color: 'emerald'
-        });
-      }
-
-      if (cEarned > 0) {
-        txList.push({
-          id: `tx_${c.id || c.contractId}`,
-          type: 'in',
-          title: 'Milestone Payment Received',
-          subtitle: `${projTitle} - Milestone ${doneCount}`,
-          amount: `+₹${cEarned.toLocaleString('en-IN')}`,
-          date: c.startDate || 'Aug 2026',
-          status: 'Completed',
-          color: 'emerald'
-        });
-      }
-    });
-
-    // Check user withdrawals from local store
-    try {
-      const savedW = localStorage.getItem(`freematch_user_${currentFlId}_withdrawals`);
-      if (savedW) {
-        const parsedW = JSON.parse(savedW);
-        if (Array.isArray(parsedW)) {
-          parsedW.forEach(w => {
-            const wAmt = parseInt((w.amount || '0').replace(/[^0-9]/g, ''), 10) || 0;
-            withdrawnRaw += wAmt;
-            txList.push({
-              id: w.id || `tx_w_${Date.now()}`,
-              type: 'out',
-              title: 'Withdrawal to Bank',
-              subtitle: `To ${w.bank || 'Bank Account'}`,
-              amount: `-₹${wAmt.toLocaleString('en-IN')}`,
-              date: w.date || 'Recent',
-              status: 'Completed',
-              color: 'purple'
-            });
-          });
-        }
-      }
-    } catch (e) {}
-
-    const availableRaw = Math.max(0, earnedRaw - withdrawnRaw);
-    const totSum = availableRaw + pendingRaw;
-    const availPct = totSum > 0 ? Math.round((availableRaw / totSum) * 100) : 0;
-    const pendPct = totSum > 0 ? (100 - availPct) : 0;
-
-    return {
-      hasData: earnedRaw > 0 || pendingRaw > 0,
-      totalBalance: `₹${availableRaw.toLocaleString('en-IN')}`,
-      totalEarned: `₹${earnedRaw.toLocaleString('en-IN')}`,
-      pendingRelease: `₹${pendingRaw.toLocaleString('en-IN')}`,
-      totalWithdrawn: `₹${withdrawnRaw.toLocaleString('en-IN')}`,
-      growthRate: '+12.5%',
-      pendingCount: pendingMilestonesTotalCount || upcomingList.length,
-      withdrawalCount: txList.filter(t => t.type === 'out').length,
-      overview: {
-        mainTotal: `₹${earnedRaw.toLocaleString('en-IN')}`,
-        growthLabel: earnedRaw > 0 ? '▲ Active Contract Earnings' : '0% / No earnings yet',
-        milestonePayments: `₹${Math.round(earnedRaw * 0.4).toLocaleString('en-IN')}`,
-        projectEarnings: `₹${Math.round(earnedRaw * 0.6).toLocaleString('en-IN')}`,
-        bonuses: '₹0',
-        refunds: '₹0',
-        chartData: [
-          { label: 'Aug 1', val: Math.round(earnedRaw * 0.1) },
-          { label: 'Aug 6', val: Math.round(earnedRaw * 0.3) },
-          { label: 'Aug 11', val: Math.round(earnedRaw * 0.5) },
-          { label: 'Aug 16', val: Math.round(earnedRaw * 0.7) },
-          { label: 'Aug 21', val: Math.round(earnedRaw * 0.85) },
-          { label: 'Aug 26', val: Math.round(earnedRaw * 0.95) },
-          { label: 'Aug 31', val: earnedRaw }
-        ]
-      },
-      breakdown: {
-        available: { amount: `₹${availableRaw.toLocaleString('en-IN')}`, pct: `${availPct}%` },
-        pending: { amount: `₹${pendingRaw.toLocaleString('en-IN')}`, pct: `${pendPct}%` },
-        escrow: { amount: '₹0', pct: '0%' },
-        inProgress: { amount: '₹0', pct: '0%' }
-      },
-      upcomingReleases: upcomingList,
-      transactions: txList,
-      lastWithdrawal: withdrawnRaw > 0 ? {
-        amount: `₹${withdrawnRaw.toLocaleString('en-IN')}`,
-        date: 'Aug 24, 2026',
-        bank: 'HDFC Bank **** 4578',
-        status: 'Completed'
-      } : null
-    };
-  }, [currentFlId, contracts]);
+  }, [userSession, contracts, apiFinancials, localWithdrawals]);
 
   // Handle Withdrawal Submission
-  const handleExecuteWithdrawal = (e) => {
+  const handleExecuteWithdrawal = async (e) => {
     e.preventDefault();
-    if (!withdrawAmount || Number(withdrawAmount) <= 0) {
+    const numAmt = Number(withdrawAmount);
+    if (!withdrawAmount || isNaN(numAmt) || numAmt <= 0) {
       showToast('Please enter a valid withdrawal amount.', 'error');
       return;
     }
+    if (numAmt > (financialData.totalBalanceRaw || 0)) {
+      showToast(`Cannot withdraw ₹${numAmt.toLocaleString('en-IN')}. Available wallet balance is ${financialData.totalBalance}.`, 'error');
+      return;
+    }
     setIsSubmittingWithdrawal(true);
-    setTimeout(() => {
-      setIsSubmittingWithdrawal(false);
+    try {
+      const res = await fetch('http://localhost:8000/api/freelancer-financials/withdraw/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          freelancer_id: currentFlId,
+          amount: numAmt,
+          bank_account: selectedBank
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Withdrawal request failed');
+      }
+      showToast(`Withdrawal request of ₹${numAmt.toLocaleString('en-IN')} submitted successfully.`, 'success');
       setShowWithdrawModal(false);
-      showToast(`Withdrawal request of ₹${Number(withdrawAmount).toLocaleString('en-IN')} submitted successfully.`, 'success');
-    }, 800);
+      onFinancialsChange();
+      window.dispatchEvent(new CustomEvent('freematch_shared_event'));
+    } catch (err) {
+      showToast(err.message || 'Error processing withdrawal request.', 'error');
+    } finally {
+      setIsSubmittingWithdrawal(false);
+    }
   };
 
   const cardBg = isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs';

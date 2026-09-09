@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Pencil, 
   Zap, 
@@ -25,7 +25,9 @@ import {
   Building2,
   Eye,
   Trash2,
-  Camera
+  Camera,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react';
 import { validateAvatarFile, getInitials } from '../utils/avatarUtils';
 import { 
@@ -52,13 +54,15 @@ export default function FreelancerProfileView({
   reviews = [],
   viewMode = 'client', // 'client' | 'freelancer'
   isDark = true,
+  isSaved = false,
+  onToggleSave = null,
   onMessage = () => {},
   onHire = () => {},
   onClose = null,
   showToast = () => {}
 }) {
   // Determine authenticated username
-  const authUsername = userSession?.user_id || userSession?.username || initialFreelancerData.user_id || initialFreelancerData.username || 'alexmercer';
+  const authUsername = userSession?.user_id || userSession?.username || initialFreelancerData.user_id || initialFreelancerData.username || '';
 
   // Core State
   const [profile, setProfile] = useState(null);
@@ -81,13 +85,15 @@ export default function FreelancerProfileView({
     let combined = Array.isArray(reviews) ? [...reviews] : [];
 
     // 1. Fetch from backend REST API with user ID query
-    try {
-      const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
-      if (resUser.ok) {
-        const apiData = await resUser.json();
-        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
-      }
-    } catch (e) {}
+    if (authUsername) {
+      try {
+        const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+        if (resUser.ok) {
+          const apiData = await resUser.json();
+          if (Array.isArray(apiData)) combined = [...combined, ...apiData];
+        }
+      } catch (e) {}
+    }
 
     // 2. Fetch from backend REST API with display name query
     if (initialFreelancerData?.name && initialFreelancerData.name !== authUsername) {
@@ -100,142 +106,167 @@ export default function FreelancerProfileView({
       } catch (e) {}
     }
 
-    // 3. Fallback: Fetch all reviews endpoint
-    try {
-      const resAll = await fetch(`http://localhost:8000/api/reviews/`);
-      if (resAll.ok) {
-        const apiData = await resAll.json();
-        if (Array.isArray(apiData)) combined = [...combined, ...apiData];
-      }
-    } catch (e) {}
-
-    // 4. Scan LocalStorage keys for reviews submitted by Clients
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('reviews') || key.includes('freematch'))) {
-          try {
-            const parsed = JSON.parse(localStorage.getItem(key));
-            if (Array.isArray(parsed)) {
-              parsed.forEach(item => {
-                if (item && item.reviewee && (item.comment || item.rating)) {
-                  combined.push(item);
-                }
-              });
-            }
-          } catch (err) {}
+    // 3. Scan LocalStorage keys strictly for reviews matching this freelancer
+    const curName = (initialFreelancerData?.name || '').toLowerCase().trim();
+    const curUser = (authUsername || '').toLowerCase().trim();
+    if (curName || curUser) {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('reviews') || key.includes('freematch'))) {
+            try {
+              const parsed = JSON.parse(localStorage.getItem(key));
+              if (Array.isArray(parsed)) {
+                parsed.forEach(item => {
+                  if (item && item.reviewee && (item.comment || item.rating)) {
+                    const revTarget = String(item.reviewee).toLowerCase().trim();
+                    const matches = (curUser && (revTarget === curUser || revTarget.includes(curUser) || curUser.includes(revTarget))) ||
+                                    (curName && (revTarget === curName || revTarget.includes(curName) || curName.includes(revTarget)));
+                    if (matches) {
+                      combined.push(item);
+                    }
+                  }
+                });
+              }
+            } catch (err) {}
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
 
-    // Deduplicate by unique key
+    // Deduplicate by composite semantic key (reviewer + reviewee + project)
     const uniqueMap = new Map();
     combined.forEach(r => {
       if (!r) return;
-      const key = r.id || `${r.reviewer}_${r.reviewee}_${r.projectTitle || r.project_title}_${r.comment}`;
-      if (!uniqueMap.has(key)) {
+      const rev = String(r.reviewer_username || r.reviewer || '').toLowerCase().trim();
+      const target = String(r.reviewee_username || r.reviewee || '').toLowerCase().trim();
+      const proj = String(r.projectTitle || r.project_title || '').toLowerCase().trim();
+      const key = `${rev}___${target}___${proj}`;
+
+      const existing = uniqueMap.get(key);
+      if (!existing) {
         uniqueMap.set(key, r);
+      } else {
+        const existingIsBackend = String(existing.id || '').startsWith('rev_') || typeof existing.id === 'number';
+        const currentIsBackend = String(r.id || '').startsWith('rev_') || typeof r.id === 'number';
+        if (!existingIsBackend && currentIsBackend) {
+          uniqueMap.set(key, r);
+        }
       }
     });
 
     setFetchedReviews(Array.from(uniqueMap.values()));
-  }, [reviews, authUsername, initialFreelancerData]);
+  }, [reviews, authUsername]);
 
   useEffect(() => {
     loadReviewsData();
     const handleSync = () => loadReviewsData();
-    window.addEventListener('storage', handleSync);
     window.addEventListener('freematch_review_submitted', handleSync);
     return () => {
-      window.removeEventListener('storage', handleSync);
       window.removeEventListener('freematch_review_submitted', handleSync);
     };
   }, [loadReviewsData]);
 
-  const loadProfileData = useCallback(async () => {
-    setLoading(true);
+  const hasLoadedRef = useRef(false);
+  const loadedUserRef = useRef(null);
+
+  const loadProfileData = useCallback(async (force = false) => {
+    if (!force && hasLoadedRef.current && loadedUserRef.current === authUsername) {
+      return;
+    }
+    loadedUserRef.current = authUsername;
+
+    // Only display full-screen loading skeleton on initial mount when profile state is null
+    setProfile(prev => {
+      if (!prev) setLoading(true);
+      return prev;
+    });
+
     try {
       const res = await fetch(`http://localhost:8000/api/freelancer-profile/?username=${encodeURIComponent(authUsername)}`);
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
-      } else {
-        throw new Error('Failed to fetch from backend API');
+        hasLoadedRef.current = true;
+        setLoading(false);
+        return;
       }
     } catch (err) {
       console.warn('Backend API connection notice, using synchronized local store fallback:', err);
-      let loadedProfile = null;
-      const savedLocal = localStorage.getItem(`freematch_profile_${authUsername}`);
-      if (savedLocal) {
-        try {
-          loadedProfile = JSON.parse(savedLocal);
-        } catch (e) {}
-      }
-
-      if (!loadedProfile) {
-        const isDemo = ['user1', 'alex', 'mercer', 'haines', 'abhilash', 'john'].some(d => authUsername.toLowerCase().includes(d));
-        if (isDemo) {
-          loadedProfile = {
-            user_id: authUsername,
-            name: authUsername.toLowerCase().includes('haines') ? 'Haines JP' : (initialFreelancerData.name || 'Alex Mercer'),
-            title: initialFreelancerData.title || 'Senior React, PyTorch & Django Architect',
-            headline: initialFreelancerData.headline || 'Senior React, PyTorch & Django Architect',
-            location: initialFreelancerData.location || 'San Francisco, CA',
-            hourly_rate: initialFreelancerData.hourlyRate || '₹4,000/hr',
-            raw_hourly_rate: 75.0,
-            availability_status: 'Available for Work',
-            available_hours: '40 hrs/week',
-            years_experience: '7+',
-            bio: initialFreelancerData.bio || 'Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications.',
-            skills: initialFreelancerData.skills || ['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'FastAPI', 'OWASP Security'],
-            avatar_url: '',
-            resume_name: 'Alex_Mercer_Senior_Engineer_Resume.pdf',
-            resume_url: '#',
-            resume_size: '1.4 MB',
-            portfolio: [
-              { id: 101, title: 'AI Automated Test Pipeline', description: 'Automated test execution pipeline with FastAPI and PostgreSQL telemetry logging.', skills: ['Python', 'FastAPI', 'PostgreSQL'], status: 'Completed', completion_info: 'Delivered in 3 Weeks' },
-              { id: 102, title: 'AI Pipeline Optimization', description: 'High-performance inference acceleration engine using PyTorch quantization and TensorRT bindings.', skills: ['PyTorch', 'TensorRT', 'CUDA'], status: 'In Progress', completion_info: 'Active Contract • 4x Speedup' }
-            ],
-            experience: [
-              { id: 201, role: 'Principal AI & Full Stack Architect', organization: 'FreeMatch AI Client Projects', start_date: '2021', end_date: 'Present', currently_working: true, description: 'Architected deep learning inference servers and real-time React web dashboards.' }
-            ],
-            education: [
-              { id: 301, degree: 'B.S. in Computer Science', institution: 'Stanford University', start_year: '2015', end_year: '2019', description: 'Specialized in Artificial Intelligence & Systems Design.' }
-            ],
-            certifications: [
-              { id: 401, name: 'AWS Certified Solutions Architect', organization: 'Amazon Web Services', issue_date: '2022', expiry_date: '2025', credential_id: 'AWS-9021', credential_url: 'https://aws.amazon.com' }
-            ]
-          };
-        } else {
-          loadedProfile = {
-            user_id: authUsername,
-            name: userSession?.name || userSession?.user_id || authUsername,
-            title: 'Freelancer Specialist',
-            headline: 'Full Stack & AI Specialist',
-            location: 'San Francisco, CA',
-            hourly_rate: '₹4,000/hr',
-            raw_hourly_rate: 65.0,
-            availability_status: 'Available for Work',
-            available_hours: '40 hrs/week',
-            years_experience: '3+',
-            bio: 'Welcome to your freelancer profile! Click Edit Profile to customize your bio, title, hourly rate, skills, and portfolio.',
-            skills: ['React.js', 'Node.js', 'Python', 'PostgreSQL'],
-            avatar_url: '',
-            resume_name: '',
-            resume_url: '',
-            resume_size: '',
-            portfolio: [],
-            experience: [],
-            education: [],
-            certifications: []
-          };
-        }
-      }
-      setProfile(loadedProfile);
     } finally {
       setLoading(false);
     }
-  }, [authUsername, initialFreelancerData]);
+
+    let loadedProfile = null;
+    const savedLocal = localStorage.getItem(`freematch_profile_${authUsername}`);
+    if (savedLocal) {
+      try {
+        loadedProfile = JSON.parse(savedLocal);
+      } catch (e) {}
+    }
+
+    if (!loadedProfile) {
+      const isDemo = authUsername === 'demo_freelancer';
+      if (isDemo) {
+        loadedProfile = {
+          user_id: authUsername,
+          name: authUsername.toLowerCase().includes('haines') ? 'Haines JP' : (initialFreelancerData?.name || 'Alex Mercer'),
+          title: initialFreelancerData?.title || 'Senior React, PyTorch & Django Architect',
+          headline: initialFreelancerData?.headline || 'Senior React, PyTorch & Django Architect',
+          location: initialFreelancerData?.location || 'San Francisco, CA',
+          hourly_rate: initialFreelancerData?.hourlyRate || '₹4,000/hr',
+          raw_hourly_rate: 75.0,
+          availability_status: 'Available for Work',
+          available_hours: '40 hrs/week',
+          years_experience: '7+',
+          bio: initialFreelancerData?.bio || 'Senior Full Stack & Artificial Intelligence Engineer with 7+ years of experience constructing high-performance RESTful APIs, deep learning inference pipelines, and real-time React web applications.',
+          skills: initialFreelancerData?.skills || ['React.js', 'Python Django', 'PyTorch ML', 'PostgreSQL', 'Tailwind CSS', 'FastAPI', 'OWASP Security'],
+          avatar_url: '',
+          resume_name: 'Alex_Mercer_Senior_Engineer_Resume.pdf',
+          resume_url: '#',
+          resume_size: '1.4 MB',
+          portfolio: [
+            { id: 101, title: 'AI Automated Test Pipeline', description: 'Automated test execution pipeline with FastAPI and PostgreSQL telemetry logging.', skills: ['Python', 'FastAPI', 'PostgreSQL'], status: 'Completed', completion_info: 'Delivered in 3 Weeks' },
+            { id: 102, title: 'AI Pipeline Optimization', description: 'High-performance inference acceleration engine using PyTorch quantization and TensorRT bindings.', skills: ['PyTorch', 'TensorRT', 'CUDA'], status: 'In Progress', completion_info: 'Active Contract • 4x Speedup' }
+          ],
+          experience: [
+            { id: 201, role: 'Principal AI & Full Stack Architect', organization: 'FreeMatch AI Client Projects', start_date: '2021', end_date: 'Present', currently_working: true, description: 'Architected deep learning inference servers and real-time React web dashboards.' }
+          ],
+          education: [
+            { id: 301, degree: 'B.S. in Computer Science', institution: 'Stanford University', start_year: '2015', end_year: '2019', description: 'Specialized in Artificial Intelligence & Systems Design.' }
+          ],
+          certifications: [
+            { id: 401, name: 'AWS Certified Solutions Architect', organization: 'Amazon Web Services', issue_date: '2022', expiry_date: '2025', credential_id: 'AWS-9021', credential_url: 'https://aws.amazon.com' }
+          ]
+        };
+      } else {
+        loadedProfile = {
+          user_id: authUsername,
+          name: userSession?.name || userSession?.user_id || authUsername,
+          title: initialFreelancerData?.title || '',
+          headline: initialFreelancerData?.headline || '',
+          location: initialFreelancerData?.location || '',
+          hourly_rate: initialFreelancerData?.hourlyRate || '₹0/hr',
+          raw_hourly_rate: 0.0,
+          availability_status: 'Available for Work',
+          available_hours: '40 hrs/week',
+          years_experience: '0',
+          bio: initialFreelancerData?.bio || '',
+          skills: initialFreelancerData?.skills || [],
+          avatar_url: userSession?.avatar_url || '',
+          resume_name: '',
+          resume_url: '',
+          resume_size: '',
+          portfolio: [],
+          experience: [],
+          education: [],
+          certifications: []
+        };
+      }
+    }
+    setProfile(loadedProfile);
+    hasLoadedRef.current = true;
+  }, [authUsername]);
 
   useEffect(() => {
     loadProfileData();
@@ -244,7 +275,20 @@ export default function FreelancerProfileView({
   // Sync state helper to local storage & backend
   const persistState = (updatedProfile) => {
     setProfile(updatedProfile);
-    localStorage.setItem(`freematch_profile_${authUsername}`, JSON.stringify(updatedProfile));
+    try {
+      localStorage.setItem(`freematch_profile_${authUsername}`, JSON.stringify(updatedProfile));
+      const sessionStr = localStorage.getItem('freematch_active_session');
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if ((session.user_id || session.username || '').toLowerCase() === authUsername.toLowerCase()) {
+          session.avatar_url = updatedProfile.avatar_url;
+          session.name = updatedProfile.name;
+          localStorage.setItem('freematch_active_session', JSON.stringify(session));
+        }
+      }
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent('freematch_profile_event', { detail: updatedProfile }));
+    window.dispatchEvent(new CustomEvent('freematch_user_avatar_event', { detail: { avatar_url: updatedProfile.avatar_url, username: authUsername } }));
   };
 
   // ---------------------------------------------------------------------------
@@ -277,29 +321,83 @@ export default function FreelancerProfileView({
     hourly_rate: '',
     availability_status: 'Available for Work',
     available_hours: '40 hrs/week',
-    years_experience: '7+',
+    years_experience: '0',
     bio: '',
     avatar_url: ''
   });
 
-  const openEditProfileModal = () => {
+  const openEditProfileModal = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!profile) return;
+    const isDemo = authUsername === 'demo_freelancer';
     setAvatarPreview(profile.avatar_url || '');
     setAvatarError('');
     setProfileForm({
       name: profile.name || '',
       title: profile.title || '',
       headline: profile.headline || profile.title || '',
-      location: profile.location || 'San Francisco, CA',
-      hourly_rate: profile.hourly_rate ? String(profile.hourly_rate).replace('$', '').replace('₹', '').replace('/hr', '').trim() : '4000',
+      location: profile.location || (isDemo ? 'San Francisco, CA' : ''),
+      hourly_rate: profile.hourly_rate ? String(profile.hourly_rate).replace('$', '').replace('₹', '').replace('/hr', '').trim() : (isDemo ? '4000' : '0'),
       availability_status: profile.availability_status || 'Available for Work',
       available_hours: profile.available_hours || '40 hrs/week',
-      years_experience: profile.years_experience || '7+',
+      years_experience: profile.years_experience !== undefined && profile.years_experience !== '' ? profile.years_experience : (isDemo ? '7+' : '0'),
       bio: profile.bio || '',
       avatar_url: profile.avatar_url || ''
     });
     setFormErrors({});
     setActiveModal('edit_profile');
+  };
+
+  const handleDirectAvatarUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return; // User cancelled file picker -> preserve existing avatar
+
+    const validation = validateAvatarFile(file);
+    if (!validation.valid) {
+      showToast(validation.error, 'error');
+      e.target.value = '';
+      return;
+    }
+
+    setSaving(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      setSaving(false);
+      showToast('Error reading selected image file.', 'error');
+      e.target.value = '';
+    };
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result;
+
+        const res = await fetch('http://localhost:8000/api/user-avatar/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: authUsername,
+            avatar_url: base64Data
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to update profile picture.');
+        }
+
+        const updated = { ...profile, avatar_url: base64Data };
+        persistState(updated);
+        setAvatarPreview(base64Data);
+        setProfileForm(prev => ({ ...prev, avatar_url: base64Data }));
+
+        showToast('Profile picture updated successfully!', 'success');
+      } catch (err) {
+        showToast(err.message || 'Failed to upload profile picture.', 'error');
+      } finally {
+        setSaving(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAvatarSelect = (e) => {
@@ -310,6 +408,7 @@ export default function FreelancerProfileView({
     const validation = validateAvatarFile(file);
     if (!validation.valid) {
       setAvatarError(validation.error);
+      e.target.value = '';
       return;
     }
 
@@ -319,6 +418,7 @@ export default function FreelancerProfileView({
       setProfileForm(prev => ({ ...prev, avatar_url: reader.result }));
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const confirmRemoveAvatar = () => {
@@ -330,7 +430,9 @@ export default function FreelancerProfileView({
   };
 
   const handleSaveProfile = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (saving) return; // Prevent duplicate submissions
+
     const errors = {};
 
     const vName = validateName(profileForm.name, 'Full Name');
@@ -342,7 +444,7 @@ export default function FreelancerProfileView({
     const vBio = validateText(profileForm.bio, 'Bio', 10, 5000);
     if (!vBio.valid) errors.bio = vBio.error;
 
-    const vRate = validateMoney(profileForm.hourly_rate, 'Hourly Rate', 5, 1000);
+    const vRate = validateMoney(profileForm.hourly_rate, 'Hourly Rate', 0, 50000);
     if (!vRate.valid) errors.hourly_rate = vRate.error;
 
     if (Object.keys(errors).length > 0) {
@@ -363,7 +465,7 @@ export default function FreelancerProfileView({
         name: trimmedName,
         title: trimmedTitle,
         headline: profileForm.headline.trim() || trimmedTitle,
-        location: profileForm.location.trim() || 'San Francisco, CA',
+        location: profileForm.location.trim() || '',
         hourly_rate: rateNum,
         availability_status: profileForm.availability_status,
         available_hours: profileForm.available_hours,
@@ -372,11 +474,16 @@ export default function FreelancerProfileView({
         avatar_url: profileForm.avatar_url
       };
 
-      await fetch('http://localhost:8000/api/freelancer-profile/', {
+      const res = await fetch('http://localhost:8000/api/freelancer-profile/', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error persisting profile to database.');
+      }
 
       const updated = {
         ...profile,
@@ -394,12 +501,10 @@ export default function FreelancerProfileView({
       };
 
       persistState(updated);
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('freematch_profile_event'));
       showToast('Profile updated successfully and saved to database.', 'success');
       setActiveModal(null);
     } catch (err) {
-      showToast('Error persisting profile to database.', 'error');
+      showToast(err.message || 'Error persisting profile to database.', 'error');
     } finally {
       setSaving(false);
     }
@@ -612,45 +717,63 @@ export default function FreelancerProfileView({
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['pdf', 'docx', 'doc'].includes(ext)) {
       showToast('Only PDF and DOCX files are supported.', 'error');
+      e.target.value = '';
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       showToast('File size must not exceed 5 MB.', 'error');
+      e.target.value = '';
       return;
     }
 
     setSaving(true);
-    try {
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-      const fileBlobUrl = URL.createObjectURL(file);
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
 
-      await fetch('http://localhost:8000/api/freelancer-resume/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: authUsername,
-          file_name: file.name,
-          file_url: fileBlobUrl,
-          file_size: fileSizeMB
-        })
-      });
-
-      const updated = {
-        ...profile,
-        resume_name: file.name,
-        resume_url: fileBlobUrl,
-        resume_size: fileSizeMB
-      };
-
-      persistState(updated);
-      showToast('Resume uploaded successfully and saved to profile.', 'success');
-      setActiveModal(null);
-    } catch (err) {
-      showToast('Failed to upload resume.', 'error');
-    } finally {
+    const reader = new FileReader();
+    reader.onerror = () => {
       setSaving(false);
-    }
+      showToast('Error reading the selected resume file.', 'error');
+    };
+    reader.onload = async () => {
+      try {
+        const fileDataUrl = reader.result;
+
+        const res = await fetch('http://localhost:8000/api/freelancer-resume/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: authUsername,
+            file_name: file.name,
+            file_url: fileDataUrl,
+            file_size: fileSizeMB
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to upload resume.');
+        }
+
+        const data = await res.json();
+        const updated = {
+          ...profile,
+          resume_name: data.resume_name || file.name,
+          resume_url: data.resume_url || fileDataUrl,
+          resume_size: data.resume_size || fileSizeMB
+        };
+
+        persistState(updated);
+        showToast('Resume uploaded successfully and saved to profile.', 'success');
+        setActiveModal(null);
+      } catch (err) {
+        showToast(err.message || 'Failed to upload resume.', 'error');
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const confirmRemoveResume = () => {
@@ -660,15 +783,20 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          await fetch(`http://localhost:8000/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
+          const res = await fetch(`http://localhost:8000/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
             method: 'DELETE'
           });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to remove resume.');
+          }
 
           const updated = { ...profile, resume_name: '', resume_url: '', resume_size: '' };
           persistState(updated);
           showToast('Resume removed from profile successfully.', 'info');
         } catch (err) {
-          showToast('Failed to remove resume.', 'error');
+          showToast(err.message || 'Failed to remove resume.', 'error');
         } finally {
           setSaving(false);
           setActiveModal(null);
@@ -866,14 +994,15 @@ export default function FreelancerProfileView({
     );
   }
 
+  const isDemo = (authUsername || '').toLowerCase().trim() === 'demo_freelancer';
   const name = profile.name || authUsername;
-  const title = profile.title || 'Senior Software Engineer';
-  const headline = profile.headline || title;
-  const location = profile.location || 'San Francisco, CA';
-  const hourlyRate = profile.hourly_rate || '₹4,000/hr';
+  const title = profile.title || (isDemo ? 'Senior Software Engineer' : '');
+  const headline = profile.headline || title || (isDemo ? 'Senior Software Engineer' : 'Freelancer');
+  const location = profile.location || (isDemo ? 'San Francisco, CA' : 'Remote');
+  const hourlyRate = profile.hourly_rate || (isDemo ? '₹4,000/hr' : '₹0/hr');
   const availabilityStatus = profile.availability_status || 'Available for Work';
   const availableHours = profile.available_hours || '40 hrs/week';
-  const bio = profile.bio || 'Professional Software Engineer specializing in modern full-stack web and AI systems.';
+  const bio = profile.bio || (isDemo ? 'Professional Software Engineer specializing in modern full-stack web and AI systems.' : '');
 
   const currentFreelancerName = (profile?.name || initialFreelancerData?.name || authUsername || '').trim();
   const currentFreelancerUser = (authUsername || userSession?.user_id || '').trim();
@@ -1006,16 +1135,36 @@ export default function FreelancerProfileView({
           
           {/* Avatar & Headline Info */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-xl ring-4 ring-blue-500/20 shrink-0 overflow-hidden">
-              {profile.avatar_url ? (
-                <img 
-                  src={profile.avatar_url} 
-                  alt={name} 
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              ) : (
-                <span>{getInitials(name)}</span>
+            <div className="relative shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-xl ring-4 ring-blue-500/20 overflow-hidden">
+                {profile.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt={name} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span>{getInitials(name)}</span>
+                )}
+              </div>
+
+              {viewMode === 'freelancer' && (
+                <label 
+                  htmlFor="freelancer-direct-avatar-input"
+                  className={`absolute -bottom-1 -right-1 w-8 h-8 sm:w-8.5 sm:h-8.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-full flex items-center justify-center shadow-lg border-2 ${isDark ? 'border-[#060e22]' : 'border-white'} cursor-pointer transition-all hover:scale-110 z-10`}
+                  title="Upload or Change Profile Picture"
+                  aria-label="Upload profile picture"
+                >
+                  <Camera className="w-4 h-4 text-white" />
+                  <input 
+                    id="freelancer-direct-avatar-input"
+                    type="file" 
+                    accept="image/jpeg,image/png,image/webp" 
+                    onChange={handleDirectAvatarUpload}
+                    className="hidden" 
+                  />
+                </label>
               )}
             </div>
 
@@ -1052,6 +1201,30 @@ export default function FreelancerProfileView({
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-start lg:justify-end border-t lg:border-t-0 border-slate-800/40 pt-4 lg:pt-0">
             {viewMode === 'client' ? (
               <>
+                {onToggleSave && (
+                  <button
+                    onClick={() => onToggleSave(profile || initialFreelancerData)}
+                    className={`flex-1 lg:flex-none px-5 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center justify-center space-x-2 border shadow-md ${
+                      isSaved
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30'
+                        : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                    }`}
+                    title={isSaved ? 'Remove from Saved Freelancers' : 'Bookmark / Save Freelancer'}
+                  >
+                    {isSaved ? (
+                      <>
+                        <BookmarkCheck className="w-4 h-4 text-amber-400" />
+                        <span>Saved</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-4 h-4 text-slate-400" />
+                        <span>Save Freelancer</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
                 <button
                   onClick={() => onMessage(name)}
                   className="flex-1 lg:flex-none px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-black transition-all cursor-pointer flex items-center justify-center space-x-2 border border-slate-700 shadow-md"
@@ -1112,7 +1285,7 @@ export default function FreelancerProfileView({
           <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
             <Briefcase className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Experience</span>
           </span>
-          <p className="text-xl sm:text-2xl font-black text-blue-400">{profile.years_experience || '7+'}</p>
+          <p className="text-xl sm:text-2xl font-black text-blue-400">{profile.years_experience !== undefined && profile.years_experience !== '' ? profile.years_experience : (isDemo ? '7+' : '0')}</p>
           <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Years Experience</span>
         </div>
 
@@ -1120,7 +1293,7 @@ export default function FreelancerProfileView({
           <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
             <FolderKanban className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Completed</span>
           </span>
-          <p className="text-xl sm:text-2xl font-black text-indigo-400">{(profile.portfolio || []).length || '24'}</p>
+          <p className="text-xl sm:text-2xl font-black text-indigo-400">{isDemo ? ((profile.portfolio || []).length || 24) : (profile.portfolio || []).length}</p>
           <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Projects Completed</span>
         </div>
 
@@ -1144,7 +1317,7 @@ export default function FreelancerProfileView({
           <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center justify-center space-x-1">
             <Wallet className="w-3 h-3 text-slate-600 dark:text-slate-300 mr-1" /><span>Earnings</span>
           </span>
-          <p className="text-xl sm:text-2xl font-black text-emerald-400">{profile.total_earnings || '₹2,89,000'}</p>
+          <p className="text-xl sm:text-2xl font-black text-emerald-400">{profile.total_earnings || (isDemo ? '₹2,89,000' : '₹0')}</p>
           <span className="text-xs text-slate-700 dark:text-slate-300 font-bold block">Total Client Payouts</span>
         </div>
       </div>
@@ -1868,14 +2041,19 @@ export default function FreelancerProfileView({
                     download={profile.resume_name}
                     target="_blank" 
                     rel="noreferrer"
-                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs text-center rounded-xl flex items-center justify-center space-x-1"
+                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs text-center rounded-xl flex items-center justify-center space-x-1 shadow-sm"
                   >
                     <Download className="w-3.5 h-3.5 mr-1" />
                     <span>Download Resume</span>
                   </a>
+                  <label className="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 font-extrabold text-xs text-center rounded-xl border border-blue-500/30 flex items-center justify-center space-x-1 cursor-pointer">
+                    <Upload className="w-3.5 h-3.5 mr-1" />
+                    <span>Replace</span>
+                    <input type="file" accept=".pdf,.docx,.doc" onChange={handleFileUpload} className="hidden" />
+                  </label>
                   <button 
                     onClick={confirmRemoveResume} 
-                    className="px-4 py-2 bg-rose-900/40 hover:bg-rose-800 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/30 flex items-center space-x-1"
+                    className="px-4 py-2 bg-rose-900/40 hover:bg-rose-800 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/30 flex items-center space-x-1 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                     <span>Remove</span>
@@ -2015,15 +2193,17 @@ export default function FreelancerProfileView({
             <p className="text-xs text-slate-300 leading-relaxed font-medium">{deleteConfig.message}</p>
             <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
               <button 
-                onClick={() => setActiveModal(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl"
+                type="button"
+                onClick={(e) => { e.preventDefault(); setActiveModal(null); }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button 
-                onClick={deleteConfig.action}
+                type="button"
+                onClick={(e) => { e.preventDefault(); deleteConfig.action(); }}
                 disabled={saving}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl cursor-pointer disabled:opacity-50"
               >
                 {saving ? 'Deleting...' : 'Confirm Delete'}
               </button>

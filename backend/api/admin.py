@@ -138,3 +138,11 @@ class FreelancerCertificationAdmin(admin.ModelAdmin):
     list_display = ('name', 'organization', 'freelancer', 'issue_date')
     search_fields = ('name', 'organization', 'freelancer__username')
 
+from .models import FreelancerWithdrawal
+
+@admin.register(FreelancerWithdrawal)
+class FreelancerWithdrawalAdmin(admin.ModelAdmin):
+    list_display = ('freelancer', 'amount', 'bank_account', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('freelancer__username', 'bank_account')
+

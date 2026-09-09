@@ -61,29 +61,8 @@ const FreelancerSettingsView = ({
       }
     } catch (e) {}
 
-    const isHaines = ['haines', 'haines jp', 'hainesjosepaulson', 'haines1@gmail.com'].includes(authUsername);
-    const isAlex = ['alex', 'alexmercer', 'alex mercer'].includes(authUsername);
-    const isSarah = ['sarah', 'sarahchen', 'sarah chen'].includes(authUsername);
-    const isLana = ['lana', 'lanakim', 'lana kim'].includes(authUsername);
-    const isJames = ['james', 'jamesjoe1', 'james joe', 'james@gmail.com'].includes(authUsername);
-
-    if (isHaines) {
-      return {
-        displayName: 'Haines JP',
-        title: 'Senior PyTorch & AI Architect',
-        hourlyRate: 85,
-        availability: 'Available for Work',
-        workingHours: 40,
-        location: 'San Francisco, CA',
-        bio: 'Senior PyTorch, AI NLP & Full Stack Architect specializing in distributed LLM training, autonomous freight systems, and high-throughput Python backends.',
-        contactEmail: userSession?.email || 'haines1@gmail.com',
-        avatar_url: userSession?.avatar_url || '',
-        skills: ['PyTorch', 'Python', 'Django', 'React', 'FastAPI', 'PostgreSQL', 'Docker', 'NLP'],
-        resumeName: 'Haines_JP_Resume_2026.pdf'
-      };
-    }
-
-    if (isAlex) {
+    const isDemo = authUsername === 'demo_freelancer';
+    if (isDemo) {
       return {
         displayName: 'Alex Mercer',
         title: 'Senior PyTorch & AI Architect',
@@ -99,65 +78,17 @@ const FreelancerSettingsView = ({
       };
     }
 
-    if (isSarah) {
-      return {
-        displayName: 'Sarah Chen',
-        title: 'Lead Full-Stack AI Engineer',
-        hourlyRate: 80,
-        availability: 'Available for Work',
-        workingHours: 40,
-        location: 'Seattle, WA',
-        bio: 'Full-stack AI developer experienced in React, Next.js, Django REST framework, and RAG knowledge graph implementations.',
-        contactEmail: userSession?.email || 'sarah@freematch.ai',
-        avatar_url: userSession?.avatar_url || '',
-        skills: ['React', 'Next.js', 'Django', 'LangChain', 'Python', 'TailwindCSS'],
-        resumeName: 'Sarah_Chen_Fullstack_Resume.pdf'
-      };
-    }
-
-    if (isLana) {
-      return {
-        displayName: 'Lana Kim',
-        title: 'Cybersecurity & Audit Specialist',
-        hourlyRate: 90,
-        availability: 'Limited Availability',
-        workingHours: 20,
-        location: 'Austin, TX',
-        bio: 'Cybersecurity consultant and penetration testing auditor covering OWASP compliance, REST API security, and zero-trust backend architectures.',
-        contactEmail: userSession?.email || 'lana@freematch.ai',
-        avatar_url: userSession?.avatar_url || '',
-        skills: ['Cybersecurity', 'Penetration Testing', 'Python', 'Django', 'Network Security'],
-        resumeName: 'Lana_Kim_Security_Audit.pdf'
-      };
-    }
-
-    if (isJames) {
-      return {
-        displayName: 'James Joe',
-        title: 'Software Engineer',
-        hourlyRate: 65,
-        availability: 'Available for Work',
-        workingHours: 35,
-        location: 'Chicago, IL',
-        bio: 'Full-stack software developer proficient in JavaScript, Python, REST APIs, and modern web application development.',
-        contactEmail: userSession?.email || 'james@gmail.com',
-        avatar_url: userSession?.avatar_url || '',
-        skills: ['JavaScript', 'React', 'Python', 'Django', 'HTML5', 'CSS3'],
-        resumeName: 'James_Joe_Resume.pdf'
-      };
-    }
-
     return {
-      displayName: currentUserName || 'New Freelancer',
-      title: 'Full-Stack Developer',
-      hourlyRate: 50,
+      displayName: currentUserName || userSession?.name || userSession?.username || 'Freelancer',
+      title: '',
+      hourlyRate: 0,
       availability: 'Available for Work',
       workingHours: 40,
-      location: 'Remote',
-      bio: 'Professional freelance developer on FreeMatch AI platform.',
-      contactEmail: userSession?.email || `${authUsername}@example.com`,
+      location: '',
+      bio: '',
+      contactEmail: userSession?.email || '',
       avatar_url: userSession?.avatar_url || '',
-      skills: ['JavaScript', 'Python', 'React'],
+      skills: [],
       resumeName: ''
     };
   });
@@ -726,30 +657,76 @@ const FreelancerSettingsView = ({
   };
 
   // ---------------------------------------------------------------------------
-  // RESUME UPLOAD SIMULATION
+  // RESUME UPLOAD WORKFLOW
   // ---------------------------------------------------------------------------
   const handleResumeUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Resume file size must be under 10MB.', 'error');
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Resume file size must be under 5MB.', 'error');
+      e.target.value = '';
       return;
     }
 
     const ext = file.name.split('.').pop().toLowerCase();
     if (!['pdf', 'doc', 'docx'].includes(ext)) {
       showToast('Supported formats: PDF, DOC, DOCX.', 'error');
+      e.target.value = '';
       return;
     }
 
-    const updated = { ...profile, resumeName: file.name };
-    persistProfile(updated);
-    showToast(`Resume "${file.name}" uploaded successfully!`, 'success');
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+    const reader = new FileReader();
+    reader.onerror = () => {
+      showToast('Failed to read resume file.', 'error');
+    };
+    reader.onload = async () => {
+      try {
+        const fileDataUrl = reader.result;
+        const res = await fetch('http://localhost:8000/api/freelancer-resume/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: authUsername,
+            file_name: file.name,
+            file_url: fileDataUrl,
+            file_size: fileSizeMB
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to upload resume.');
+        }
+
+        const data = await res.json();
+        const updated = {
+          ...profile,
+          resumeName: data.resume_name || file.name,
+          resume_name: data.resume_name || file.name,
+          resume_url: data.resume_url || fileDataUrl,
+          resume_size: data.resume_size || fileSizeMB
+        };
+        persistProfile(updated);
+        showToast(`Resume "${file.name}" uploaded successfully!`, 'success');
+      } catch (err) {
+        showToast(err.message || 'Failed to upload resume.', 'error');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
-  const handleRemoveResume = () => {
-    const updated = { ...profile, resumeName: '' };
+  const handleRemoveResume = async () => {
+    try {
+      await fetch(`http://localhost:8000/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.warn('Backend remove notice:', e);
+    }
+    const updated = { ...profile, resumeName: '', resume_name: '', resume_url: '', resume_size: '' };
     persistProfile(updated);
     showToast('Resume removed.', 'info');
   };
