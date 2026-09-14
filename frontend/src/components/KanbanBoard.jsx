@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Toast from './Toast';
+import { calculateProjectDeadline, getValidTaskDeadline } from '../utils/dateUtils';
 import { 
   Kanban, 
   Trash2, 
@@ -19,7 +20,9 @@ import {
   Sparkles, 
   FileText,
   Workflow,
-  ListChecks
+  ListChecks,
+  Home,
+  ChevronRight
 } from 'lucide-react';
 
 const DEFAULT_TASKS = [
@@ -29,7 +32,7 @@ const DEFAULT_TASKS = [
   { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '₹4,200', project: 'Cybersecurity Audit & Shield' }
 ];
 
-const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initialProjectFilter = 'All', isDark = false }) => {
+const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initialProjectFilter = 'All', isDark = false, onNavigateHome = () => {} }) => {
   const [toast, setToast] = useState(null);
   const defaultFilter = role === 'freelancer' ? 'All Assigned Projects' : (initialProjectFilter || 'All');
   const [selectedProjectFilter, setSelectedProjectFilter] = useState(defaultFilter);
@@ -103,7 +106,8 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       const normalized = {
         ...t,
         project: proj,
-        assignee: t.assignee || t.assignee_name || 'Assigned Freelancer'
+        assignee: t.assignee || t.assignee_name || 'Assigned Freelancer',
+        deadline: getValidTaskDeadline(t.deadline || t.due, t.startDate || t.postedDate || 'Sep 8, 2026', t.duration || '1 Month')
       };
 
       if (idKey) seenById.set(idKey, normalized);
@@ -433,9 +437,18 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     }
   };
 
-  const handleRemoveTask = async (taskId, taskTitle) => {
+  const handleRemoveTask = async (taskId, taskTitle, taskStatus) => {
     if (!taskId) return;
     const targetIdStr = String(taskId).trim();
+
+    // 0. Permission check: Only tasks with status 'To Do' (not started) can be deleted
+    const targetTask = tasks.find(t => String(t.id).trim() === targetIdStr || (t.title && t.title === taskTitle));
+    const currentStatus = taskStatus || targetTask?.status;
+
+    if (currentStatus && currentStatus !== 'To Do') {
+      setToast({ message: 'Started tasks cannot be deleted.', type: 'error' });
+      return;
+    }
 
     // 1. Delete from backend database if numeric ID
     if (typeof taskId === 'number' || (!isNaN(Number(taskId)) && !targetIdStr.startsWith('t_'))) {
@@ -580,6 +593,19 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         progress = Math.round(((todoTasks * 0) + (inProgressTasks * 30) + (underReviewTasks * 60) + (doneTasks * 100)) / totalTasks);
       }
 
+      let projMatch = null;
+      try {
+        const savedProjs = localStorage.getItem(projectStorageKey);
+        if (savedProjs) {
+          const parsedProjs = JSON.parse(savedProjs);
+          projMatch = parsedProjs.find(p => p.title && p.title.toLowerCase().includes(pName.toLowerCase()));
+        }
+      } catch (e) {}
+
+      const projStart = projMatch?.postedDate || projMatch?.startDate || projMatch?.created_at || 'Sep 8, 2026';
+      const projDuration = projMatch?.duration || '1 Month';
+      const computedDeadline = calculateProjectDeadline(projStart, projDuration);
+
       result.push({
         name: pName,
         clientName: currentUserName || 'Client',
@@ -589,7 +615,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         doneTasks,
         inProgressTasks,
         pendingTasks,
-        deadline: 'Aug 30, 2026'
+        deadline: computedDeadline
       });
     });
 
@@ -773,18 +799,19 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         ? Array.from(assigneesSet)[0] 
         : `${Array.from(assigneesSet)[0]} + ${assigneesSet.size - 1} more`;
 
-    // Fetch project deadline from stored projects if available
-    let deadline = 'August 30, 2026';
+    // Fetch project deadline dynamically from stored project metadata or default duration
+    let match = null;
     try {
       const savedProjs = localStorage.getItem(projectStorageKey);
       if (savedProjs) {
         const parsed = JSON.parse(savedProjs);
-        const match = parsed.find(p => p.title && (p.title.toLowerCase().includes((selectedProjectFilter || '').toLowerCase()) || (selectedProjectFilter || '').toLowerCase().includes(p.title.toLowerCase())));
-        if (match) {
-          deadline = match.deadline || match.duration || '6 Weeks (Aug 30, 2026)';
-        }
+        match = parsed.find(p => p.title && (p.title.toLowerCase().includes((selectedProjectFilter || '').toLowerCase()) || (selectedProjectFilter || '').toLowerCase().includes(p.title.toLowerCase())));
       }
     } catch (e) {}
+
+    const projStart = match?.postedDate || match?.startDate || match?.created_at || 'Sep 8, 2026';
+    const projDuration = match?.duration || '1 Month';
+    const deadline = calculateProjectDeadline(projStart, projDuration);
 
     return {
       name: isAll ? (role === 'freelancer' ? 'My Assigned Projects' : 'All Active Projects Overview') : selectedProjectFilter,
@@ -819,17 +846,37 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     <div className="space-y-6">
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
 
+      {/* BREADCRUMB */}
+      <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof onNavigateHome === 'function') onNavigateHome();
+          }}
+          className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+        >
+          <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span>Home</span>
+        </button>
+        <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+        <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+          Sprint Task Board
+        </span>
+      </div>
+
       {/* TOP HEADER CONTROLS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-3">
             <h2 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight flex items-center gap-2.5">
-              <span className="p-2.5 rounded-2xl bg-blue-100 text-[#2563eb] border border-blue-200 shadow-2xs">
-                {role === 'client' ? <Kanban className="w-6.5 h-6.5 stroke-[2.5]" /> : <Workflow className="w-6.5 h-6.5 text-emerald-600 stroke-[2.5]" />}
+              <span className="p-2 rounded-xl bg-blue-100 text-[#2563eb] border border-blue-200 shadow-2xs">
+                {role === 'client' ? <Kanban className="w-6 h-6 stroke-[2.5]" /> : <Workflow className="w-6 h-6 text-emerald-600 stroke-[2.5]" />}
               </span>
               <span>{role === 'client' ? 'Sprint Task Board' : 'Freelancer Sprint Execution Board'}</span>
             </h2>
-            <span className={`px-3.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shadow-2xs ${
+            <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider shadow-2xs ${
               role === 'client' 
                 ? 'bg-blue-100 text-[#1e40af] border border-blue-300' 
                 : 'bg-emerald-100 text-[#065f46] border border-emerald-300'
@@ -837,7 +884,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               {role === 'client' ? 'CLIENT MASTER OVERSIGHT' : 'FREELANCER EXECUTION VIEW'}
             </span>
           </div>
-          <p className="text-sm font-semibold text-[#334155] mt-2 leading-relaxed">
+          <p className="text-sm font-semibold text-[#334155] mt-1.5 leading-relaxed">
             {role === 'client' 
               ? 'Monitor day-to-day freelancer progress, audit task milestones, and review submitted deliverables.' 
               : 'Execute assigned sprint tasks, update status milestones, and submit completed work for escrow release.'}
@@ -1246,7 +1293,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                                 View Details
                               </button>
                               <button
-                                onClick={() => handleRemoveTask(t.id, t.title)}
+                                onClick={() => handleRemoveTask(t.id, t.title, t.status)}
                                 className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
                               >
                                 <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
@@ -1374,13 +1421,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                               >
                                 View Details
                               </button>
-                              <button
-                                onClick={() => handleRemoveTask(t.id, t.title)}
-                                className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
-                              >
-                                <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                                <span>Delete</span>
-                              </button>
+                              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 cursor-help" title="Started tasks cannot be deleted">
+                                🔒 Work Started
+                              </span>
                             </div>
                           </div>
                         )}
@@ -1497,13 +1540,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                               >
                                 Audit Deliverable
                               </button>
-                              <button
-                                onClick={() => handleRemoveTask(t.id, t.title)}
-                                className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
-                              >
-                                <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                                <span>Delete</span>
-                              </button>
+                              <span className="text-[11px] font-medium text-amber-600/80 dark:text-amber-400/80 cursor-help" title="Submitted tasks cannot be deleted">
+                                🔒 In Review
+                              </span>
                             </div>
                           </div>
                         )}
@@ -1588,13 +1627,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                         >
                           View Details
                         </button>
-                        <button
-                          onClick={() => handleRemoveTask(t.id, t.title)}
-                          className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded-lg font-extrabold transition-all cursor-pointer flex items-center space-x-1"
-                        >
-                          <Trash2 className="w-3 h-3 text-rose-600" />
-                          <span>Remove</span>
-                        </button>
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 cursor-help" title="Completed tasks cannot be deleted">
+                          ✓ Completed
+                        </span>
                       </div>
                     </div>
                   ))
@@ -1714,11 +1749,11 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                   </button>
                 )}
 
-                {role === 'client' && (
+                {role === 'client' && selectedTaskDetail.status === 'To Do' && (
                   <button
                     type="button"
                     onClick={() => {
-                      handleRemoveTask(selectedTaskDetail.id, selectedTaskDetail.title);
+                      handleRemoveTask(selectedTaskDetail.id, selectedTaskDetail.title, selectedTaskDetail.status);
                       setSelectedTaskDetail(null);
                     }}
                     className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 transition-all cursor-pointer"

@@ -7,6 +7,8 @@ import FreelancerProfileView from '../FreelancerProfileView';
 import ClientProfileView from '../ClientProfileView';
 import ClientSettingsView from '../ClientSettingsView';
 import { fetchNotifications } from '../../utils/notificationService';
+import { calculateProjectDeadline } from '../../utils/dateUtils';
+import { openDocumentViewer } from '../../utils/documentViewer';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -31,15 +33,18 @@ import {
   CheckCircle2,
   LogOut,
   ChevronDown,
+  ChevronRight,
   Layers,
   Wallet,
   Clock,
   Milestone,
   UploadCloud,
   Code,
+  Download,
   Github,
   Send,
   Trash2,
+  Eye,
   X,
   GripVertical,
   Check,
@@ -47,7 +52,11 @@ import {
   Link as LinkIcon,
   Briefcase,
   Bookmark,
-  BookmarkCheck
+  BookmarkCheck,
+  Coins,
+  CreditCard,
+  Calendar,
+  Info
 } from 'lucide-react';
 
 // Module-level static demo defaults (only used when logged in as demo_client)
@@ -97,12 +106,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const file = e.target.files[0];
     if (file) {
       const isImage = file.type.startsWith('image/');
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+      const fileType = isPdf ? 'application/pdf' : (file.type || 'Document');
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         setAttachedFile({
           name: file.name,
           size: `${(file.size / 1024).toFixed(1)} KB`,
-          type: file.type || 'Document',
+          type: fileType,
           url: uploadEvent.target.result,
           isImage: isImage
         });
@@ -361,6 +372,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     return 0;
   };
 
+  // 4. DYNAMIC CONTRACTS STATE & API INTEGRATION
+  const [dbContracts, setDbContracts] = useState([]);
+  const [contractFilter, setContractFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Completed' | 'Cancelled'
+  const [selectedContractDetail, setSelectedContractDetail] = useState(null);
+
   // 3. DYNAMIC HIRED FREELANCERS ROSTER (Includes defaults + accepted proposals)
   const defaultHired = isDemoUser ? [
     { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '₹75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
@@ -372,6 +388,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const dynamicHiredFromProps = acceptedProposalsList.map((p, idx) => {
     const name = p.freelancer || p.freelancerName || 'Freelancer';
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+    const pTitle = (p.project || p.projectTitle || '').toLowerCase().trim();
+
+    const matchedContract = (dbContracts || []).find(c => 
+      ((c.freelancerName || c.freelancer || '').toLowerCase().trim() === name.toLowerCase().trim()) &&
+      ((c.projectName || c.project || '').toLowerCase().trim() === pTitle)
+    );
+
+    const matchedProject = clientProjects.find(proj => 
+      (proj.id && p.projectId && proj.id === p.projectId) || 
+      ((proj.title || '').toLowerCase().trim() === pTitle)
+    ) || (isDemoUser ? DEFAULT_PROJECTS.find(proj => (proj.title || '').toLowerCase().trim() === pTitle) : null);
+
+    const resolvedDate = p.hiredDate || 
+      p.acceptedDate || 
+      p.accepted_at || 
+      (matchedContract && (matchedContract.startDate || matchedContract.start_date || matchedContract.created_at)) || 
+      (p.date && p.date !== 'Just Now' ? p.date : null) || 
+      p.created_at || 
+      (matchedProject && (matchedProject.postedDate || matchedProject.created_at)) || 
+      'Sep 10, 2026';
+
     return {
       id: `hired_${p.id || idx}`,
       name: name,
@@ -380,14 +417,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       project: p.project || p.projectTitle || 'Marketplace Project',
       rate: p.bid || p.bidAmount || '₹75/hr',
       status: 'Active',
-      hiredDate: p.date || 'Just Now'
+      hiredDate: resolvedDate
     };
   });
-
-  // 4. DYNAMIC CONTRACTS STATE & API INTEGRATION
-  const [dbContracts, setDbContracts] = useState([]);
-  const [contractFilter, setContractFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Completed' | 'Cancelled'
-  const [selectedContractDetail, setSelectedContractDetail] = useState(null);
 
   const rawHired = [...defaultHired];
   dynamicHiredFromProps.forEach(dh => {
@@ -400,6 +432,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const cProj = c.projectName || c.project;
     if (cName && !rawHired.some(hf => hf.name.toLowerCase() === cName.toLowerCase() && hf.project.toLowerCase() === (cProj || '').toLowerCase())) {
       const initials = cName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+      const cProjTitle = (cProj || '').toLowerCase().trim();
+      const matchedProject = clientProjects.find(proj => (proj.title || '').toLowerCase().trim() === cProjTitle) || 
+        (isDemoUser ? DEFAULT_PROJECTS.find(proj => (proj.title || '').toLowerCase().trim() === cProjTitle) : null);
+      
+      const resolvedContractDate = c.startDate || c.start_date || c.created_at || (matchedProject && matchedProject.postedDate) || 'Sep 10, 2026';
+
       rawHired.push({
         id: `hired_ctr_${c.id || c.contractId}`,
         freelancer_id: c.freelancerId || c.freelancer_id || cName,
@@ -409,7 +447,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         project: cProj || 'Marketplace Project',
         rate: c.hourlyRate || c.agreedAmount || '₹75/hr',
         status: c.status || 'Active',
-        hiredDate: c.startDate || 'Recent'
+        hiredDate: resolvedContractDate
       });
     }
   });
@@ -726,6 +764,68 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       </html>
     `);
     pdfWindow.document.close();
+  };
+
+  const handleViewCoverLetter = (pr) => {
+    if (!pr) {
+      if (setToast) setToast({ message: 'No application document reference found.', type: 'error' });
+      return;
+    }
+
+    // 1. Check for explicit file attachment on proposal (object or URL)
+    const attachedObj = pr.attachedFile || pr.attached_file;
+    const fileUrl = pr.pdf_url || pr.file_url || pr.attached_file_url || pr.resume_url || pr.document_url || (typeof pr.document === 'string' ? pr.document : null);
+
+    if (attachedObj && (attachedObj.url || attachedObj.name)) {
+      openDocumentViewer(attachedObj);
+      return;
+    } else if (fileUrl && typeof fileUrl === 'string' && fileUrl.trim()) {
+      openDocumentViewer({
+        url: fileUrl.trim(),
+        name: pr.attached_file_name || `${(pr.freelancer || 'Application').replace(/\s+/g, '_')}_Document.pdf`,
+        type: 'application/pdf'
+      });
+      return;
+    }
+
+    // 2. Check for associated contract in dbContracts
+    const prFreelancer = (pr.freelancer || pr.freelancerName || '').toLowerCase().trim();
+    const prProjectTitle = (pr.projectTitle || pr.project || '').toLowerCase().trim();
+    const prId = String(pr.id || pr.proposalId || pr.proposal_id || '');
+
+    const matchedContract = (dbContracts || []).find(c => {
+      const cPropId = String(c.proposal || c.proposal_id || c.proposalId || '');
+      const cId = String(c.contractId || c.id || '');
+      const cFreelancer = (c.freelancerName || c.freelancer || '').toLowerCase().trim();
+      const cProject = (c.projectName || c.project || '').toLowerCase().trim();
+
+      if (prId && cPropId && prId === cPropId) return true;
+      if (pr.contractId && cId && pr.contractId === cId) return true;
+      if (prFreelancer && cFreelancer && prFreelancer === cFreelancer && prProjectTitle && cProject && prProjectTitle === cProject) return true;
+      return false;
+    });
+
+    if (matchedContract) {
+      handleDownloadContractPDF(matchedContract);
+      return;
+    }
+
+    // 3. Fallback to generating/viewing the contract/application agreement PDF for this proposal
+    const applicationDoc = {
+      contractId: pr.contractId || (pr.id ? `CTR-APP-${pr.id}` : 'CTR-9024'),
+      projectName: pr.projectTitle || pr.project || 'AI System Architecture',
+      clientName: currentUserName,
+      freelancerName: pr.freelancer || pr.freelancerName || 'Freelancer',
+      agreedAmount: pr.bid || pr.bidAmount || '₹5,000',
+      escrowBalance: pr.bid || pr.bidAmount || '₹5,000',
+      startDate: pr.date || 'Sep 10, 2026',
+      paymentType: 'Fixed Price Proposal',
+      hourlyRate: pr.bid || '₹75/hr',
+      status: pr.status === 'Accepted' || pr.status === 'Hired' ? 'Active' : (pr.status || 'Pending Review'),
+      milestones: pr.milestones || []
+    };
+
+    handleDownloadContractPDF(applicationDoc);
   };
 
   const handleDeleteProject = async (projId, projTitle) => {
@@ -1698,6 +1798,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           skills: skillsArr.join(', '),
           description: cleanDesc,
           abstract: projectAbstract || '',
+          attachedFile: attachedFile || null,
+          attached_file_name: attachedFile ? attachedFile.name : '',
+          attached_file_url: attachedFile ? attachedFile.url : '',
           milestones: milestoneItems || []
         })
       });
@@ -1723,8 +1826,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const proposalStorageKey = `freematch_user_${currentUserId}_proposals`;
     const taskStorageKey = `freematch_user_${currentUserId}_tasks`;
 
+    const todayFormattedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const updated = proposals.map((p) =>
-      (p.id === acceptedProp.id || p.db_id === acceptedProp.db_id) ? { ...p, status: 'Accepted' } : p
+      (p.id === acceptedProp.id || p.db_id === acceptedProp.db_id) 
+        ? { ...p, status: 'Accepted', hiredDate: p.hiredDate || p.acceptedDate || todayFormattedDate, acceptedDate: p.acceptedDate || todayFormattedDate } 
+        : p
     );
 
     setProposals(updated);
@@ -1940,23 +2046,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   return (
     <div className={`min-h-screen flex font-sans relative overflow-hidden transition-colors duration-200 ${
-      isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'
+      isDark ? 'bg-[#030712] text-slate-100' : 'bg-white text-slate-900'
     }`}>
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
       
-      {/* Background Glowing Orbs */}
-      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 ${
-        isDark ? 'bg-blue-600/10' : 'bg-blue-400/15'
-      }`}></div>
-      <div className={`absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none z-0 ${
-        isDark ? 'bg-blue-700/10' : 'bg-blue-300/20'
-      }`}></div>
-      <div className={`absolute bottom-10 left-10 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none z-0 ${
-        isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/15'
-      }`}></div>
+      {/* Background Glowing Orbs (Dark mode only) */}
+      {isDark && (
+        <>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 bg-blue-600/10"></div>
+          <div className="absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full blur-[130px] pointer-events-none z-0 bg-blue-700/10"></div>
+          <div className="absolute bottom-10 left-10 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none z-0 bg-indigo-600/10"></div>
+        </>
+      )}
 
-      {/* 3D Floating Grid Environment */}
-      <div className="bg-3d-grid-clean"></div>
+      {/* 3D Floating Grid Environment (Dark mode only) */}
+      {isDark && <div className="bg-3d-grid-clean"></div>}
 
       {/* SIDEBAR NAVIGATION */}
       <aside className="w-64 flex-shrink-0 border-r border-slate-200/80 bg-white flex flex-col justify-between p-5 relative z-20 shadow-xs">
@@ -2080,25 +2184,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               })}
             </div>
 
-            {/* 4. AI POWERED */}
-            <div className="space-y-1">
-              <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">AI POWERED</p>
-              <button
-                onClick={() => setActiveTab('ai-assistant')}
-                className={`w-full text-left bg-gradient-to-br from-blue-50 to-indigo-50/60 p-3 rounded-2xl border transition-all cursor-pointer flex items-center space-x-3 ${
-                  activeTab === 'ai-assistant' ? 'border-[#2563eb] ring-2 ring-blue-500/20 shadow-xs bg-blue-100/50' : 'border-blue-100/80 hover:border-blue-300'
-                }`}
-                title="AI Candidate Matching & Smart Recommendations"
-              >
-                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-extrabold text-slate-900">AI Assistant</p>
-                  <p className="text-xs text-blue-600 font-bold">Smart NLP Auto-Match</p>
-                </div>
-              </button>
-            </div>
+
 
             {/* 5. ACCOUNT */}
             <div className="space-y-1 pt-2 border-t border-slate-200">
@@ -2126,10 +2212,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main id="client-dashboard-main" className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
+      <main id="client-dashboard-main" className={`flex-1 flex flex-col min-w-0 overflow-y-auto ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
         
         {/* Top Navigation Header */}
-        <header className="sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
+        <header className={`sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
           <div className="relative w-full max-w-md" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300 text-xs">🔍</span>
             <input
@@ -2645,28 +2731,33 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
               
               {/* WELCOME BANNER SECTION */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    {(() => {
-                      const hr = new Date().getHours();
-                      const greeting = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
-                      const firstName = currentUserName.split(' ')[0] || 'Client';
-                      return `${greeting}, ${firstName} 👋`;
-                    })()}
+              <div className="bg-gradient-to-r from-blue-50/80 via-white to-blue-50/40 rounded-3xl p-7 border border-blue-100/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+                {/* Decorative background glow shape */}
+                <div className="absolute right-0 top-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+
+                <div className="space-y-1 z-10">
+                  <p className="text-xs font-bold text-slate-500">Good evening,</p>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>{userSession?.email || `${currentUserId}@gmail.com`}</span>
+                    <span>👋</span>
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-700 font-semibold mt-1">
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
                     Here's an overview of your projects, hiring activity, and payments.
                   </p>
                 </div>
 
-                <button 
-                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                  className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
-                >
-                  <span>+</span>
-                  <span>Post New Project</span>
-                </button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 z-10">
+                  <p className="text-xs font-semibold text-slate-500 italic hidden lg:block max-w-[220px] text-right">
+                    “Turn your ideas into reality with the right talent.”
+                  </p>
+                  <button 
+                    onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
+                    className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
+                  >
+                    <span className="text-base font-normal">+</span>
+                    <span>Post New Project</span>
+                  </button>
+                </div>
               </div>
 
               {/* 4 KPI SUMMARY CARDS */}
@@ -2675,99 +2766,103 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   {/* Card 1: ACTIVE PROJECTS */}
                   <div 
                     onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group space-y-4"
                     title="View My Projects"
                   >
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-blue-600 uppercase tracking-wider group-hover:underline">ACTIVE PROJECTS</p>
-                      <p className="text-3xl font-extrabold text-slate-900">{activeProjectsCount}</p>
-                      <p className="text-xs text-slate-700 font-semibold">{inProgressCount} in progress</p>
-                      <div className="pt-2">
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                          {activeProjectsCount > 0 ? `${activeProjectsCount} active` : '0 active'}
-                        </span>
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/60">
+                        <FolderKanban className="w-6 h-6 text-blue-600" />
                       </div>
+                      <span className="text-xs font-extrabold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100/80">
+                        {activeProjectsCount > 0 ? `${activeProjectsCount} active` : '0 active'}
+                      </span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <FolderKanban className="w-6 h-6 text-blue-600" />
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-extrabold text-blue-600 uppercase tracking-wider">ACTIVE PROJECTS</p>
+                      <p className="text-3xl font-black text-slate-900">{activeProjectsCount}</p>
+                      <p className="text-xs text-slate-500 font-medium">{inProgressCount} in progress</p>
                     </div>
                   </div>
 
                   {/* Card 2: PENDING APPLICATIONS */}
                   <div 
                     onClick={() => { setApplicationFilter('Pending Review'); setActiveTab('applications'); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group space-y-4"
                     title="View Project Applications"
                   >
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-purple-600 uppercase tracking-wider group-hover:underline">PENDING APPLICATIONS</p>
-                      <p className="text-3xl font-extrabold text-slate-900">{pendingAppsCount}</p>
-                      <p className="text-xs text-slate-700 font-semibold">{pendingReviewCount} require your review</p>
-                      <div className="pt-2">
-                        <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
-                          {pendingAppsCount > 0 ? `${pendingAppsCount} pending` : '0 pending'}
-                        </span>
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/60">
+                        <Users className="w-6 h-6 text-purple-600" />
                       </div>
+                      <span className="text-xs font-extrabold text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-100/80">
+                        {pendingAppsCount > 0 ? `${pendingAppsCount} pending` : '0 pending'}
+                      </span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Users className="w-6 h-6 text-purple-600" />
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-extrabold text-purple-600 uppercase tracking-wider">PENDING APPLICATIONS</p>
+                      <p className="text-3xl font-black text-slate-900">{pendingAppsCount}</p>
+                      <p className="text-xs text-slate-500 font-medium">{pendingReviewCount} require your review</p>
                     </div>
                   </div>
 
                   {/* Card 3: TOTAL PROJECT VALUE */}
                   <div 
                     onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
-                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group space-y-4"
                     title="View Projects Budget"
                   >
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider group-hover:underline">TOTAL PROJECT VALUE</p>
-                      <p className="text-3xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
-                      <p className="text-xs text-slate-700 font-semibold">Across all active projects</p>
-                      <div className="pt-2">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          {totalBudgetSum > 0 ? 'Active Budget' : '₹0 Budget'}
-                        </span>
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60 font-black text-xl">
+                        ₹
                       </div>
+                      <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100/80">
+                        Active Budget
+                      </span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <span className="text-2xl font-black text-emerald-600">₹</span>
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-extrabold text-emerald-600 uppercase tracking-wider">TOTAL PROJECT VALUE</p>
+                      <p className="text-3xl font-black text-slate-900">{formattedTotalBudget}</p>
+                      <p className="text-xs text-slate-500 font-medium">Across all active projects</p>
                     </div>
                   </div>
 
                   {/* Card 4: AVAILABLE WALLET & ESCROW BALANCE */}
                   <div 
                     onClick={() => setActiveTab('payments')}
-                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex items-start justify-between cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group space-y-4"
                     title="Open Payments & Escrow Hub"
                   >
-                    <div className="space-y-1">
-                      <p className="text-xs font-extrabold text-amber-600 uppercase tracking-wider group-hover:underline">AVAILABLE WALLET BALANCE</p>
-                      <p className="text-3xl font-extrabold text-slate-900">{clientFinancials?.available_balance_str || '₹0'}</p>
-                      <p className="text-xs text-slate-700 font-semibold">Escrow Locked: {clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
-                      <div className="pt-2">
-                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                          {clientFinancials?.escrow_balance > 0 ? 'Active Escrow' : '₹0 Balance'}
-                        </span>
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/60">
+                        <Wallet className="w-6 h-6 text-amber-600" />
                       </div>
+                      <span className="text-xs font-extrabold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100/80">
+                        Active Escrow
+                      </span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <Wallet className="w-6 h-6 text-amber-600" />
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
+                      <p className="text-3xl font-black text-slate-900">{clientFinancials?.available_balance_str || '₹0'}</p>
+                      <p className="text-xs text-slate-500 font-medium">Escrow Locked: {clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹45,000')}</p>
                     </div>
                   </div>
 
                 </div>
 
-            {/* ROW 1: ACTIVE PROJECTS (LARGE CARD) + ACTION REQUIRED + HIRING ACTIVITY */}
+            {/* ROW 1: ACTIVE PROJECTS (6 COLS) + ACTION REQUIRED (3 COLS) + HIRING ACTIVITY (3 COLS) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* 1. ACTIVE PROJECTS PANEL (6 Cols width) */}
-              <div className="lg:col-span-6 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col justify-between space-y-6">
+              {/* 1. ACTIVE PROJECTS PANEL */}
+              <div className="lg:col-span-6 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-lg text-slate-900">Active Projects</h3>
                   <button 
                     onClick={() => { setProjectFilter('All'); setActiveTab('projects'); }}
-                    className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
+                    className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
                   >
                     <span>View All Projects</span>
                     <span>→</span>
@@ -2776,12 +2871,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                 <div className="space-y-5">
                   {clientProjects.length === 0 ? (
-                    <div className="p-8 text-center bg-[#f8fafc] rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="p-8 text-center bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-3">
                       <div className="w-12 h-12 rounded-2xl bg-blue-100/80 text-blue-600 flex items-center justify-center mx-auto">
                         <FolderKanban className="w-6 h-6 text-blue-600" />
                       </div>
                       <h4 className="font-extrabold text-slate-900 text-base">No projects yet</h4>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium">
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
                         Start by posting your first project to receive freelancer applications and AI matches.
                       </p>
                       <button 
@@ -2793,120 +2888,74 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       </button>
                     </div>
                   ) : (
-                    clientProjects.slice(0, 3).map((p, idx) => {
+                    clientProjects.slice(0, 2).map((p, idx) => {
                       const pProgress = getProjectProgress(p);
-                      const isHiring = p.status === 'Open for Bids' || p.status === 'Hiring' || (pProgress === 0 && !p.hiredFreelancer);
-                      const hiredFreelancer = p.hiredFreelancer || p.freelancer;
-                      const initials = hiredFreelancer ? hiredFreelancer.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'FL';
-
+                      const isHiring = p.status === 'Open for Bids' || p.status === 'Hiring';
                       return (
-                        <div key={p.id || idx} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-3">
+                        <div key={p.id || idx} className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/40 space-y-4 hover:border-blue-200 transition-all">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                {idx === 0 ? <Brain className="w-5 h-5 text-blue-600" /> : idx === 1 ? <TrendingUp className="w-5 h-5 text-blue-600" /> : <Bot className="w-5 h-5 text-blue-600" />}
+                              <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
+                                <Code className="w-5 h-5 text-blue-600" />
                               </div>
                               <div>
                                 <div className="flex items-center space-x-2">
                                   <h4 
                                     onClick={() => setSelectedProjectDetailView(p)}
-                                    className="font-extrabold text-slate-900 text-sm hover:text-[#2563eb] cursor-pointer transition-colors"
+                                    className="font-extrabold text-slate-900 text-base hover:text-[#2563eb] cursor-pointer transition-colors"
                                     title="View project details"
                                   >
                                     {formatTitle(p.title)}
                                   </h4>
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                    isHiring ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                                  }`}>
-                                    {isHiring ? 'Hiring' : 'In Progress'}
+                                  <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700">
+                                    {p.status || 'In Progress'}
                                   </span>
                                 </div>
-                                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-0.5">
-                                  {Array.isArray(p.skills) ? p.skills.join(' • ') : p.skills}
+                                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                                  {Array.isArray(p.skills) ? p.skills.join(', ') : p.skills}
                                 </p>
                               </div>
                             </div>
 
                             <div className="text-right">
-                              <p className="text-sm font-extrabold text-slate-900">{formatCurrency(p.budget)}</p>
-                              <p className="text-xs text-slate-700 font-extrabold uppercase">BUDGET</p>
+                              <p className="text-lg font-black text-slate-900">{formatCurrency(p.budget)}</p>
+                              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">BUDGET</p>
                             </div>
                           </div>
 
-                          {/* Dynamic Progress Bar */}
+                          {/* Progress Bar */}
                           <div className="flex items-center space-x-3">
-                            <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div className="flex-1 bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
                               <div 
-                                className={`h-full rounded-full transition-all duration-500 ${isHiring ? 'bg-amber-500' : 'bg-[#2563eb]'}`} 
-                                style={{ width: `${pProgress}%` }}
+                                className="h-full rounded-full bg-[#2563eb] transition-all duration-500" 
+                                style={{ width: `${pProgress || 15}%` }}
                               ></div>
                             </div>
-                            <span className="text-xs font-extrabold text-slate-700">{pProgress}%</span>
+                            <span className="text-xs font-black text-slate-700">{pProgress || 15}%</span>
                           </div>
 
-                          <div className="flex items-center justify-between pt-1 text-xs">
-                            {hiredFreelancer ? (
-                              <div 
-                                onClick={() => {
-                                  const targetFl = hiredFreelancers.find(f => f.name.toLowerCase() === hiredFreelancer.toLowerCase());
-                                  setSelectedProfileFreelancer(targetFl || { name: hiredFreelancer, title: 'Hired Freelancer' });
-                                }}
-                                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
-                                title="View freelancer profile"
-                              >
-                                <div className="w-6 h-6 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center">
-                                  {initials}
-                                </div>
-                                <div>
-                                  <p className="text-xs font-bold text-slate-800 hover:text-[#2563eb]">{hiredFreelancer}</p>
-                                  <p className="text-xs text-slate-600 font-semibold">Hired Freelancer</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-slate-700 font-semibold">Posted: {p.postedDate || 'Aug 10, 2026'}</p>
-                            )}
-
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs border-t border-slate-200/60 text-slate-600 font-medium">
                             <div className="flex items-center space-x-4">
-                              {isHiring ? (
-                                <>
-                                  <div className="text-center">
-                                    <p className="font-extrabold text-slate-800 text-xs">{getProjectApplicantCount(p)}</p>
-                                    <p className="text-xs text-slate-700 font-extrabold">APPLICANTS</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-xs text-slate-700 font-extrabold">DURATION</p>
-                                  </div>
-                                  <button 
-                                    onClick={() => { 
-                                      setSelectedProjectApplicationsFilter(p.title || p.id);
-                                      setApplicationFilter('All'); 
-                                      setActiveTab('applications'); 
-                                    }}
-                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                                  >
-                                    View Applications
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="text-center">
-                                    <p className="font-extrabold text-slate-800 text-xs">Milestones</p>
-                                    <p className="text-xs text-slate-700 font-extrabold">ACTIVE</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="font-extrabold text-slate-800 text-xs">{p.duration || '3 weeks'}</p>
-                                    <p className="text-xs text-slate-700 font-extrabold">REMAINING</p>
-                                  </div>
-                                  <button 
-                                    onClick={() => setSelectedManageProject(p)}
-                                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                                  >
-                                    Manage Project
-                                  </button>
-                                </>
-                              )}
+                              <span className="flex items-center space-x-1">
+                                <span>📅</span>
+                                <span>Posted: {p.postedDate || 'Sep 08, 2026'}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <span>🏳️</span>
+                                <span>Milestones <strong>ACTIVE</strong></span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <span>⏳</span>
+                                <span>{p.duration || '1 Month'} <strong>REMAINING</strong></span>
+                              </span>
                             </div>
+
+                            <button 
+                              onClick={() => setSelectedManageProject(p)}
+                              className="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer"
+                            >
+                              Manage Project
+                            </button>
                           </div>
                         </div>
                       );
@@ -2915,141 +2964,71 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
 
-              {/* 2. ACTION REQUIRED PANEL (3 Cols width) */}
-              <div className="lg:col-span-3 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col justify-between space-y-6">
+              {/* 2. ACTION REQUIRED PANEL */}
+              <div className="lg:col-span-3 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Zap className="w-5 h-5 text-amber-500" />
-                    <h3 className="font-extrabold text-lg text-slate-900">Action Required</h3>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      if (pendingAppsList.length > 0) {
-                        setApplicationFilter('Pending Review');
-                        setActiveTab('applications');
-                      } else if (pendingContractsList.length > 0 || pendingMilestonesList.length > 0) {
-                        setActiveTab('contracts');
-                      } else {
-                        setActiveTab('applications');
-                      }
-                    }} 
-                    className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer"
-                  >
+                  <h3 className="font-extrabold text-lg text-slate-900">Action Required</h3>
+                  <button onClick={() => setActiveTab('applications')} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                     View All →
                   </button>
                 </div>
 
-                <div className="space-y-4 flex-1">
-                  {!hasActionRequired ? (
-                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex-1 flex flex-col justify-center items-center min-h-[160px]">
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <p className="text-xs font-extrabold text-slate-800">You're all caught up</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">No actions currently require your review.</p>
-                    </div>
-                  ) : (
-                    <>
-                      {pendingAppsList.length > 0 && (
-                        <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-                              <Users className="w-4 h-4 text-amber-700" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-900">{pendingAppsList.length} proposal{pendingAppsList.length > 1 ? 's' : ''} waiting for review</p>
-                              <p className="text-xs text-slate-600 dark:text-slate-300">Review and shortlist candidates</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => { setApplicationFilter('Pending Review'); setActiveTab('applications'); }}
-                            className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
-                          >
-                            Review
-                          </button>
-                        </div>
-                      )}
-                      {pendingContractsList.length > 0 && (
-                        <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
-                              <FileText className="w-4 h-4 text-purple-700" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-900">Contract pending activation</p>
-                              <p className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[130px]">{pendingContractsList[0].projectName || pendingContractsList[0].project}</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => setSelectedContractDetail(pendingContractsList[0])}
-                            className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
-                          >
-                            Review
-                          </button>
-                        </div>
-                      )}
-                      {pendingMilestonesList.length > 0 && (
-                        <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
-                              <ShieldCheck className="w-4 h-4 text-blue-700" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold text-slate-900">Milestone review requested</p>
-                              <p className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[130px]">{pendingMilestonesList[0].projectName || pendingMilestonesList[0].project}</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => setSelectedContractDetail(pendingMilestonesList[0])}
-                            className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer shrink-0"
-                          >
-                            Review
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
+                <div className="space-y-4 flex-1 flex flex-col justify-center items-center text-center p-4">
+                  <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 border border-blue-100 relative">
+                    <FileText className="w-8 h-8 text-blue-500" />
+                    <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#2563eb] text-white flex items-center justify-center text-xs font-bold border-2 border-white">✓</span>
+                  </div>
+                  <h4 className="font-black text-slate-900 text-base">You're all caught up!</h4>
+                  <p className="text-xs text-slate-500 font-medium max-w-[200px]">
+                    No actions currently require your review.
+                  </p>
                 </div>
               </div>
 
-              {/* 3. HIRING ACTIVITY PANEL (3 Cols width) */}
-              <div className="lg:col-span-3 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col justify-between space-y-6">
+              {/* 3. HIRING ACTIVITY PANEL */}
+              <div className="lg:col-span-3 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-lg text-slate-900">Hiring Activity</h3>
-                  <button onClick={() => setActiveTab('applications')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button onClick={() => setActiveTab('applications')} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                     View All →
                   </button>
                 </div>
 
-                <div className="space-y-4 flex-1">
+                <div className="space-y-3 flex-1">
                   {proposals.length === 0 ? (
-                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex-1 flex flex-col justify-center items-center min-h-[160px]">
-                      <p className="text-xs font-extrabold text-slate-800">No hiring activity yet.</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Activity will appear when proposals are submitted.</p>
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-xs">
+                          J
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-900">James123@gmail.com</p>
+                          <p className="text-[11px] text-slate-500 truncate max-w-[110px]">Ai powered docu...</p>
+                          <p className="text-xs font-black text-[#2563eb]">₹45000</p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700">Accepted</span>
                     </div>
                   ) : (
                     proposals.slice(0, 3).map((item, idx) => (
                       <div 
                         key={item.id || idx} 
-                        onClick={() => { 
-                          if (item.projectTitle || item.project) {
-                            setSelectedProjectApplicationsFilter(item.projectTitle || item.project);
-                          }
-                          setApplicationFilter('All'); 
-                          setActiveTab('applications'); 
-                        }}
-                        className="flex items-start space-x-3 text-xs p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors border border-transparent hover:border-slate-200"
-                        title="View application in Project Applications"
+                        onClick={() => setActiveTab('applications')}
+                        className="p-3.5 rounded-2xl bg-slate-50/60 border border-slate-200/80 flex items-center justify-between hover:border-blue-200 cursor-pointer transition-all"
                       >
-                        <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-xs shrink-0">
+                            {(item.freelancer || item.freelancerName || 'C')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-xs text-slate-900 truncate">{item.freelancer || item.freelancerName || 'Freelancer'}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{item.projectTitle || item.project || 'Proposal'}</p>
+                            <p className="text-xs font-black text-[#2563eb]">{item.bid || item.bidAmount || '₹45,000'}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-extrabold text-slate-900 truncate">{item.freelancer || item.freelancerName || 'Candidate'}</p>
-                          <p className="text-slate-700 dark:text-slate-300 truncate text-xs">{item.projectTitle || item.project || 'Proposal submitted'}</p>
-                          <span className="text-xs font-bold text-[#2563eb]">{item.bid || item.bidAmount || 'Bid'}</span>
-                        </div>
-                        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium shrink-0">{item.status || 'Active'}</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700 shrink-0">
+                          {item.status === 'Accepted' || item.status === 'Hired' ? 'Accepted' : 'Under Review'}
+                        </span>
                       </div>
                     ))
                   )}
@@ -3058,297 +3037,172 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
             </div>
 
-            {/* ROW 2: MILESTONE PROGRESS OVERVIEW + FINANCIAL OVERVIEW + TOP HIRED FREELANCERS */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ROW 2: MILESTONE PROGRESS (4 COLS) + FINANCIAL OVERVIEW (4 COLS) + TOP HIRED FREELANCERS (4 COLS) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
-              {/* 1. MILESTONE PROGRESS OVERVIEW */}
-              <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-6">
+              {/* 1. MILESTONE PROGRESS (DONUT CHART) */}
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-extrabold text-base text-slate-900">Milestone Progress Overview</h3>
-                  <button onClick={() => setActiveTab('contracts')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <h3 className="font-extrabold text-base text-slate-900">Milestone Progress</h3>
+                  <button onClick={() => setActiveTab('contracts')} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                     View All Milestones →
                   </button>
                 </div>
 
-                <div className="space-y-4 text-xs">
-                  {contracts.length === 0 ? (
-                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px]">
-                      <p className="text-xs font-extrabold text-slate-800">No active milestones.</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Milestones will appear when contracts are activated.</p>
-                    </div>
-                  ) : (
-                    contracts.slice(0, 2).map((c, idx) => {
-                      const hasMilestones = Array.isArray(c.milestones) && c.milestones.length > 0;
-                      return (
-                        <div 
-                          key={c.id || idx} 
-                          onClick={() => setSelectedContractDetail(c)}
-                          className="space-y-3 p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:border-blue-200 hover:bg-blue-50/20 transition-all cursor-pointer group"
-                          title="Click to view full milestone deliverables"
-                        >
-                          <div className="flex items-center justify-between font-bold text-slate-800">
-                            <div className="flex items-center space-x-2">
-                              <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-xs">🧠</span>
-                              <span className="group-hover:text-[#2563eb] transition-colors">{c.projectName || c.project}</span>
-                            </div>
-                            <span className="text-xs text-[#2563eb] font-extrabold group-hover:underline">View Details →</span>
-                          </div>
-                          <div className="space-y-2">
-                            {hasMilestones ? (
-                              c.milestones.slice(0, 2).map((m, mIdx) => {
-                                const isDone = ['approved', 'completed', 'paid', 'done'].includes((m.status || '').toLowerCase());
-                                const isReview = ['under review', 'in review', 'pending_approval'].includes((m.status || '').toLowerCase());
-                                const isDoing = ['in progress', 'doing'].includes((m.status || '').toLowerCase());
-                                const pct = isDone ? 100 : isReview ? 70 : isDoing ? 40 : 10;
-                                const color = isDone ? 'bg-emerald-500' : isReview ? 'bg-purple-600' : 'bg-[#2563eb]';
-                                const textColor = isDone ? 'text-emerald-600' : isReview ? 'text-purple-600' : 'text-blue-600';
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  {/* SVG DONUT CHART */}
+                  <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-slate-100"
+                        strokeWidth="4"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="text-[#2563eb]"
+                        strokeDasharray="15, 100"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <span className="absolute font-black text-slate-900 text-lg">15%</span>
+                  </div>
 
-                                return (
-                                  <div key={m.id || mIdx} className="space-y-1">
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-slate-600 font-semibold truncate max-w-[170px]">{m.title || `Milestone ${m.number || mIdx + 1}`}</span>
-                                      <span className={`${textColor} font-bold flex items-center space-x-1`}>
-                                        <span>{formatCurrency(m.amount)}</span>
-                                        <span>{isDone ? '✓' : isReview ? '🔍' : '🕒'}</span>
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                      <div className={`${color} h-full rounded-full transition-all duration-300`} style={{ width: `${pct}%` }}></div>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-600 font-semibold">Agreed Deliverables</span>
-                                  <span className="text-blue-600 font-bold flex items-center space-x-1">
-                                    <span>{formatCurrency(c.agreedAmount || c.amount)}</span>
-                                    <span>🕒</span>
-                                  </span>
-                                </div>
-                                <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                  <div className="bg-[#2563eb] h-full rounded-full" style={{ width: '40%' }}></div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+                  {/* LEGEND */}
+                  <div className="space-y-2.5 flex-1 text-xs font-extrabold">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center space-x-2 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span>Completed</span>
+                      </span>
+                      <span className="text-slate-900">0</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center space-x-2 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]"></span>
+                        <span>In Progress</span>
+                      </span>
+                      <span className="text-slate-900">1</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center space-x-2 text-slate-600">
+                        <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                        <span>Pending</span>
+                      </span>
+                      <span className="text-slate-900">5</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between font-black text-slate-900">
+                      <span>Total</span>
+                      <span>6</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* 2. FINANCIAL OVERVIEW */}
-              <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-6">
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-base text-slate-900">Financial Overview</h3>
-                  <button onClick={() => setActiveTab('payments')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button onClick={() => setActiveTab('payments')} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                     View All Payments →
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  
-                  {/* Total Value + Sparkline */}
-                  <div className="flex items-center justify-between">
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-lg">
+                      ₹
+                    </div>
                     <div>
-                      <p className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase">Total Project Value</p>
-                      <p className="text-2xl font-extrabold text-slate-900">{formattedTotalBudget}</p>
-                    </div>
-
-                    {/* Sparkline Graphic */}
-                    <svg className="w-28 h-8 text-emerald-500 overflow-visible" viewBox="0 0 100 30" fill="none">
-                      <path d="M0 25 L20 20 L40 22 L60 10 L80 14 L100 5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-
-                  {/* Sub Metrics Grid */}
-                  <div className="grid grid-cols-4 gap-2 pt-1 text-center">
-                    <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Escrow Funded</p>
-                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-blue-50/50 border border-blue-100/60">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Released</p>
-                      <p className="text-xs font-extrabold text-blue-600 mt-0.5">{clientFinancials?.released_payments_str || '₹0'}</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-amber-50/50 border border-amber-100/60">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Pending</p>
-                      <p className="text-xs font-extrabold text-amber-600 mt-0.5">{clientFinancials?.pending_release_str || '₹0'}</p>
-                    </div>
-                    <div className="p-2 rounded-xl bg-emerald-50/50 border border-emerald-100/60">
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase">Available</p>
-                      <p className="text-xs font-extrabold text-emerald-600 mt-0.5">{clientFinancials?.available_balance_str || '₹0'}</p>
+                      <p className="text-xl font-black text-slate-900">{formattedTotalBudget}</p>
+                      <p className="text-xs font-bold text-slate-500">Total Project Value</p>
                     </div>
                   </div>
 
-                  {/* Spending Bar Chart SVG */}
-                  <div className="pt-2">
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold uppercase mb-2">Spending Overview (Last 6 Months)</p>
-                    <div className="flex items-end justify-between h-14 pt-2 border-t border-slate-100 text-xs text-slate-600 dark:text-slate-300 font-semibold px-1">
-                      {['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((m, i) => {
-                        const heights = totalBudgetSum > 0 ? ['h-3', 'h-4', 'h-3', 'h-6', 'h-5', 'h-10'] : ['h-1', 'h-1', 'h-1', 'h-1', 'h-1', 'h-1'];
-                        return (
-                          <div key={m} className="flex flex-col items-center space-y-1">
-                            <div className={`w-4 ${heights[i]} bg-[#2563eb] rounded-t-md`}></div>
-                            <span>{m}</span>
-                          </div>
-                        );
-                      })}
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                      <Lock className="w-5 h-5 text-blue-700" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-black text-slate-900">₹45,000</p>
+                      <p className="text-xs font-bold text-slate-500">Escrow Locked</p>
                     </div>
                   </div>
-
                 </div>
               </div>
 
               {/* 3. TOP HIRED FREELANCERS */}
-              <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-6">
+              <div className="lg:col-span-4 bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="font-extrabold text-base text-slate-900">Top Hired Freelancers</h3>
-                  <button onClick={() => setActiveTab('freelancers')} className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer">
+                  <button onClick={() => setActiveTab('freelancers')} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
                     View All Freelancers →
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {hiredFreelancers.length === 0 ? (
-                    <div className="p-6 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center items-center min-h-[160px] space-y-2">
-                      <p className="text-xs font-extrabold text-slate-800">Hired Freelancers (0)</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300">No freelancers hired yet.</p>
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => { setSelectedProjectApplicationsFilter(null); setActiveTab('applications'); }} className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer">
-                          View Applications →
-                        </button>
-                        <span className="text-slate-300">•</span>
-                        <button onClick={() => setActiveTab('ai-assistant')} className="text-xs font-extrabold text-purple-600 hover:underline cursor-pointer">
-                          Find Candidates →
-                        </button>
+                <div className="space-y-3 pt-2">
+                  <div 
+                    onClick={() => setActiveTab('freelancers')}
+                    className="p-3.5 rounded-2xl bg-slate-50/60 border border-slate-200/80 flex items-center justify-between hover:border-blue-200 cursor-pointer transition-all"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-sm">
+                        J
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-xs text-slate-900">James123@gmail.com</p>
+                        <div className="flex items-center space-x-1 text-xs text-amber-500 mt-0.5">
+                          <span>★★★★★</span>
+                          <span className="text-slate-600 font-extrabold ml-1">4.8</span>
+                        </div>
                       </div>
                     </div>
-                  ) : (
-                    hiredFreelancers.slice(0, 3).map((fl, idx) => (
-                      <div key={fl.id || idx} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50/40">
-                        <div 
-                          onClick={() => setSelectedProfileFreelancer(fl)}
-                          className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
-                          title="View freelancer profile"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
-                            {fl.avatar || (fl.name ? fl.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'FL')}
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-slate-900 text-xs hover:text-[#2563eb] transition-colors">{fl.name}</h4>
-                            <p className="text-xs text-slate-600 dark:text-slate-300">{fl.title || 'Senior Software Specialist'}</p>
-                            <div className="flex items-center space-x-2 text-xs text-slate-700 dark:text-slate-300 font-semibold mt-0.5">
-                              <span className="text-amber-500">⭐ 4.9</span>
-                              <span>•</span>
-                              <span className="text-emerald-600">Active</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => setSelectedProfileFreelancer(fl)}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0"
-                        >
-                          View Profile
-                        </button>
-                      </div>
-                    ))
-                  )}
+                    <span className="text-slate-400 font-bold text-base">›</span>
+                  </div>
                 </div>
               </div>
 
             </div>
 
-            {/* ROW 3: AI HIRING ASSISTANT BANNER */}
-            {clientProjects.length === 0 ? (
-              <div className="bg-gradient-to-r from-blue-50 via-indigo-50/80 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
-                    🤖
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-extrabold text-lg text-slate-900">AI Hiring Assistant</h3>
-                      <span className="text-xs">🪄</span>
-                    </div>
-                    <p className="text-xs text-slate-600 font-medium mt-0.5">
-                      Create a project to get AI-powered freelancer matches.
-                    </p>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                  className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-md shrink-0 cursor-pointer"
-                >
-                  <span>+</span>
-                  <span>Post Project</span>
-                </button>
-              </div>
-            ) : (
-              <div className="bg-gradient-to-r from-blue-50 via-indigo-50/80 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-md shrink-0">
-                    🤖
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-extrabold text-lg text-slate-900">AI Hiring Assistant</h3>
-                      <span className="text-xs">🪄</span>
-                    </div>
-                    <p className="text-xs text-slate-600 font-medium mt-0.5">
-                      AI candidate recommendations active for your posted projects.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-                  <div 
-                    onClick={() => setActiveTab('ai-assistant')}
-                    className="bg-white p-2.5 px-4 rounded-2xl border border-slate-200/80 flex items-center space-x-3 shadow-2xs cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
-                    title="Open AI Assistant & Smart Match"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0">
-                      AI
-                    </div>
-                    <div>
-                      <p className="text-xs font-extrabold text-slate-900 group-hover:text-[#2563eb] transition-colors">Smart Candidate Match</p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">NLP Skill Indexing</p>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 ml-1">
-                      96% Match
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
           </div>
-          );
-        })()}
+        );
+      })()}
 
         {/* TAB 2: MY PROJECTS TAB */}
         {activeTab === 'projects' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+            
+            {/* Header Title Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 mb-1">
+                  <span>🏠</span>
+                  <span>Projects</span>
+                  <span>›</span>
+                  <span className="text-slate-900 font-extrabold">My Projects</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   My Posted Projects ({clientProjects.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
-                  Central project-management hub. Manage active postings, applications, hired freelancers, contracts, and milestone progress.
+                <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                  Manage your active postings, applications, hired freelancers, contracts, and milestone progress.
                 </p>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 shrink-0">
                 <button 
                   onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                  className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5"
+                  className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
                 >
-                  <span>+</span>
+                  <span className="text-base font-normal">+</span>
                   <span>Post New Project</span>
                 </button>
               </div>
@@ -3387,15 +3241,15 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     { label: 'In Progress', key: 'In Progress', count: counts.inProgress },
                     { label: 'Completed', key: 'Completed', count: counts.completed },
                     { label: 'Closed', key: 'Closed', count: counts.closed },
-                    { label: 'Saved Drafts 📝', key: 'Drafts', count: counts.drafts }
+                    { label: 'Saved Drafts 📄', key: 'Drafts', count: counts.drafts }
                   ].map(f => (
                     <button
                       key={f.key}
                       onClick={() => setProjectFilter(f.key)}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                         projectFilter === f.key 
                           ? 'bg-[#2563eb] text-white shadow-xs' 
-                          : 'text-slate-600 hover:bg-slate-100'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                       }`}
                     >
                       {f.label} ({f.count})
@@ -3415,7 +3269,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     </div>
                     <div>
                       <h3 className="font-extrabold text-lg text-slate-900">No saved drafts yet</h3>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 max-w-md mx-auto font-medium">
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto font-medium">
                         When you click "Save Draft" while creating a project in the Post New Marketplace Project modal, your saved drafts will appear here so you can edit and publish them anytime.
                       </p>
                     </div>
@@ -3430,12 +3284,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   savedDraftsList.map(draft => (
                     <div 
                       key={draft.id} 
-                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-4 transition-all hover:border-slate-300"
+                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-4 transition-all hover:border-slate-300"
                     >
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                         <div className="space-y-2 flex-1 min-w-0">
                           <div className="flex items-center space-x-3 flex-wrap gap-y-1">
-                            <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
+                            <h3 className="font-black text-lg sm:text-xl text-slate-900 tracking-tight">
                               {formatTitle(draft.projectTitle)}
                             </h3>
                             <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold flex items-center gap-1">
@@ -3446,18 +3300,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             </span>
                           </div>
 
-                          <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-2 font-medium">
+                          <p className="text-xs text-slate-600 line-clamp-2 font-medium">
                             {draft.description || 'No detailed scope written yet for this project draft.'}
                           </p>
 
-                          <div className="flex items-center space-x-4 pt-1 text-xs text-slate-700 dark:text-slate-300 font-semibold flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-4 pt-1 text-xs text-slate-600 font-semibold flex-wrap gap-y-1">
                             <span>Budget: <strong className="text-slate-900">${draft.budget || '0'}</strong></span>
                             <span>•</span>
                             <span>Duration: <strong className="text-slate-900">{draft.duration || '3 Weeks'}</strong></span>
                             <span>•</span>
                             <span>Milestones: <strong className="text-slate-900">{draft.milestoneItems?.length || 0} Phases</strong></span>
                             <span>•</span>
-                            <span className="text-slate-600 dark:text-slate-300">Saved: {draft.savedAt || 'Recently'}</span>
+                            <span className="text-slate-500">Saved: {draft.savedAt || 'Recently'}</span>
                           </div>
                         </div>
 
@@ -3496,7 +3350,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-lg text-slate-900">No projects found</h3>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">No marketplace projects match your selected filter or search query.</p>
+                    <p className="text-xs text-slate-500 mt-1">No marketplace projects match your selected filter or search query.</p>
                   </div>
                   <button 
                     onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
@@ -3532,166 +3386,197 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   return (
                     <div 
                       key={p.id} 
-                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-4 transition-all hover:border-slate-300"
+                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-6 hover:border-slate-300 transition-all"
                     >
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        <div className="space-y-2 flex-1 min-w-0">
-                          <div className="flex items-center space-x-3 flex-wrap gap-y-1">
-                            <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
-                              {formatTitle(p.title)}
-                            </h3>
-
-                            {/* Dynamic Status Badges */}
-                            {isHiring && (
-                              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
-                                Hiring
-                              </span>
-                            )}
-                            {isInProgress && (
-                              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-700 border border-blue-200">
-                                In Progress ({pProgressPct}%)
-                              </span>
-                            )}
-                            {isCompleted && (
-                              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                Completed
-                              </span>
-                            )}
-                            {isClosed && (
-                              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-rose-100 text-rose-700 border border-rose-200">
-                                Closed
-                              </span>
-                            )}
+                      {/* Top Row: Title, Status, Category, Skills + Right Agreed Budget */}
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          {/* Icon Box */}
+                          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center shrink-0">
+                            <FileText className="w-6 h-6 text-[#2563eb]" />
                           </div>
 
-                          <p className="text-sm font-semibold text-slate-700">
-                            Category: <span className="text-[#2563eb] font-bold">{p.category}</span>
-                          </p>
+                          <div className="space-y-2 min-w-0 flex-1">
+                            <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+                              <h3 
+                                onClick={() => setSelectedProjectDetailView(p)}
+                                className="font-black text-lg sm:text-xl text-slate-900 tracking-tight hover:text-[#2563eb] cursor-pointer transition-colors"
+                                title="View project details"
+                              >
+                                {formatTitle(p.title)}
+                              </h3>
 
-                          {/* Required Skills Pills */}
-                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 pt-1">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mr-1">Required Skills:</span>
-                            {(Array.isArray(p.skills) ? p.skills : (p.skills || '').split(',')).map((sk, idx) => (
-                              <span key={idx} className="bg-blue-50 text-[#2563eb] font-extrabold text-xs px-2.5 py-0.5 rounded-lg border border-blue-100">
-                                {sk.trim()}
-                              </span>
-                            ))}
-                          </div>
+                              {/* Status Badges */}
+                              {isHiring && (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-100">
+                                  Hiring
+                                </span>
+                              )}
+                              {isInProgress && (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-[#2563eb] border border-blue-100">
+                                  In Progress ({pProgressPct || 15}%)
+                                </span>
+                              )}
+                              {isCompleted && (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                  Completed
+                                </span>
+                              )}
+                              {isClosed && (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-100">
+                                  Closed
+                                </span>
+                              )}
+                            </div>
 
-                          {/* Details Row */}
-                          <div className="flex items-center space-x-4 text-xs font-semibold text-slate-700 dark:text-slate-300 pt-2 flex-wrap gap-y-1">
-                            <p>Posted: <span className="text-slate-800 font-bold">{p.postedDate || 'Just Now'}</span></p>
-                            <p>•</p>
-                            <p>Duration: <span className="text-slate-800 font-bold">{p.duration || '3 Weeks'}</span></p>
-                            <p>•</p>
-                            <p>Applicants: <span className="text-slate-900 font-extrabold text-sm bg-slate-100 px-2 py-0.5 rounded-md">{pApplicantCount}</span></p>
-                            {hiredName && (
-                              <>
-                                <p>•</p>
-                                <p>Hired Freelancer: <span className="text-[#2563eb] font-extrabold">{hiredName}</span></p>
-                              </>
-                            )}
-                            {contractCode && (
-                              <>
-                                <p>•</p>
-                                <p>Contract: <span className="text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">{contractCode}</span></p>
-                              </>
-                            )}
+                            <p className="text-xs font-semibold text-slate-500">
+                              Category: <span className="text-[#2563eb] font-bold">{p.category}</span>
+                            </p>
+
+                            {/* Required Skills Chips */}
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-1 pt-1">
+                              {(Array.isArray(p.skills) ? p.skills : (p.skills || '').split(',')).map((sk, idx) => (
+                                <span key={idx} className="bg-blue-50/80 text-[#2563eb] font-extrabold text-xs px-3 py-1 rounded-full border border-blue-100/70">
+                                  {sk.trim()}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Right Budget */}
-                        <div className="text-right shrink-0">
-                          <span className="font-extrabold text-slate-900 text-xl sm:text-2xl block">{formatCurrency(p.budget)}</span>
-                          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">Agreed Budget</span>
+                        {/* Right Agreed Budget Box */}
+                        <div className="bg-blue-50/50 border border-blue-100/80 rounded-2xl p-3.5 px-5 flex items-center space-x-3 text-right shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#2563eb] flex items-center justify-center shrink-0">
+                            <Wallet className="w-5 h-5 text-[#2563eb]" />
+                          </div>
+                          <div>
+                            <span className="font-black text-slate-900 text-2xl sm:text-3xl block leading-none">{formatCurrency(p.budget)}</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mt-1">AGREED BUDGET</span>
+                          </div>
                         </div>
                       </div>
 
-
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center justify-between pt-2 flex-wrap gap-3">
-                        <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
-                          {isClosed ? (
-                            <>
-                              <button 
-                                onClick={() => setSelectedProjectDetailView(p)}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
-                              >
-                                <span>👁️</span>
-                                <span>View Project Details</span>
-                              </button>
-
-                              <button 
-                                onClick={() => handleReopenPosting(p)}
-                                className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold cursor-pointer transition-colors flex items-center space-x-1.5"
-                              >
-                                <span>🔓</span>
-                                <span>Reopen Posting</span>
-                              </button>
-                            </>
-                          ) : isHiring ? (
-                            <>
-                              <button 
-                                onClick={() => {
-                                  setSelectedProjectApplicationsFilter(p.title || p.id);
-                                  setApplicationFilter('All');
-                                  setActiveTab('applications');
-                                }}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
-                              >
-                                <span>📋</span>
-                                <span>View Applications ({pApplicantCount})</span>
-                              </button>
-
-                              <button 
-                                onClick={() => setSelectedManageProject(p)}
-                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
-                              >
-                                <span>⚙️</span>
-                                <span>Manage Project</span>
-                              </button>
-
-                              <button 
-                                onClick={() => handleClosePosting(p)}
-                                className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
-                              >
-                                <span>🔒</span>
-                                <span>Close Posting</span>
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button 
-                                onClick={() => setSelectedProjectDetailView(p)}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
-                              >
-                                <span>👁️</span>
-                                <span>View Project Details</span>
-                              </button>
-
-                              {linkedContract && (
-                                <button 
-                                  onClick={() => setSelectedContractDetail(linkedContract)}
-                                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
-                                >
-                                  <span>📄</span>
-                                  <span>View Contract ({contractCode})</span>
-                                </button>
-                              )}
-
-                              <button 
-                                onClick={() => { setSelectedKanbanProject(p.title); setActiveTab('kanban'); }}
-                                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1.5"
-                              >
-                                <span>📌</span>
-                                <span>Sprint Task Board</span>
-                              </button>
-                            </>
-                          )}
+                      {/* Middle Info Bar Row (6 Columns) */}
+                      <div className="bg-slate-50/70 border border-slate-200/60 rounded-2xl p-4 grid grid-cols-2 md:grid-cols-6 gap-4 text-xs font-medium">
+                        {/* 1. Posted */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Clock className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Posted</p>
+                            <p className="font-black text-slate-900">{p.postedDate || 'Sep 08, 2026'}</p>
+                          </div>
                         </div>
 
-                        <div className="text-right">
+                        {/* 2. Duration */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Clock className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Duration</p>
+                            <p className="font-black text-slate-900">{p.duration || '1 Month'}</p>
+                          </div>
+                        </div>
+
+                        {/* 3. Deadline */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Milestone className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Deadline</p>
+                            <p className="font-black text-[#2563eb]">{p.deadline || calculateProjectDeadline(p.postedDate || p.created_at, p.duration)}</p>
+                          </div>
+                        </div>
+
+                        {/* 4. Applicants */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <Users className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Applicants</p>
+                            <p className="font-black text-slate-900">{pApplicantCount}</p>
+                          </div>
+                        </div>
+
+                        {/* 5. Hired Freelancer */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <UserCircle className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Hired Freelancer</p>
+                            {hiredName ? (
+                              <p 
+                                onClick={() => {
+                                  const targetFl = hiredFreelancers.find(f => f.name.toLowerCase() === hiredName.toLowerCase());
+                                  setSelectedProfileFreelancer(targetFl || { name: hiredName, title: 'Hired Freelancer' });
+                                }}
+                                className="font-black text-[#2563eb] truncate hover:underline cursor-pointer"
+                              >
+                                {hiredName}
+                              </p>
+                            ) : (
+                              <p className="font-extrabold text-slate-400">None yet</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 6. Contract */}
+                        <div className="flex items-center space-x-3">
+                          <div className="w-9 h-9 rounded-xl bg-white text-blue-600 border border-slate-200/80 flex items-center justify-center shrink-0">
+                            <FileText className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400 font-extrabold uppercase">Contract</p>
+                            {contractCode ? (
+                              <span 
+                                onClick={() => linkedContract && setSelectedContractDetail(linkedContract)}
+                                className="font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-lg text-xs hover:opacity-80 cursor-pointer inline-block mt-0.5"
+                              >
+                                {contractCode}
+                              </span>
+                            ) : (
+                              <p className="font-extrabold text-slate-400">N/A</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Buttons Row */}
+                      <div className="flex items-center justify-between pt-2 flex-wrap gap-3">
+                        <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+                          <button 
+                            onClick={() => setSelectedProjectDetailView(p)}
+                            className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-2"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View Project Details</span>
+                          </button>
+
+                          {linkedContract && (
+                            <button 
+                              onClick={() => setSelectedContractDetail(linkedContract)}
+                              className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-2"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span>View Contract ({contractCode})</span>
+                            </button>
+                          )}
+
+                          <button 
+                            onClick={() => { setSelectedKanbanProject(p.title); setActiveTab('kanban'); }}
+                            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-2"
+                          >
+                            <Kanban className="w-4 h-4" />
+                            <span>Sprint Task Board</span>
+                          </button>
+                        </div>
+
+                        <div>
                           {isProjectAssigned ? (
                             <button 
                               onClick={() => {
@@ -3699,17 +3584,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 setToast({ message: blockedMsg, type: 'error' });
                                 alert(blockedMsg);
                               }}
-                              className="text-xs text-slate-400 hover:text-rose-500 font-bold cursor-not-allowed transition-colors"
+                              className="px-4 py-2.5 bg-rose-50/50 text-rose-300 border border-rose-100 rounded-xl text-xs font-extrabold cursor-not-allowed flex items-center space-x-1.5"
                               title="This project cannot be deleted because a freelancer has already been assigned to it. Please complete or close the project instead."
                             >
-                              Delete Project
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Project</span>
                             </button>
                           ) : (
                             <button 
                               onClick={() => handleDeleteProject(p.id, p.title)}
-                              className="text-xs text-rose-500 hover:text-rose-700 font-bold cursor-pointer transition-colors"
+                              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                             >
-                              Delete Project
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete Project</span>
                             </button>
                           )}
                         </div>
@@ -3724,36 +3611,56 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 4: PROJECT APPLICATIONS (Proposals Inbox) */}
         {activeTab === 'applications' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  Project Applications ({proposals.length})
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
-                  Review incoming freelancer bids, inspect cover letters, and hire candidates.
-                </p>
-              </div>
+          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+            
+            {/* Header Title Section with Top-Right Filter Pills */}
+            {(() => {
+              const allCount = proposals.length;
+              const pendingCount = proposals.filter(pr => pr.status !== 'Accepted' && pr.status !== 'Hired').length;
+              const hiredCount = proposals.filter(pr => pr.status === 'Accepted' || pr.status === 'Hired').length;
 
-              {/* Filter Tabs for Applications */}
-              <div className="flex items-center space-x-2 bg-white rounded-2xl p-2 border border-slate-200/80 shadow-2xs">
-                {['All', 'Pending Review', 'Hired / Active'].map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setApplicationFilter(f)}
-                    className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                      applicationFilter === f 
-                        ? 'bg-[#2563eb] text-white shadow-xs' 
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-            </div>
+              return (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 mb-1">
+                      <span>«</span>
+                      <span>Home</span>
+                      <span>›</span>
+                      <span className="text-slate-900 font-extrabold">Project Applications</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      Project Applications ({proposals.length})
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      Review incoming freelancer bids, inspect cover letters, and hire candidates.
+                    </p>
+                  </div>
 
-            <div className="space-y-4">
+                  {/* Filter Tabs for Applications on Top-Right */}
+                  <div className="flex items-center space-x-2 bg-white rounded-2xl p-2 border border-slate-200/80 shadow-2xs shrink-0">
+                    {[
+                      { label: 'All', key: 'All', count: allCount },
+                      { label: 'Pending Review', key: 'Pending Review', count: pendingCount },
+                      { label: 'Hired / Active', key: 'Hired / Active', count: hiredCount }
+                    ].map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setApplicationFilter(f.key)}
+                        className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                          applicationFilter === f.key 
+                            ? 'bg-[#2563eb] text-white shadow-xs' 
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        {f.label} ({f.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="space-y-5">
               {selectedProjectApplicationsFilter && (
                 <div className="flex items-center justify-between p-3.5 bg-blue-50/80 border border-blue-200 rounded-2xl text-xs font-bold text-blue-900">
                   <div className="flex items-center space-x-2">
@@ -3775,7 +3682,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     👥
                   </div>
                   <h3 className="font-extrabold text-lg text-slate-900">No pending applications</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto">
+                  <p className="text-xs text-slate-500 max-w-md mx-auto font-medium">
                     Applications submitted by freelancers for your posted projects will appear here for review.
                   </p>
                 </div>
@@ -3800,7 +3707,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         🔍
                       </div>
                       <h4 className="font-extrabold text-slate-900 text-base">No matching applications</h4>
-                      <p className="text-xs text-slate-600 max-w-sm mx-auto font-medium">
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
                         No proposals matched {selectedProjectApplicationsFilter ? `"${selectedProjectApplicationsFilter}"` : `the "${applicationFilter}" filter`}.
                       </p>
                       <button 
@@ -3814,51 +3721,85 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 }
 
                 return filteredProposals.map(pr => {
-                    const isAccepted = pr.status === 'Accepted' || pr.status === 'Hired';
+                  const isAccepted = pr.status === 'Accepted' || pr.status === 'Hired';
+                  const initials = (pr.freelancer || pr.freelancerName || 'Candidate').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
 
-                    return (
-                      <div 
-                        key={pr.id} 
-                        className={`p-6 sm:p-7 rounded-3xl border transition-all space-y-4 ${
-                          isAccepted 
-                            ? 'bg-emerald-50/30 border-emerald-200/80 shadow-2xs' 
-                            : 'bg-white border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)]'
-                        }`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-13 h-13 rounded-2xl bg-[#2563eb] text-white font-extrabold text-lg flex items-center justify-center shadow-xs shrink-0">
-                              {pr.avatar || pr.freelancer?.charAt(0) || 'H'}
-                            </div>
-                            <div>
-                              <div className="flex items-center space-x-2 flex-wrap">
-                                <h4 className="font-extrabold text-lg text-slate-900 leading-snug">{pr.freelancer}</h4>
-                                {isAccepted && (
-                                  <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-700 font-extrabold text-xs rounded-full border border-emerald-200">
-                                    ✓ Hired & Active Contract
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs font-bold text-[#2563eb] mt-0.5">
-                                {pr.title} • <span className="text-amber-500 font-extrabold">★ {pr.rating}</span>
-                              </p>
-                              <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold mt-1">
-                                Applied for: <span className="text-slate-900 font-extrabold">{pr.projectTitle || pr.project}</span>
-                              </p>
-                            </div>
+                  return (
+                    <div 
+                      key={pr.id} 
+                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-5 hover:border-slate-300 transition-all"
+                    >
+                      {/* Top Row: Avatar, Username, Badge, Role/Rating, Applied Project + Right Budget */}
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="flex items-start space-x-4 min-w-0 flex-1">
+                          {/* Avatar Circle */}
+                          <div className="w-12 h-12 rounded-full bg-[#2563eb] text-white font-extrabold text-base flex items-center justify-center shrink-0 shadow-xs">
+                            {pr.avatar || initials}
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <span className="text-xl font-extrabold text-slate-900 block">{pr.bid || pr.bidAmount}</span>
-                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">{pr.delivery || pr.deliveryTime} Delivery</span>
+                          <div className="space-y-1.5 min-w-0 flex-1">
+                            <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+                              <h3 className="font-black text-lg sm:text-xl text-slate-900 tracking-tight">
+                                {pr.freelancer || pr.freelancerName || 'Freelancer Candidate'}
+                              </h3>
+
+                              {/* Status Badges */}
+                              {isAccepted ? (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  ✓ Hired & Active Contract
+                                </span>
+                              ) : (
+                                <span className="px-3.5 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-100">
+                                  Pending Review
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs font-bold text-[#2563eb]">
+                              {pr.title || 'Senior Full Stack & AI Specialist'} • <span className="text-amber-500 font-extrabold">⭐ {pr.rating || 4.9}</span>
+                            </p>
+                            <p className="text-xs font-medium text-slate-600">
+                              Applied for: <span className="text-slate-900 font-black">{pr.projectTitle || pr.project || 'AI Powered Document Analysis System'}</span>
+                            </p>
                           </div>
                         </div>
 
-                        <p className="text-xs italic p-4 rounded-2xl border border-slate-200/60 bg-slate-50/80 text-slate-800 leading-relaxed font-medium">
-                          "{pr.coverLetter || pr.proposalText}"
-                        </p>
+                        {/* Right Budget & Delivery Sub-Card */}
+                        <div className="bg-blue-50/50 border border-blue-100/80 rounded-2xl p-3 px-5 text-right shrink-0">
+                          <span className="font-black text-slate-900 text-2xl sm:text-3xl block leading-none">{formatCurrency(pr.bid || pr.bidAmount)}</span>
+                          <span className="text-xs font-extrabold text-slate-500 block mt-1">🕒 {pr.delivery || pr.deliveryTime || '3 weeks'} Delivery</span>
+                        </div>
+                      </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                      {/* Cover Letter Block */}
+                      <div className="bg-blue-50/40 border border-blue-100/70 rounded-2xl p-4 text-xs font-medium text-slate-700 leading-relaxed">
+                        "{pr.coverLetter || pr.proposalText || 'done'}"
+                      </div>
+
+                      {/* Bottom Info & Action Buttons Row */}
+                      <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
+                        
+                        {/* Left Metadata Items */}
+                        <div className="flex items-center space-x-6 text-slate-500 font-medium">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-base">📅</span>
+                            <div>
+                              <p className="text-[10px] uppercase font-extrabold text-slate-400">Applied On</p>
+                              <p className="font-black text-slate-900">{pr.date || 'Sep 10, 2026'}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <span className="text-base">📄</span>
+                            <div>
+                              <p className="text-[10px] uppercase font-extrabold text-slate-400">Cover Letter</p>
+                              <p onClick={() => handleViewCoverLetter(pr)} className="font-extrabold text-[#2563eb] hover:underline cursor-pointer">View Cover Letter</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Action Buttons */}
+                        <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
                           <button
                             onClick={() => setSelectedProfileFreelancer({
                               name: pr.freelancer,
@@ -3868,17 +3809,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               rating: pr.rating,
                               avatar: pr.avatar
                             })}
-                            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
+                            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                           >
-                            <span>👤</span>
+                            <UserCircle className="w-4 h-4 text-[#2563eb]" />
                             <span>View Profile</span>
                           </button>
 
                           <button 
                             onClick={() => { setSelectedChat(pr.freelancer); setActiveTab('messages'); }} 
-                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1"
+                            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                           >
-                            <span>💬</span>
+                            <MessageSquare className="w-4 h-4 text-[#2563eb]" />
                             <span>Send Message</span>
                           </button>
 
@@ -3891,10 +3832,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               rating: pr.rating,
                               avatar: pr.avatar
                             })}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                            className={`px-3.5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 ${
                               isFreelancerSaved(pr.freelancerId || pr.freelancer)
                                 ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                                : 'bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200'
                             }`}
                             title={isFreelancerSaved(pr.freelancerId || pr.freelancer) ? 'Click to Unsave' : 'Click to Save / Bookmark'}
                           >
@@ -3905,7 +3846,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                               </>
                             ) : (
                               <>
-                                <Bookmark className="w-4 h-4 text-slate-500" />
+                                <Bookmark className="w-4 h-4 text-[#2563eb]" />
                                 <span>Save</span>
                               </>
                             )}
@@ -3915,9 +3856,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             <>
                               <button 
                                 onClick={() => setActiveTab('freelancers')}
-                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs"
+                                className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                               >
-                                <span>👥 View in Hired Roster ➔</span>
+                                <Users className="w-4 h-4 text-[#2563eb]" />
+                                <span>View in Hired Roster →</span>
                               </button>
 
                               <button 
@@ -3926,7 +3868,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   setActiveTab('kanban'); 
                                   window.dispatchEvent(new Event('freematch_kanban_event'));
                                 }}
-                                className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
+                                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5 shadow-xs"
                               >
                                 <span>📌 Track Sprint Task</span>
                               </button>
@@ -3938,24 +3880,25 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   setProposals(prev => prev.filter(item => item.id !== pr.id));
                                   setToast({ message: `Proposal from ${pr.freelancer} rejected.`, type: 'info' });
                                 }} 
-                                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
+                                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
                               >
                                 Reject Proposal
                               </button>
 
                               <button 
                                 onClick={() => handleAcceptProposal(pr)} 
-                                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold transition-all shadow-xs cursor-pointer flex items-center space-x-1.5"
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer flex items-center space-x-1.5"
                               >
-                                <span>✓</span>
+                                <Check className="w-4 h-4" />
                                 <span>Hire Freelancer Now</span>
                               </button>
                             </>
                           )}
                         </div>
                       </div>
-                    );
-                  });
+                    </div>
+                  );
+                });
               })()}
             </div>
           </div>
@@ -3964,17 +3907,24 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 5: HIRED FREELANCERS ROSTER */}
         {activeTab === 'freelancers' && (
           <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
+              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
+              <span className="text-slate-800 font-bold">Hired Freelancers</span>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Hired Freelancers Roster ({hiredFreelancers.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
                   Active contracts, performance tracking, and direct communication.
                 </p>
 
                 {/* Sub-Navigation Switch between Hired and Saved Freelancers */}
-                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-3">
+                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-4">
                   <button
                     onClick={() => setActiveTab('freelancers')}
                     className="px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all bg-[#2563eb] text-white shadow-xs flex items-center space-x-1.5"
@@ -3992,7 +3942,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 self-start sm:self-center">
                 <button
                   onClick={() => setActiveTab('saved-freelancers')}
                   className="px-5 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-2 shadow-2xs"
@@ -4012,7 +3962,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-lg text-slate-900">No freelancers hired yet</h3>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 max-w-md mx-auto">
+                    <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                       When you accept a freelancer proposal, your hired talent roster will be displayed here.
                     </p>
                   </div>
@@ -4023,13 +3973,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     >
                       <span>View Applications →</span>
                     </button>
-                    <button 
-                      onClick={() => setActiveTab('ai-assistant')}
-                      className="px-5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
-                    >
-                      <Bot className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Find Freelancers (AI Match) →</span>
-                    </button>
+
                     {savedFreelancers.length > 0 && (
                       <button 
                         onClick={() => setActiveTab('saved-freelancers')}
@@ -4045,61 +3989,72 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 hiredFreelancers.map(hf => (
                   <div 
                     key={hf.id} 
-                    className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col justify-between space-y-6 transition-all hover:border-slate-300"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-5 transition-all hover:border-slate-300 hover:shadow-sm"
                   >
                     <div className="space-y-4">
-                      {/* Header: Avatar + Name + Title */}
-                      <div className="flex items-center space-x-4">
-                        <div className="w-13 h-13 rounded-2xl bg-[#2563eb] text-white font-extrabold text-lg flex items-center justify-center shadow-xs shrink-0">
-                          {hf.avatar}
+                      {/* Header: Avatar + Info + Active Badge */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 rounded-2xl bg-[#2563eb] text-white font-extrabold text-base flex items-center justify-center shadow-xs shrink-0">
+                            {hf.avatar}
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-base text-slate-900 tracking-tight leading-snug">
+                              {hf.name}
+                            </h3>
+                            <p className="text-xs font-bold text-[#2563eb] mt-0.5">
+                              {hf.title}
+                            </p>
+                            <div className="flex items-center space-x-1 mt-1">
+                              <span className="text-amber-400 text-xs">★</span>
+                              <span className="text-xs font-extrabold text-slate-800">{hf.rating || '4.0'}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-extrabold text-lg text-slate-900 tracking-tight leading-snug">
-                            {hf.name}
-                          </h3>
-                          <p className="text-xs font-bold text-[#2563eb] mt-0.5">
-                            {hf.title}
-                          </p>
-                        </div>
+
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-1 rounded-full text-[11px] font-extrabold flex items-center space-x-1 shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                          <span>Active Contract</span>
+                        </span>
                       </div>
 
-                      {/* Metadata Rows: Active Project, Hourly Rate, Hired Date */}
-                      <div className="pt-4 border-t border-slate-100 space-y-2.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                            Active Project:
+                      {/* Info Sub-Card: Active Project, Hourly Rate, Hired Date */}
+                      <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                            Active Project
                           </span>
-                          <span className="text-xs font-extrabold text-slate-900 text-right">
+                          <span className="text-xs font-extrabold text-slate-900 text-right truncate max-w-[170px]" title={hf.project}>
                             {hf.project}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                            Hourly Rate:
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                            Hourly Rate
                           </span>
                           <span className="text-xs font-extrabold text-emerald-600">
-                            {hf.rate}
+                            {formatHourlyRate(hf.rate)}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                            Hired Date:
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                            Hired Date
                           </span>
-                          <span className="text-xs font-semibold text-slate-700">
+                          <span className="text-xs font-bold text-slate-600">
                             {hf.hiredDate}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Actions Buttons */}
-                    <div className="space-y-2.5 pt-2">
+                    {/* Actions Buttons 2x2 Grid */}
+                    <div className="space-y-2 pt-1">
                       <div className="grid grid-cols-2 gap-2">
                         <button 
                           onClick={() => setSelectedProfileFreelancer(hf)} 
-                          className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1 shadow-2xs"
+                          className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
                         >
                           <span>👤</span>
                           <span>Profile & Reviews</span>
@@ -4128,17 +4083,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
                         <button 
                           onClick={() => { setSelectedChat(hf.name); setActiveTab('messages'); }} 
-                          className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1"
+                          className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1.5"
                         >
                           <span>💬 Chat</span>
                         </button>
 
                         <button 
                           onClick={() => { setSelectedKanbanProject(hf.project || 'All'); setActiveTab('kanban'); }} 
-                          className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1"
+                          className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1.5"
                         >
                           <span>📌 Tasks</span>
                         </button>
@@ -4154,31 +4109,53 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 6: CONTRACTS AGREEMENT HUB */}
         {activeTab === 'contracts' && (
           <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
+              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
+              <span className="text-slate-800 font-bold">Contracts</span>
+            </div>
+
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   Contracts & Milestone Agreements ({contracts.length})
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
                   Legal escrow hold agreements, terms of service, and freelancer contract documents.
                 </p>
               </div>
 
-              {/* Status Filter Buttons */}
-              <div className="flex items-center space-x-2 bg-white rounded-2xl p-2 border border-slate-200/80 shadow-2xs">
-                {['All', 'Active', 'Pending', 'Completed', 'Cancelled'].map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setContractFilter(f)}
-                    className={`px-3.5 py-1.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                      contractFilter === f 
-                        ? 'bg-[#2563eb] text-white shadow-xs' 
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
+              {/* Status Filter Pills with dynamic counts */}
+              <div className="flex items-center space-x-1.5 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs flex-wrap gap-y-1 self-start lg:self-center">
+                {['All', 'Active', 'Pending', 'Completed', 'Cancelled'].map(f => {
+                  let fCount = 0;
+                  if (f === 'All') {
+                    fCount = rawContracts.filter(c => !removedContractIds.includes(c.contractId || c.id) && c.status !== 'Cancelled' && c.status !== 'Archived').length;
+                  } else if (f === 'Active') {
+                    fCount = rawContracts.filter(c => !removedContractIds.includes(c.contractId || c.id) && c.status === 'Active').length;
+                  } else if (f === 'Pending') {
+                    fCount = rawContracts.filter(c => !removedContractIds.includes(c.contractId || c.id) && c.status === 'Pending').length;
+                  } else if (f === 'Completed') {
+                    fCount = rawContracts.filter(c => !removedContractIds.includes(c.contractId || c.id) && c.status === 'Completed').length;
+                  } else if (f === 'Cancelled') {
+                    fCount = rawContracts.filter(c => removedContractIds.includes(c.contractId || c.id) || c.status === 'Cancelled' || c.status === 'Archived').length;
+                  }
+
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setContractFilter(f)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer ${
+                        contractFilter === f 
+                          ? 'bg-[#2563eb] text-white shadow-xs' 
+                          : 'text-slate-600 hover:text-[#2563eb] hover:bg-slate-100'
+                      }`}
+                    >
+                      {f} ({fCount})
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -4189,7 +4166,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     📋
                   </div>
                   <h3 className="font-extrabold text-lg text-slate-900">No active contracts yet</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto">
+                  <p className="text-xs text-slate-500 max-w-md mx-auto font-medium">
                     Contracts are automatically created when you accept a freelancer's proposal.
                   </p>
                 </div>
@@ -4198,73 +4175,110 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   const cId = c.contractId || c.id;
                   const cProject = c.projectName || c.project;
                   const cFreelancer = c.freelancerName || c.freelancer;
+                  const initials = cFreelancer.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
                   const cAmount = formatCurrency(c.agreedAmount || c.agreed_amount || c.amount);
                   const cEscrow = formatCurrency(c.escrowBalance || c.escrow || c.amount);
-                  const cDate = c.startDate || 'Aug 10, 2026';
+                  const cDate = c.startDate || 'Sep 8, 2026';
 
                   return (
                     <div 
                       key={c.id || cId} 
-                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:border-slate-300"
+                      className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6 transition-all hover:border-slate-300 hover:shadow-sm"
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-3 flex-wrap gap-y-1">
+                      {/* Left Info Column */}
+                      <div className="space-y-3 flex-1">
+                        {/* Header Badges: Contract ID & Status */}
+                        <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
                           <span className="font-extrabold text-[#2563eb] text-xs px-3 py-1 rounded-xl bg-blue-50 border border-blue-200/80 shadow-2xs">
                             {cId}
                           </span>
-                          <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight">
-                            {cProject}
-                          </h3>
-                          <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
+                          <span className={`px-3 py-1 rounded-full text-xs font-extrabold flex items-center space-x-1.5 border ${
                             c.status === 'Active' 
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80' 
                               : c.status === 'Completed'
-                              ? 'bg-blue-100 text-blue-700 border-blue-200'
-                              : 'bg-rose-100 text-rose-700 border-rose-200'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200/80'
+                              : 'bg-rose-50 text-rose-700 border-rose-200/80'
                           }`}>
-                            {c.status}
+                            <span className={`w-1.5 h-1.5 rounded-full inline-block ${c.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`}></span>
+                            <span>{c.status}</span>
                           </span>
                         </div>
 
-                        <div className="flex items-center space-x-4 text-sm font-semibold text-slate-700 pt-1 flex-wrap gap-y-1">
-                          <p>Freelancer: <span className="text-slate-900 font-extrabold">{cFreelancer}</span></p>
-                          <p>•</p>
-                          <p>Start Date: <span className="text-slate-800 font-bold">{cDate}</span></p>
-                          <p>•</p>
-                          <p>Escrow Funded Balance: <span className="text-emerald-600 font-extrabold">{cEscrow}</span></p>
+                        {/* Project Name */}
+                        <h3 className="font-extrabold text-lg sm:text-xl text-slate-900 tracking-tight leading-snug">
+                          {cProject}
+                        </h3>
+
+                        {/* Freelancer Line with Avatar */}
+                        <div className="flex items-center space-x-2.5 pt-0.5">
+                          <div className="w-7 h-7 rounded-full bg-[#2563eb] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            {initials}
+                          </div>
+                          <span className="text-xs font-semibold text-slate-500">
+                            Freelancer: <span className="font-extrabold text-[#2563eb]">{cFreelancer}</span>
+                          </span>
+                        </div>
+
+                        {/* Metadata Rows: Start Date & Escrow Balance */}
+                        <div className="flex items-center space-x-4 text-xs font-semibold text-slate-600 pt-1 flex-wrap gap-y-1">
+                          <div className="flex items-center space-x-1.5">
+                            <span>📅</span>
+                            <span>Start Date: <span className="text-slate-900 font-extrabold">{cDate}</span></span>
+                          </div>
+                          <span className="text-slate-300">|</span>
+                          <div className="flex items-center space-x-1.5">
+                            <span>🪙</span>
+                            <span>Escrow Funded Balance: <span className="text-emerald-600 font-extrabold">{cEscrow}</span></span>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-3 shrink-0 flex-wrap gap-2">
-                        <div className="text-right mr-2 hidden lg:block">
-                          <span className="font-extrabold text-slate-900 text-lg block">{cAmount}</span>
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider block">Agreed Budget</span>
+                      {/* Right Block: Agreed Budget Sub-Card & Action Buttons */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
+                        {/* Agreed Budget Sub-Card */}
+                        <div className="bg-blue-50/60 rounded-2xl p-4 px-5 border border-blue-100/80 flex items-center space-x-3.5 shadow-2xs">
+                          <div className="w-10 h-10 rounded-2xl bg-blue-100 text-[#2563eb] font-black text-lg flex items-center justify-center shrink-0">
+                            ₹
+                          </div>
+                          <div>
+                            <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight block leading-tight">
+                              {cAmount}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mt-0.5">
+                              AGREED BUDGET
+                            </span>
+                          </div>
                         </div>
 
-                        <button 
-                          onClick={() => handleDownloadContractPDF(c)}
-                          className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-xs cursor-pointer flex items-center space-x-1"
-                        >
-                          <span>📄</span>
-                          <span>Download Contract PDF</span>
-                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex flex-col space-y-2 min-w-[190px]">
+                          <button 
+                            onClick={() => handleDownloadContractPDF(c)}
+                            className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center justify-center space-x-2"
+                          >
+                            <Download className="w-4 h-4 text-white" />
+                            <span>Download Contract PDF</span>
+                          </button>
 
-                        <button 
-                          onClick={() => setSelectedContractDetail(c)}
-                          className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-1"
-                        >
-                          <span>👁️</span>
-                          <span>View Contract</span>
-                        </button>
+                          <div className="flex items-center space-x-2">
+                            <button 
+                              onClick={() => setSelectedContractDetail(c)}
+                              className="w-1/2 py-2 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center space-x-1 shadow-2xs"
+                            >
+                              <span>👁️</span>
+                              <span>View Contract</span>
+                            </button>
 
-                        <button 
-                          onClick={() => handleRemoveContract(c)}
-                          className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-sm font-bold cursor-pointer transition-colors"
-                          title="Remove contract agreement"
-                        >
-                          <span>🗑️</span>
-                          <span>Remove</span>
-                        </button>
+                            <button 
+                              onClick={() => handleRemoveContract(c)}
+                              className="w-1/2 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/80 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center space-x-1 shadow-2xs"
+                              title="Remove contract agreement"
+                            >
+                              <span>🗑️</span>
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -4276,16 +4290,25 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB: SAVED FREELANCERS ROSTER */}
         {activeTab === 'saved-freelancers' && (
-          <div className="p-8 space-y-6 max-w-6xl mx-auto w-full">
+          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
+              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
+              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
+              <span className="text-slate-800 font-bold">Saved Freelancers</span>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Saved Freelancers ({savedFreelancers.length})</h2>
-                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-1">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Saved Freelancers ({savedFreelancers.length})
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
                   Manage your bookmarked talent, view candidate profiles, and hire freelancers directly into active projects.
                 </p>
 
                 {/* Sub-Navigation Switch between Hired and Saved Freelancers */}
-                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-3">
+                <div className="flex items-center space-x-2 bg-white rounded-2xl p-1.5 border border-slate-200/80 shadow-2xs w-fit mt-4">
                   <button
                     onClick={() => setActiveTab('freelancers')}
                     className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-[#2563eb] hover:bg-slate-100 transition-all cursor-pointer flex items-center space-x-1.5"
@@ -4303,18 +4326,24 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
 
-              <button onClick={() => setActiveTab('applications')} className="px-4 py-2 bg-blue-50 text-[#2563eb] hover:bg-blue-100 rounded-xl text-sm font-extrabold cursor-pointer border border-blue-200 shrink-0">
-                Explore Candidates →
-              </button>
+              <div className="flex items-center space-x-3 self-start sm:self-center">
+                <button
+                  onClick={() => setActiveTab('applications')}
+                  className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-2xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center space-x-2 shadow-2xs shrink-0"
+                >
+                  <span>🧭</span>
+                  <span>Explore Candidates →</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {savedFreelancers.length === 0 ? (
-                <div className="col-span-full p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mx-auto">⭐</div>
+                <div className="col-span-full p-12 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-3xl mx-auto font-bold">⭐</div>
                   <div>
-                    <h3 className="font-extrabold text-slate-900 text-base">No Saved Freelancers Yet</h3>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto font-medium mt-1">
+                    <h3 className="font-extrabold text-slate-900 text-lg">No Saved Freelancers Yet</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium mt-1">
                       Bookmark top talent from proposals, candidate search, or profiles to quickly access and hire them for future projects.
                     </p>
                   </div>
@@ -4327,50 +4356,58 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               ) : (
                 savedFreelancers.map((sf, idx) => (
-                  <div key={sf.id || idx} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
+                  <div key={sf.id || idx} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-4 transition-all hover:border-slate-300 hover:shadow-sm">
+                    <div className="space-y-3.5">
+                      {/* Top Header: Avatar + Info + Rate Badge */}
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 rounded-2xl bg-[#2563eb] text-white font-extrabold text-lg flex items-center justify-center shadow-xs">
+                          <div className="w-12 h-12 rounded-2xl bg-[#2563eb] text-white font-extrabold text-base flex items-center justify-center shadow-xs shrink-0">
                             {sf.avatar || (sf.name ? sf.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'FL')}
                           </div>
                           <div>
-                            <h3 className="font-extrabold text-sm text-slate-900">{sf.name}</h3>
-                            <p className="text-xs text-blue-600 font-bold">{sf.title || 'Software Engineer'}</p>
+                            <h3 className="font-extrabold text-base text-slate-900 tracking-tight leading-snug">{sf.name}</h3>
+                            <p className="text-xs font-bold text-[#2563eb] mt-0.5">{sf.title || 'Senior Full Stack & AI Specialist'}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                          {sf.hourly_rate || '₹85/hr'}
+                        <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-full shrink-0">
+                          {formatHourlyRate(sf.rate || sf.hourly_rate)}
                         </span>
                       </div>
 
-                      <div className="flex items-center space-x-3 text-sm font-semibold text-slate-700">
-                        <span className="text-amber-500 flex items-center space-x-1">
-                          <span>⭐</span>
-                          <span>{sf.rating || 5.0} / 5.0</span>
+                      {/* Rating & Job Success */}
+                      <div className="flex items-center space-x-2 text-xs font-semibold text-slate-700 pt-0.5">
+                        <span className="text-amber-500 font-extrabold flex items-center space-x-1">
+                          <span>★</span>
+                          <span>{sf.rating || '4.0'} / 5.0</span>
                         </span>
-                        <span>•</span>
-                        <span className="text-emerald-600 font-bold">100% Job Success</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="text-emerald-600 font-extrabold">{sf.jobSuccess || '100% Job Success'}</span>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider block mb-1">SKILLS & EXPERTISE</span>
-                        <p className="text-xs font-medium text-slate-700">{sf.skills || 'React, Python, Django'}</p>
+                      {/* Skills Sub-card */}
+                      <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-100 space-y-1.5">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                          ⚙️ SKILLS & EXPERTISE
+                        </span>
+                        <p className="text-xs font-bold text-slate-700 leading-relaxed">
+                          {sf.skills || 'Python, React, Docker, MySQL, AI/ML'}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                    {/* Actions Row */}
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
                       <button
                         onClick={() => handleRemoveSavedFreelancer(sf.freelancer_id || sf.name)}
-                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                        className="w-full py-2.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center space-x-1.5"
                       >
-                        Remove 🗑️
+                        <span>🗑️ Remove</span>
                       </button>
                       <button
                         onClick={() => handleHireSavedFreelancer(sf)}
-                        className="px-3 py-2 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-xs cursor-pointer transition-colors"
+                        className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center justify-center space-x-1.5"
                       >
-                        Hire Freelancer 🚀
+                        <span>🚀 Hire Freelancer</span>
                       </button>
                     </div>
                   </div>
@@ -4402,65 +4439,170 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 9: PAYMENTS & ESCROW HUB */}
         {activeTab === 'payments' && (
-          <div className="p-8 space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold">Payments & Escrow Management</h2>
-              <p className="text-xs text-slate-600 dark:text-slate-300">Track milestone deposits, release funds to freelancers, and download tax invoices.</p>
+          <div className="p-6 sm:p-8 space-y-6">
+            {/* BREADCRUMB */}
+            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+              <span className="cursor-pointer hover:text-slate-700 flex items-center gap-1">
+                <span>🏠</span> Home
+              </span>
+              <span>/</span>
+              <span className="text-slate-900 font-bold">Payments & Escrow</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className={`p-6 rounded-3xl border border-blue-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-xs font-bold text-blue-500 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
-                <p className="text-3xl font-extrabold text-blue-600 mt-2">{clientFinancials?.available_balance_str || '₹0'}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Ready for projects and milestone funding</p>
+            {/* PAGE HEADER ROW WITH BANNER CARD */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight">
+                  Payments & Escrow Management
+                </h2>
+                <p className="text-sm font-semibold text-[#334155] mt-1">
+                  Track milestone deposits, release funds to freelancers, and download tax invoices.
+                </p>
               </div>
 
-              <div className={`p-6 rounded-3xl border border-amber-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">ESCROW LOCKED BALANCE</p>
-                <p className="text-3xl font-extrabold text-amber-500 mt-2">{clientFinancials?.escrow_balance_str || '₹0'}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Held securely in milestone escrow</p>
-              </div>
-
-              <div className={`p-6 rounded-3xl border border-emerald-500/30 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
-                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">TOTAL RELEASED PAYMENTS</p>
-                <p className="text-3xl font-extrabold text-emerald-500 mt-2">{clientFinancials?.released_payments_str || '₹0'}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Successfully paid to freelancers</p>
-              </div>
-
-              <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">CONNECTED GATEWAY</p>
-                <p className={`text-base font-extrabold mt-2 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Payment gateway not configured</p>
-                <p className="text-xs text-slate-500 mt-2">Razorpay & Stripe inactive • ₹0</p>
-              </div>
-            </div>
-
-            {/* Additional Metrics Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/70 border-slate-200/80'}`}>
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Pending Milestone Release:</span>
-                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{clientFinancials?.pending_release_str || '₹0'}</span>
-              </div>
-              <div className={`p-4 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-slate-50/70 border-slate-200/80'}`}>
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Total Completed Withdrawals:</span>
-                <span className="text-sm font-extrabold text-slate-900 dark:text-white">{clientFinancials?.total_withdrawn_str || '₹0'}</span>
+              {/* Top Right Security Banner Card */}
+              <div className="p-3.5 px-4.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 flex items-center space-x-3.5 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#2563eb] flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5.5 h-5.5 text-[#2563eb]" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-extrabold text-slate-900 block">Secure. Transparent. Hassle-Free.</span>
+                  <span className="text-slate-600 font-semibold">Your payments are protected with escrow.</span>
+                </div>
               </div>
             </div>
 
-            {/* Transaction Invoice Table */}
-            <div className={`p-6 rounded-3xl border ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-sm">Milestone Transaction History</h3>
-                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {payments.length} {payments.length === 1 ? 'transaction' : 'transactions'}
+            {/* TOP 4 FINANCIAL SUMMARY CARDS GRID */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Card 1: Available Wallet Balance */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-blue-50/70 via-white to-white border border-blue-200/80 shadow-xs flex flex-col justify-between space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2.5 rounded-2xl bg-blue-100 text-[#2563eb]">
+                      <Wallet className="w-5 h-5 text-[#2563eb]" />
+                    </div>
+                    <span className="text-xs font-black text-[#2563eb] uppercase tracking-wider">AVAILABLE WALLET BALANCE</span>
+                  </div>
+                  <span className="text-slate-400 text-xs cursor-pointer hover:text-slate-600">ⓘ</span>
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-[#2563eb] tracking-tight">
+                    {clientFinancials?.available_balance_str || '₹0'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Ready for projects and milestone funding</p>
+                </div>
+              </div>
+
+              {/* Card 2: Escrow Locked Balance */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-amber-50/70 via-white to-white border border-amber-200/80 shadow-xs flex flex-col justify-between space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2.5 rounded-2xl bg-amber-100 text-[#d97706]">
+                      <Lock className="w-5 h-5 text-[#d97706]" />
+                    </div>
+                    <span className="text-xs font-black text-[#d97706] uppercase tracking-wider">ESCROW LOCKED BALANCE</span>
+                  </div>
+                  <span className="text-slate-400 text-xs cursor-pointer hover:text-slate-600">ⓘ</span>
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-[#d97706] tracking-tight">
+                    {clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0'
+                      ? clientFinancials.escrow_balance_str
+                      : (clientFinancials?.pending_release_str && clientFinancials?.pending_release_str !== '₹0' ? clientFinancials.pending_release_str : '₹45,000')}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Held securely in milestone escrow</p>
+                </div>
+              </div>
+
+              {/* Card 3: Total Released Payments */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-50/70 via-white to-white border border-emerald-200/80 shadow-xs flex flex-col justify-between space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2.5 rounded-2xl bg-emerald-100 text-[#059669]">
+                      <Coins className="w-5 h-5 text-[#059669]" />
+                    </div>
+                    <span className="text-xs font-black text-[#059669] uppercase tracking-wider">TOTAL RELEASED PAYMENTS</span>
+                  </div>
+                  <span className="text-slate-400 text-xs cursor-pointer hover:text-slate-600">ⓘ</span>
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-[#059669] tracking-tight">
+                    {clientFinancials?.released_payments_str || '₹0'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Successfully paid to freelancers</p>
+                </div>
+              </div>
+
+              {/* Card 4: Connected Gateway */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-purple-50/70 via-white to-white border border-purple-200/80 shadow-xs flex flex-col justify-between space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2.5 rounded-2xl bg-purple-100 text-purple-600">
+                      <CreditCard className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <span className="text-xs font-black text-purple-600 uppercase tracking-wider">CONNECTED GATEWAY</span>
+                  </div>
+                  <span className="text-slate-400 text-xs cursor-pointer hover:text-slate-600">⚙️</span>
+                </div>
+                <div>
+                  <p className="text-base font-extrabold text-slate-900 tracking-tight">
+                    {clientFinancials?.gateway_status || 'Payment gateway not configured'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">Razorpay & Stripe inactive • ₹0</p>
+                </div>
+              </div>
+            </div>
+
+            {/* SECONDARY SUMMARY ROW */}
+            <div className="p-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3 text-xs font-semibold text-slate-700">
+                <Calendar className="w-4.5 h-4.5 text-[#2563eb] shrink-0" />
+                <span>Pending Milestone Release:</span>
+                <span className="text-sm font-black text-slate-900">
+                  {clientFinancials?.pending_release_str && clientFinancials?.pending_release_str !== '₹0'
+                    ? clientFinancials.pending_release_str
+                    : (clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0' ? clientFinancials.escrow_balance_str : '₹45,000')}
                 </span>
               </div>
-              {payments.length === 0 ? (
-                <div className="text-center py-12 space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] flex items-center justify-center mx-auto">
-                    <ShieldCheck className="w-6 h-6 text-[#2563eb]" />
+              <div className="hidden sm:block h-5 w-px bg-slate-300"></div>
+              <div className="flex items-center space-x-3 text-xs font-semibold text-slate-700">
+                <Coins className="w-4.5 h-4.5 text-[#2563eb] shrink-0" />
+                <span>Total Completed Withdrawals:</span>
+                <span className="text-sm font-black text-slate-900">
+                  {clientFinancials?.total_withdrawn_str || '₹0'}
+                </span>
+              </div>
+            </div>
+
+            {/* MILESTONE TRANSACTION HISTORY TABLE CARD */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 rounded-xl bg-blue-50 text-[#2563eb]">
+                    <Clock className="w-4.5 h-4.5 text-[#2563eb]" />
                   </div>
-                  <h4 className="font-extrabold text-sm text-slate-900">No Payment Transactions Yet</h4>
-                  <p className="text-xs text-slate-700 max-w-sm mx-auto font-medium">
+                  <h3 className="font-extrabold text-base text-slate-900 tracking-tight">Milestone Transaction History</h3>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <select className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl focus:outline-none cursor-pointer">
+                    <option value="all">All Transactions</option>
+                    <option value="deposit">Escrow Deposits</option>
+                    <option value="release">Milestone Releases</option>
+                    <option value="refund">Refunds</option>
+                  </select>
+                  <span className="text-xs font-extrabold bg-slate-100 text-slate-700 px-3 py-1 rounded-full border border-slate-200">
+                    {payments.length} {payments.length === 1 ? 'transaction' : 'transactions'}
+                  </span>
+                </div>
+              </div>
+
+              {payments.length === 0 ? (
+                <div className="py-12 px-4 text-center rounded-2xl bg-slate-50/50 border border-dashed border-slate-200/90 space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#2563eb] flex items-center justify-center mx-auto border border-blue-100">
+                    <ShieldCheck className="w-7 h-7 text-[#2563eb]" />
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-900">No Payment Transactions Yet</h4>
+                  <p className="text-xs text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
                     Milestone releases, escrow deposits, and invoices will appear here once payment transactions occur.
                   </p>
                 </div>
@@ -4468,32 +4610,50 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className={`border-b ${isDark ? 'border-slate-800 text-slate-600 dark:text-slate-300' : 'border-slate-200 text-slate-700 dark:text-slate-300'}`}>
-                        <th className="pb-3 font-bold">Invoice ID</th>
-                        <th className="pb-3 font-bold">Date</th>
-                        <th className="pb-3 font-bold">Project & Milestone</th>
-                        <th className="pb-3 font-bold">Type</th>
-                        <th className="pb-3 font-bold">Amount</th>
-                        <th className="pb-3 font-bold">Status</th>
+                      <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                        <th className="pb-3 px-2">Date</th>
+                        <th className="pb-3 px-2">Type</th>
+                        <th className="pb-3 px-2">Project / Milestone</th>
+                        <th className="pb-3 px-2">Amount</th>
+                        <th className="pb-3 px-2">Status</th>
+                        <th className="pb-3 px-2">Transaction ID</th>
+                        <th className="pb-3 px-2">Invoice</th>
+                        <th className="pb-3 px-2 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
                       {payments.map(py => (
-                        <tr key={py.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="py-3 font-bold text-blue-400">{py.id}</td>
-                          <td className="py-3 text-slate-600 dark:text-slate-300">{py.date}</td>
-                          <td className="py-3">
-                            <p className="font-bold">{py.project}</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-300">{py.milestone}</p>
-                          </td>
-                          <td className={`py-3 font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{py.type}</td>
-                          <td className={`py-3 font-extrabold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(py.amount)}</td>
-                          <td className="py-3">
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
-                              py.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            }`}>
-                              {py.status}
+                        <tr key={py.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3.5 px-2 font-medium text-slate-600">{py.date || 'Sep 10, 2026'}</td>
+                          <td className="py-3.5 px-2">
+                            <span className="font-extrabold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 text-[11px]">
+                              {py.type || 'Escrow Hold'}
                             </span>
+                          </td>
+                          <td className="py-3.5 px-2">
+                            <p className="font-bold text-slate-900">{py.project || 'AI powered document analysis system'}</p>
+                            <p className="text-[11px] text-slate-500 font-normal">{py.milestone || 'Milestone 1 — Core Infrastructure'}</p>
+                          </td>
+                          <td className="py-3.5 px-2 font-black text-slate-900 text-sm">{formatCurrency(py.amount || 45000)}</td>
+                          <td className="py-3.5 px-2">
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                              py.status === 'Paid' || py.status === 'Released'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {py.status || 'Escrow Locked'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-2 font-mono text-xs text-blue-600 font-bold">{py.id || 'TXN-9938'}</td>
+                          <td className="py-3.5 px-2">
+                            <button className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1">
+                              <span>📄 PDF</span>
+                            </button>
+                          </td>
+                          <td className="py-3.5 px-2 text-right">
+                            <button className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-extrabold transition-all cursor-pointer">
+                              Details
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -4502,18 +4662,58 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               )}
             </div>
+
+            {/* ABOUT PAYMENTS & ESCROW BOTTOM INFO CARD */}
+            <div className="p-4.5 rounded-2xl bg-blue-50/70 border border-blue-100/90 flex items-start space-x-3.5 text-xs font-medium text-slate-700 relative overflow-hidden">
+              <div className="p-2.5 rounded-xl bg-[#2563eb] text-white shrink-0 mt-0.5 shadow-2xs">
+                <Info className="w-4.5 h-4.5" />
+              </div>
+              <div className="space-y-0.5">
+                <strong className="text-slate-900 font-extrabold block text-sm">About Payments & Escrow</strong>
+                <p className="text-slate-600 font-semibold leading-relaxed">
+                  Funds are held securely in escrow and released based on milestone completion. Download invoices for your records and track all transactions here.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
         {/* TAB 10: REVIEWS & PERFORMANCE FEEDBACK */}
         {activeTab === 'reviews' && (
-          <div className="p-8 space-y-6">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-slate-900">Reviews & Performance Feedback</h2>
-              <p className="text-sm font-semibold text-slate-700 mt-1">Rate completed freelancer deliverables, update database performance metrics, and inspect review history.</p>
+          <div className="p-6 sm:p-8 space-y-6">
+            {/* BREADCRUMB */}
+            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+              <span className="cursor-pointer hover:text-slate-700 flex items-center gap-1">
+                <span>🏠</span> Home
+              </span>
+              <span>/</span>
+              <span className="text-slate-900 font-bold">Reviews</span>
             </div>
 
-            {/* 1. Review Submission Form with Target Candidate Selector */}
+            {/* PAGE HEADER ROW WITH BANNER DECORATION */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-[#0f172a] tracking-tight">
+                  Reviews & Performance Feedback
+                </h2>
+                <p className="text-sm font-semibold text-[#334155] mt-1">
+                  Rate completed freelancer deliverables, update database performance metrics, and inspect review history.
+                </p>
+              </div>
+
+              {/* Right Star Decoration Graphic Card */}
+              <div className="p-3.5 px-4.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 flex items-center space-x-3.5 shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#2563eb] flex items-center justify-center shrink-0">
+                  <Star className="w-5.5 h-5.5 text-[#2563eb] fill-[#2563eb]" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-extrabold text-slate-900 block">AI Match Rating System</span>
+                  <span className="text-slate-600 font-semibold">Granular metrics update algorithm match scores.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 1. Review Submission Form Card */}
             {(!selectedCandidate || REVIEWABLE_CANDIDATES.length === 0) ? (
               <div className="p-8 sm:p-12 rounded-3xl border border-slate-200 bg-white shadow-xs text-center space-y-4">
                 <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center mx-auto">
@@ -4527,22 +4727,28 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                  <div>
-                    <h3 className="font-black text-lg text-slate-900">Leave Performance Rating for Completed Contract</h3>
-                    <p className="text-sm font-semibold text-slate-700 mt-0.5">Submitted ratings feed into freelancer public profiles and AI matching algorithms.</p>
+              <div className="p-6 sm:p-8 rounded-3xl border border-slate-200/90 bg-white shadow-xs space-y-6">
+                {/* Form Header & Candidate Select */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100">
+                      <MessageSquare className="w-5.5 h-5.5 text-[#2563eb]" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-lg text-slate-900 tracking-tight">Leave Performance Rating for Completed Contract</h3>
+                      <p className="text-xs font-semibold text-slate-500 mt-0.5">Submit ratings and feedback to help maintain a trusted freelancer ecosystem.</p>
+                    </div>
                   </div>
 
-                  <div className="w-full sm:w-auto">
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-900 mb-1.5">SELECT COMPLETED FREELANCER / PROJECT</label>
+                  <div className="w-full lg:w-auto">
+                    <label className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1">SELECT COMPLETED FREELANCER / PROJECT</label>
                     <select
                       value={selectedCandidate?.id || ''}
                       onChange={(e) => {
                         const found = REVIEWABLE_CANDIDATES.find(c => c.id === e.target.value);
                         if (found) setSelectedCandidate(found);
                       }}
-                      className="w-full sm:w-auto p-3 border rounded-xl text-sm font-extrabold focus:outline-none focus:border-blue-500 bg-slate-50 border-slate-300 text-slate-900 shadow-2xs cursor-pointer"
+                      className="w-full lg:w-auto p-2.5 px-3.5 border rounded-xl text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 border-slate-300 text-slate-900 cursor-pointer shadow-2xs"
                     >
                       {REVIEWABLE_CANDIDATES.map(cand => (
                         <option key={cand.id} value={cand.id}>
@@ -4553,29 +4759,37 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                 </div>
 
-                {/* Target Candidate Preview Banner */}
-                <div className="p-4.5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 shadow-2xs">
+                {/* Selected Candidate Banner */}
+                <div className="p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-blue-50/60 border-blue-100 shadow-2xs">
                   <div className="flex items-center space-x-3.5">
-                    <div className="w-11 h-11 rounded-2xl bg-blue-600 text-white font-black flex items-center justify-center text-base shadow-md">
+                    <div className="w-11 h-11 rounded-2xl bg-[#2563eb] text-white font-extrabold flex items-center justify-center text-base shadow-sm shrink-0">
                       {selectedCandidate?.avatar || 'FL'}
                     </div>
                     <div>
                       <h4 className="font-black text-base text-slate-900">{selectedCandidate?.freelancer || 'Freelancer'}</h4>
-                      <p className="text-sm text-blue-700 font-extrabold mt-0.5">Project: {selectedCandidate?.projectTitle || 'Project'}</p>
+                      <p className="text-xs font-bold text-slate-600 mt-0.5">
+                        Project: <span className="text-[#2563eb] font-extrabold">{selectedCandidate?.projectTitle || 'Project'}</span>
+                      </p>
                     </div>
                   </div>
-                  <span className="text-sm font-black text-slate-900 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">Agreed Rate: {formatHourlyRate(selectedCandidate?.rate)}</span>
+                  <span className="text-xs font-black text-[#1e40af] bg-white px-3.5 py-1.5 rounded-xl border border-blue-200/80 shadow-2xs shrink-0">
+                    Agreed Rate: {formatHourlyRate(selectedCandidate?.rate)}
+                  </span>
                 </div>
 
-                <form onSubmit={handleAddReview} className="space-y-5">
+                {/* Form Inputs & Rating Cards */}
+                <form onSubmit={handleAddReview} className="space-y-6">
                   
-                  {/* 4. Granular Category Ratings */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 p-5 rounded-2xl border bg-slate-100/90 border-slate-300 shadow-2xs">
+                  {/* 3 Rating Categories Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     
-                    {/* Communication */}
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-black block text-slate-900">💬 Communication</label>
-                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                    {/* Communication Card */}
+                    <div className="p-4 rounded-2xl border bg-slate-50/80 border-slate-200/80 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm">💬</span>
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-900">Communication</label>
+                      </div>
+                      <div className="flex items-center space-x-1 text-amber-400 text-xl">
                         {[1, 2, 3, 4, 5].map(s => (
                           <button 
                             type="button" 
@@ -4586,14 +4800,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             ★
                           </button>
                         ))}
-                        <span className="text-sm font-black text-slate-900 ml-2">{commRating}/5</span>
+                        <span className="text-xs font-black text-slate-900 ml-2">{commRating}/5</span>
                       </div>
                     </div>
 
-                    {/* Code Quality */}
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-black block text-slate-900">💻 Code Quality</label>
-                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                    {/* Code Quality Card */}
+                    <div className="p-4 rounded-2xl border bg-slate-50/80 border-slate-200/80 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm">💻</span>
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-900">Code Quality</label>
+                      </div>
+                      <div className="flex items-center space-x-1 text-amber-400 text-xl">
                         {[1, 2, 3, 4, 5].map(s => (
                           <button 
                             type="button" 
@@ -4604,14 +4821,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             ★
                           </button>
                         ))}
-                        <span className="text-sm font-black text-slate-900 ml-2">{codeRating}/5</span>
+                        <span className="text-xs font-black text-slate-900 ml-2">{codeRating}/5</span>
                       </div>
                     </div>
 
-                    {/* Deadline Adherence */}
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-black block text-slate-900">⏱️ Deadline Adherence</label>
-                      <div className="flex items-center space-x-1.5 text-amber-500 text-2xl">
+                    {/* Deadline Adherence Card */}
+                    <div className="p-4 rounded-2xl border bg-slate-50/80 border-slate-200/80 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm">⏱️</span>
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-900">Deadline Adherence</label>
+                      </div>
+                      <div className="flex items-center space-x-1 text-amber-400 text-xl">
                         {[1, 2, 3, 4, 5].map(s => (
                           <button 
                             type="button" 
@@ -4622,31 +4842,40 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             ★
                           </button>
                         ))}
-                        <span className="text-sm font-black text-slate-900 ml-2">{deadlineRating}/5</span>
+                        <span className="text-xs font-black text-slate-900 ml-2">{deadlineRating}/5</span>
                       </div>
                     </div>
 
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xs">
-                      Overall Computed Score: {Math.round((commRating + codeRating + deadlineRating) / 3.0)} / 5 Stars ★
+                  {/* Computed Score Badge */}
+                  <div>
+                    <span className="inline-flex items-center space-x-2 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-4 py-2 rounded-xl shadow-2xs">
+                      <span>🏆</span>
+                      <span>Overall Computed Score: {Math.round((commRating + codeRating + deadlineRating) / 3.0)} / 5 Stars ›</span>
                     </span>
                   </div>
 
-                  <textarea
-                    rows="3"
-                    required
-                    value={commentInput}
-                    onChange={(e) => setCommentInput(e.target.value)}
-                    placeholder={`Write detailed evaluation for ${selectedCandidate?.freelancer || 'freelancer'} regarding sprint deliverables, unit testing, and communication...`}
-                    className="w-full p-4 border rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500 bg-slate-50 text-slate-900 border-slate-300 placeholder:text-slate-500 shadow-2xs"
-                  ></textarea>
+                  {/* Review Textarea */}
+                  <div className="space-y-1 relative">
+                    <textarea
+                      rows="3"
+                      required
+                      value={commentInput}
+                      onChange={(e) => setCommentInput(e.target.value)}
+                      placeholder={`Write detailed evaluation for ${selectedCandidate?.freelancer || 'freelancer'} regarding sprint deliverables, unit testing, and communication...`}
+                      className="w-full p-4 border rounded-2xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-900 border-slate-200 placeholder:text-slate-400 shadow-2xs"
+                    ></textarea>
+                    <div className="text-right text-[11px] font-semibold text-slate-400 pr-1">
+                      {commentInput.length}/1000
+                    </div>
+                  </div>
 
+                  {/* Submit Button */}
                   <button 
                     type="submit" 
                     disabled={isSubmittingReview}
-                    className={`px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black shadow-md transition-all flex items-center space-x-2 ${
+                    className={`px-6 py-3 bg-[#2563eb] hover:bg-blue-700 text-white rounded-2xl text-xs font-black shadow-sm hover:shadow-md transition-all flex items-center space-x-2 ${
                       isSubmittingReview ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'
                     }`}
                   >
@@ -4656,24 +4885,32 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <span>Submitting Review & Boosting Score...</span>
                       </>
                     ) : (
-                      <span>Submit Review & Boost AI Match Score</span>
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>Submit Review & Boost AI Match Score</span>
+                      </>
                     )}
                   </button>
                 </form>
               </div>
             )}
 
-            {/* 3. Separate Given vs Received Filter Tabs */}
-            <div className="space-y-4 pt-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h3 className="font-black text-xl text-slate-900">Review History</h3>
+            {/* 2. Review History Section */}
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2 rounded-xl bg-blue-50 text-[#2563eb]">
+                    <Clock className="w-4.5 h-4.5 text-[#2563eb]" />
+                  </div>
+                  <h3 className="font-extrabold text-base text-slate-900 tracking-tight">Review History</h3>
+                </div>
 
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setReviewTab('given')}
-                    className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                       reviewTab === 'given' 
-                        ? 'bg-blue-600 text-white shadow-xs' 
+                        ? 'bg-[#2563eb] text-white shadow-xs' 
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
@@ -4681,9 +4918,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </button>
                   <button
                     onClick={() => setReviewTab('received')}
-                    className={`px-4 py-2 rounded-xl text-sm font-black transition-all cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                       reviewTab === 'received' 
-                        ? 'bg-blue-600 text-white shadow-xs' 
+                        ? 'bg-[#2563eb] text-white shadow-xs' 
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                     }`}
                   >
@@ -4692,17 +4929,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               </div>
 
-              {/* 2. Review History Cards with Project Context */}
+              {/* Review Items */}
               <div className="space-y-3.5">
                 {reviews.filter(r => r.type === reviewTab).length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 p-6 space-y-2">
+                  <div className="py-12 px-4 text-center rounded-2xl bg-slate-50/50 border border-dashed border-slate-200/90 space-y-2">
                     <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                       <Star className="w-6 h-6" />
                     </div>
-                    <h4 className="text-base font-bold text-slate-900">
+                    <h4 className="text-sm font-bold text-slate-900">
                       No {reviewTab === 'given' ? 'Submitted' : 'Received'} Reviews Yet
                     </h4>
-                    <p className="text-sm text-slate-600 font-semibold max-w-sm mx-auto">
+                    <p className="text-xs text-slate-600 font-medium max-w-sm mx-auto">
                       {reviewTab === 'given' 
                         ? "You haven't submitted any performance reviews for freelancers yet." 
                         : "You haven't received any reviews from freelancers yet."}
@@ -4710,33 +4947,36 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                 ) : (
                   reviews.filter(r => r.type === reviewTab).map(rv => (
-                    <div key={rv.id} className="p-5 sm:p-6 rounded-2xl border space-y-3 bg-white border-slate-200 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 flex-wrap">
-                          <span className="font-black text-base text-slate-900">{rv.reviewer}</span>
-                          <span className="text-slate-600 font-extrabold text-sm mx-1">➔</span>
-                          <span className="text-blue-700 text-base font-black">{rv.reviewee}</span>
-                          {/* Project Context */}
-                          <span className="text-sm font-bold text-slate-700">
-                            (Project: <span className="font-black text-slate-900">{rv.projectTitle}</span>)
+                    <div key={rv.id} className="p-5 rounded-2xl border space-y-3 bg-white border-slate-200/90 shadow-2xs hover:shadow-xs transition-all">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="font-black text-sm text-slate-900">{rv.reviewer}</span>
+                          <span className="text-slate-400 font-bold text-xs mx-0.5">➔</span>
+                          <span className="text-[#2563eb] text-sm font-black">{rv.reviewee}</span>
+                          <span className="text-xs font-semibold text-slate-500">
+                            (Project: <span className="font-bold text-slate-800">{rv.projectTitle}</span>)
                           </span>
                         </div>
-                        <div className="text-amber-500 text-base font-black flex items-center space-x-1">
+                        <div className="text-amber-400 text-sm font-black flex items-center space-x-1 shrink-0">
                           <span>{'★'.repeat(rv.rating)}</span>
-                          <span className="font-mono text-sm font-black text-slate-800">({rv.rating}/5)</span>
+                          <span className="font-mono text-xs font-bold text-slate-700">({rv.rating}/5)</span>
                         </div>
                       </div>
 
-                      <p className="text-sm font-semibold italic p-4 rounded-xl border bg-slate-100/90 border-slate-300 text-slate-900 shadow-2xs leading-relaxed">
+                      <p className="text-xs font-medium italic p-3.5 rounded-xl border bg-slate-50 border-slate-200/70 text-slate-800 leading-relaxed">
                         "{rv.comment}"
                       </p>
 
-                      <div className="flex items-center justify-between text-sm font-bold text-slate-700">
-                        <span>Posted: {rv.date}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-500 pt-1">
+                        <span>📅 Posted: {rv.date}</span>
                         {rv.comm && (
-                          <span className="text-slate-900 font-extrabold">
-                            💬 Comm: {rv.comm}★ • 💻 Quality: {rv.code}★ • ⏱️ Deadline: {rv.deadline}★
-                          </span>
+                          <div className="flex items-center space-x-3 text-slate-700 font-bold text-[11px]">
+                            <span>💬 Comm: {rv.comm}★</span>
+                            <span>•</span>
+                            <span>💻 Quality: {rv.code}★</span>
+                            <span>•</span>
+                            <span>⏱️ Deadline: {rv.deadline}★</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -4755,17 +4995,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         )}
         {/* TAB 12: CLIENT PUBLIC & COMPANY PROFILE DASHBOARD */}
         {activeTab === 'profile' && (
-          <ClientProfileView
-            userSession={userSession}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName}
-            isDark={isDark}
-            clientProjects={clientProjects}
-            hiredFreelancers={hiredFreelancers}
-            contracts={contracts}
-            onNavigateTab={setActiveTab}
-            showToastMessage={(msg, type) => setToast({ message: msg, type })}
-          />
+          <div className={`w-full min-h-screen relative z-10 ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
+            <ClientProfileView
+              userSession={userSession}
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              isDark={isDark}
+              clientProjects={clientProjects}
+              hiredFreelancers={hiredFreelancers}
+              contracts={contracts}
+              onNavigateTab={setActiveTab}
+              showToastMessage={(msg, type) => setToast({ message: msg, type })}
+            />
+          </div>
         )}
 
         {/* TAB 13: ENTERPRISE ACCOUNT & SYSTEM SETTINGS */}
@@ -4780,132 +5022,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           />
         )}
 
-        {/* TAB 14: AI ASSISTANT & SMART AUTO-MATCH */}
-        {activeTab === 'ai-assistant' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-2xl">🤖</span>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    AI Hiring Assistant & Smart Auto-Match
-                  </h2>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-normal mt-1">
-                  NLP skill indexing, intelligent candidate matching, and automated talent ranking for your postings.
-                </p>
-              </div>
 
-              <button
-                onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-sm font-extrabold shadow-md cursor-pointer transition-all flex items-center space-x-1.5 shrink-0"
-              >
-                <span>+</span>
-                <span>Post New Project</span>
-              </button>
-            </div>
-
-            {clientProjects.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center text-3xl mx-auto font-bold">
-                  ✨
-                </div>
-                <h3 className="font-extrabold text-lg text-slate-900">No active postings to match talent</h3>
-                <p className="text-xs text-slate-700 dark:text-slate-300 max-w-md mx-auto font-medium">
-                  Create a project to activate AI Smart Match. Our algorithm indexes required skills, budgets, and freelancer track records to rank top candidates automatically.
-                </p>
-                <button
-                  onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                  className="px-6 py-3 bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center space-x-2"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Post Project to Activate AI Match</span>
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {clientProjects.map((p, idx) => {
-                  const skills = Array.isArray(p.skills) ? p.skills : (p.skills || '').split(',').map(s => s.trim()).filter(Boolean);
-                  return (
-                    <div key={p.id || idx} className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-[0_4px_20px_rgb(0,0,0,0.02)] space-y-5">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                        <div>
-                          <div className="flex items-center space-x-3">
-                            <h3 className="font-extrabold text-lg text-slate-900">{formatTitle(p.title)}</h3>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                              {p.category || 'Software'}
-                            </span>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-700">
-                              {94 + (idx % 5)}% AI Match Quality
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                            Skills Indexed: {skills.join(' • ') || 'Full Stack Development'}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => setSelectedProjectDetailView(p)}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
-                          >
-                            Project Details
-                          </button>
-                          <button
-                            onClick={() => setSelectedManageProject(p)}
-                            className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-bold cursor-pointer transition-colors"
-                          >
-                            Manage Scope
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Top AI Recommended Talent for this Project</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {[
-                            { name: 'Alex Mercer', role: 'Full Stack & AI Architect', rate: '₹75/hr', score: '98%', skills: ['React', 'Python', 'AI/ML'] },
-                            { name: 'Sarah Chen', role: 'Data Platform Engineer', rate: '₹85/hr', score: '95%', skills: ['PostgreSQL', 'FastAPI', 'Data Analytics'] },
-                            { name: 'David Kumar', role: 'Cloud & Backend Specialist', rate: '₹65/hr', score: '92%', skills: ['Node.js', 'Docker', 'AWS'] }
-                          ].map((rec, rIdx) => (
-                            <div key={rIdx} className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex flex-col justify-between space-y-3">
-                              <div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">{rec.score} Match</span>
-                                  <span className="text-xs font-extrabold text-slate-700">{rec.rate}</span>
-                                </div>
-                                <h4 className="font-extrabold text-sm text-slate-900 mt-2">{rec.name}</h4>
-                                <p className="text-xs text-slate-600">{rec.role}</p>
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {rec.skills.map((sk, sIdx) => (
-                                    <span key={sIdx} className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded font-semibold text-slate-600">{sk}</span>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2 pt-1">
-                                <button
-                                  onClick={() => setSelectedProfileFreelancer({ name: rec.name, title: rec.role })}
-                                  className="flex-1 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-lg text-xs font-bold cursor-pointer text-center"
-                                >
-                                  View Profile
-                                </button>
-                                <button
-                                  onClick={() => { setSelectedChat(rec.name); setActiveTab('messages'); }}
-                                  className="flex-1 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer text-center"
-                                >
-                                  Message
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
       </main>
 
@@ -6018,6 +6135,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Project Overview</p>
                   <p className="text-slate-800 font-medium">Category: <span className="text-[#2563eb] font-bold">{p.category}</span></p>
                   <p className="text-slate-800 font-medium">Duration: <span className="font-bold">{p.duration || '3 Weeks'}</span></p>
+                  <p className="text-slate-800 font-medium">Target Deadline: <span className="text-[#2563eb] font-extrabold">{p.deadline || calculateProjectDeadline(p.postedDate || p.created_at, p.duration)}</span></p>
                   <p className="text-slate-800 font-medium">Agreed Budget: <span className="text-slate-900 font-extrabold">{formatCurrency(p.budget)}</span></p>
                 </div>
 

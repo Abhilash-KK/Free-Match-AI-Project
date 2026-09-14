@@ -321,7 +321,7 @@ const ClientProfileView = ({
   const reputationScoreStr = (projectsPostedCount > 0 || freelancersHiredCount > 0) ? '5.0 / 5.0' : 'No ratings yet';
 
   return (
-    <div className={`p-4 sm:p-8 space-y-6 max-w-6xl mx-auto w-full transition-all ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+    <div className={`p-4 sm:p-8 space-y-6 max-w-6xl mx-auto w-full transition-all ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-white text-slate-800'}`}>
       
       {/* LOCAL TOAST NOTIFICATION */}
       {toast && (

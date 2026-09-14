@@ -9,6 +9,8 @@ import ClientReviewsView from '../ClientReviewsView';
 import FreelancerEarningsView from '../FreelancerEarningsView';
 import { calculateFreelancerFinancials } from '../../utils/freelancerFinancials';
 import { fetchNotifications } from '../../utils/notificationService';
+import { calculateProjectDeadline } from '../../utils/dateUtils';
+import { openDocumentViewer } from '../../utils/documentViewer';
 import { 
   Zap, 
   LayoutDashboard, 
@@ -31,7 +33,6 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  FolderKanban,
   Building2,
   Calendar,
   ShieldCheck,
@@ -39,7 +40,9 @@ import {
   X,
   Eye,
   MoreVertical,
-  Filter
+  Filter,
+  ChevronRight,
+  Home
 } from 'lucide-react';
 
 const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
@@ -345,7 +348,13 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               description: p.description || 'AI model fine-tuning and API integration.',
               skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
               posted: p.postedDate || p.posted || 'Just now',
-              attachedFile: p.attachedFile || null,
+              attachedFile: p.attachedFile || (p.attached_file_name || p.attached_file_url ? {
+                name: p.attached_file_name || 'Project Document.pdf',
+                url: p.attached_file_url || '',
+                size: 'PDF Document',
+                type: 'application/pdf',
+                isImage: Boolean(p.attached_file_name && /\.(jpg|jpeg|png|webp|gif)$/i.test(p.attached_file_name))
+              } : null),
               abstract: p.abstract || null,
               milestones: p.milestones || p.milestoneItems || []
             })));
@@ -378,7 +387,13 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               description: p.description || 'AI model fine-tuning and API integration.',
               skills: Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',').map(s => s.trim()).filter(Boolean) : ['Python', 'Django']),
               posted: p.postedDate || p.posted || 'Just now',
-              attachedFile: p.attachedFile || null,
+              attachedFile: p.attachedFile || (p.attached_file_name || p.attached_file_url ? {
+                name: p.attached_file_name || 'Project Document.pdf',
+                url: p.attached_file_url || '',
+                size: 'PDF Document',
+                type: 'application/pdf',
+                isImage: Boolean(p.attached_file_name && /\.(jpg|jpeg|png|webp|gif)$/i.test(p.attached_file_name))
+              } : null),
               abstract: p.abstract || null,
               milestones: p.milestones || p.milestoneItems || []
             }));
@@ -463,8 +478,8 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     const cClient = contract.clientName || contract.client || 'Enterprise Client';
     const cFreelancer = contract.freelancerName || contract.freelancer || userSession?.name || userSession?.username || 'Freelancer';
     const cAmount = contract.agreedAmount || contract.amount || '₹1,50,000';
-    const cStartDate = contract.startDate || 'Aug 11, 2026';
-    const cDeadline = contract.deadline || 'Aug 30, 2026';
+    const cStartDate = contract.startDate || 'Sep 8, 2026';
+    const cDeadline = contract.deadline || contract.endDate || calculateProjectDeadline(cStartDate, contract.duration || '1 Month');
     const cStatus = contract.status || 'Active';
 
     const pdfWindow = window.open('', '_blank');
@@ -673,14 +688,14 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
   return (
     <div className={`min-h-screen flex font-sans relative overflow-hidden transition-colors duration-200 ${
-      isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'
+      isDark ? 'bg-[#030712] text-slate-100' : 'bg-white text-slate-900'
     }`}>
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
       
-      {/* Background Glowing Orbs */}
-      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 ${
-        isDark ? 'bg-blue-600/10' : 'bg-blue-400/15'
-      }`}></div>
+      {/* Background Glowing Orbs (Dark mode only) */}
+      {isDark && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 bg-blue-600/10"></div>
+      )}
 
       {/* FREELANCER PRODUCTIVITY SIDEBAR */}
       <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors relative z-20 backdrop-blur-xl ${
@@ -827,10 +842,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       </aside>
 
       {/* FREELANCER MAIN WORKSPACE */}
-      <main id="freelancer-dashboard-main" className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
+      <main id="freelancer-dashboard-main" className={`flex-1 flex flex-col min-w-0 overflow-y-auto ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
         
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
+        <header className={`sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
           <div className="relative w-full max-w-md" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300">
               <Search className="w-4 h-4" />
@@ -1302,6 +1317,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 currentUserId={userSession?.username || userSession?.user_id || userSession?.email || ''}
                 initialProjectFilter={selectedSprintProjectFilter} 
                 isDark={isDark} 
+                onNavigateHome={() => setActiveTab('workspace')}
               />
             </div>
           );
@@ -1309,81 +1325,141 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: BROWSE JOBS FEED */}
         {activeTab === 'jobs' && (
-          <div className="p-8 space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Marketplace Jobs Feed</h2>
-              <p className="text-xs text-slate-600 dark:text-slate-300">Discover active client project postings matched to your AI skills profile.</p>
+          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+            
+            {/* Header Title Section with Breadcrumb & Right Illustration Banner */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab('workspace');
+                    }}
+                    className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+                  >
+                    <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Home</span>
+                  </button>
+                  <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                    Marketplace Jobs Feed
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100/90 flex items-center justify-center text-xl shrink-0 shadow-2xs">
+                    💼
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      Marketplace Jobs Feed
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      Discover active client project postings matched to your AI skills profile.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Illustrative Card Banner */}
+              <div className="hidden lg:flex items-center space-x-4 bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-blue-50/80 border border-blue-100/80 rounded-2xl p-3.5 px-6 shadow-2xs">
+                <div className="text-right">
+                  <p className="text-xs font-black text-blue-900">Find Projects • Build Your Skills</p>
+                  <p className="text-[11px] font-bold text-blue-600">Grow Your Career</p>
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-[#2563eb] text-white flex items-center justify-center text-xl shadow-xs">
+                  🔍
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
               {jobs.length === 0 ? (
-                <div className={`p-12 text-center rounded-3xl border border-dashed ${isDark ? 'border-slate-800 bg-[#060e22]' : 'border-slate-300 bg-white'} space-y-3`}>
-                  <Briefcase className="w-8 h-8 text-slate-500 dark:text-slate-400 mx-auto" />
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No Active Job Postings</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
-                    There are currently no open client projects in the marketplace. When clients post new projects, they will appear here in real-time.
-                  </p>
+                <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-slate-200/80 shadow-xs">
+                  <div className="border border-dashed border-slate-200 rounded-3xl p-10 sm:p-14 max-w-4xl mx-auto space-y-4 bg-slate-50/40">
+                    <div className="w-20 h-20 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center mx-auto text-3xl shadow-xs">
+                      💼
+                    </div>
+                    <h3 className="font-black text-xl text-slate-900 tracking-tight">
+                      No Active Job Postings
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto font-medium leading-relaxed">
+                      There are currently no open client projects in the marketplace. When clients post new projects, they will appear here in real-time.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 jobs.map(job => (
-                  <div key={job.id} className={`p-6 rounded-3xl border space-y-3 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
-                    <div className="flex justify-between items-start">
+                  <div key={job.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 hover:border-slate-300 transition-all">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div>
-                        <h4 className="font-bold text-base">{job.title}</h4>
-                        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>{job.client} • {job.posted || job.postedDate}</p>
+                        <h4 className="font-black text-lg text-slate-900">{job.title}</h4>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">{job.client} • {job.posted || job.postedDate}</p>
                       </div>
-                      <span className="bg-blue-500/10 text-blue-400 font-extrabold text-xs px-3 py-1 rounded-xl">{job.budget}</span>
+                      <span className="bg-blue-50 text-[#2563eb] font-black text-xs px-3.5 py-1 rounded-xl border border-blue-200/80 shrink-0 self-start sm:self-auto">{job.budget}</span>
                     </div>
 
-                    <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>{job.description}</p>
+                    <p className="text-xs text-slate-700 leading-relaxed font-medium">{job.description}</p>
 
                     {/* Attached Document or Architecture Image */}
                     {job.attachedFile && (
-                      <div className={`p-3.5 rounded-2xl border flex items-center justify-between ${isDark ? 'bg-blue-950/30 border-blue-500/30 text-blue-200' : 'bg-blue-50/80 border-blue-200 text-blue-900'}`}>
+                      <div className="p-3.5 rounded-2xl border border-blue-200/80 bg-blue-50/80 text-blue-950 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center shrink-0">
-                            {job.attachedFile.isImage ? <ImageIcon className="w-5 h-5 text-blue-400" /> : <FileText className="w-5 h-5 text-blue-400" />}
+                          <div className="w-10 h-10 rounded-xl bg-blue-100 text-[#2563eb] flex items-center justify-center shrink-0">
+                            {job.attachedFile.isImage ? <ImageIcon className="w-5 h-5 text-[#2563eb]" /> : <FileText className="w-5 h-5 text-[#2563eb]" />}
                           </div>
                           <div>
                             <p className="font-bold text-xs">{job.attachedFile.name}</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-300">{job.attachedFile.size} • Client Technical Attachment</p>
+                            <p className="text-xs text-slate-500 font-medium">{job.attachedFile.size || 'Attached File'} • Client Technical Attachment</p>
                           </div>
                         </div>
-                        <a
-                          href={job.attachedFile.url || '#'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-xs cursor-pointer flex items-center space-x-1"
+                        <button
+                          onClick={() => openDocumentViewer(job.attachedFile)}
+                          className="px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs cursor-pointer flex items-center space-x-1 transition-all"
                         >
-                          {job.attachedFile.isImage ? <Search className="w-3.5 h-3.5 mr-1" /> : <Download className="w-3.5 h-3.5 mr-1" />}
-                          <span>{job.attachedFile.isImage ? 'View Diagram' : 'Download Abstract'}</span>
-                        </a>
+                          {job.attachedFile.isImage ? <Search className="w-3.5 h-3.5 mr-1" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
+                          <span>{job.attachedFile.isImage ? 'View Diagram' : 'View Project PDF'}</span>
+                        </button>
                       </div>
                     )}
 
                     {job.abstract && (
-                      <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed ${isDark ? 'bg-slate-900/60 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-900'}`}>
-                        <div className="flex items-center space-x-1.5 mb-1 text-blue-400 font-extrabold text-xs uppercase tracking-wider">
+                      <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs leading-relaxed">
+                        <div className="flex items-center space-x-1.5 mb-1 text-blue-600 font-extrabold text-xs uppercase tracking-wider">
                           <LinkIcon className="w-3.5 h-3.5" />
                           <span>Technical Notes & GitHub Link:</span>
                         </div>
-                        <p className="whitespace-pre-line text-xs font-mono bg-black/20 p-2.5 rounded-xl border border-slate-800">{job.abstract}</p>
+                        <p className="whitespace-pre-line text-xs font-mono bg-white p-2.5 rounded-xl border border-slate-200 text-slate-800">{job.abstract}</p>
                       </div>
                     )}
 
-                    <div className="flex justify-between items-center pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-100">
                       <div className="flex flex-wrap gap-1.5">
                         {(Array.isArray(job.skills) ? job.skills : typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : []).map((s, i) => (
-                          <span key={i} className="text-xs bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded font-semibold">{s}</span>
+                          <span key={i} className="text-xs bg-slate-100 text-slate-800 border border-slate-200/80 px-2.5 py-0.5 rounded-md font-bold">{s}</span>
                         ))}
                       </div>
-                      <button 
-                        onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md cursor-pointer flex items-center space-x-1.5"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Submit Proposal / Bid</span>
-                      </button>
+                      <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-auto">
+                        {job.attachedFile && (job.attachedFile.url || job.attachedFile.name) && (
+                          <button
+                            onClick={() => openDocumentViewer(job.attachedFile)}
+                            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300/80 rounded-xl text-xs font-extrabold shadow-2xs cursor-pointer flex items-center space-x-1.5 transition-all"
+                            title={`Open ${job.attachedFile.name || 'Project Document'}`}
+                          >
+                            <FileText className="w-3.5 h-3.5 text-blue-600" />
+                            <span>{job.attachedFile.isImage ? 'View Diagram' : 'View Project PDF'}</span>
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
+                          className="px-4 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-2xs cursor-pointer flex items-center space-x-1.5 transition-all"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Submit Proposal / Bid</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1408,13 +1484,45 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
           return (
             <div className="p-8 space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">My Submitted Proposals & Contracts</h2>
-                <p className="text-xs text-slate-600 dark:text-slate-300">Track real-time client acceptance status, proposal bids, and milestone sprint triggers.</p>
+              {/* Breadcrumb Navigation */}
+              <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveTab('workspace');
+                  }}
+                  className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+                >
+                  <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Home</span>
+                </button>
+                <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                  My Submitted Bids
+                </span>
               </div>
 
+              {/* Header Banner Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-50/80 via-indigo-50/30 to-white p-6 rounded-3xl border border-blue-100/80 shadow-xs">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <span>My Submitted Proposals & Contracts</span>
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-1 font-medium">
+                    Track real-time client acceptance status, proposal bids, and milestone sprint triggers.
+                  </p>
+                </div>
+                <div className="hidden lg:flex items-center space-x-2 bg-white px-4 py-2.5 rounded-2xl border border-blue-100 shadow-2xs shrink-0">
+                  <Zap className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="text-xs font-bold text-slate-700">Track Proposals • Get Hired • Build Career</span>
+                </div>
+              </div>
+
+              {/* Proposals List */}
               {myProposals.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {myProposals.map(pr => {
                     const prTitle = (pr.project || pr.projectTitle || '').toLowerCase().trim();
 
@@ -1433,89 +1541,116 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                     // Real Status Determination: Genuine assignment takes precedence
                     const isGenuinelyAcceptedAndAssigned = hasValidAssignment;
 
-                    // Improved contrast & typography styles
-                    const cardBgStyle = isGenuinelyAcceptedAndAssigned
-                      ? 'border-emerald-500/40 bg-emerald-950/20 shadow-xs'
-                      : isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs';
-
                     return (
-                      <div key={pr.id} className={`p-6 rounded-3xl border space-y-3.5 transition-all ${cardBgStyle}`}>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2.5">
-                              <h4 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} leading-snug`}>
-                                {pr.project || pr.projectTitle}
-                              </h4>
-                              {isGenuinelyAcceptedAndAssigned ? (
-                                <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase flex items-center bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
-                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                  <span>Contract Accepted / Hired</span>
-                                </span>
-                              ) : pr.status === 'Rejected' ? (
-                                <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase flex items-center bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shrink-0">
-                                  <X className="w-3.5 h-3.5 mr-1" />
-                                  <span>Rejected</span>
-                                </span>
-                              ) : (
-                                <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase flex items-center bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0">
-                                  <Clock className="w-3.5 h-3.5 mr-1" />
-                                  <span>Submitted / Under Review</span>
-                                </span>
-                              )}
+                      <div key={pr.id} className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-5 transition-all hover:shadow-md">
+                        {/* Top Section */}
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                          <div className="flex items-start space-x-3.5">
+                            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-[#2563eb] flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                              <FileText className="w-5 h-5" />
                             </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <h4 className="font-extrabold text-base text-slate-900 leading-snug">
+                                  {pr.project || pr.projectTitle}
+                                </h4>
+                                {isGenuinelyAcceptedAndAssigned ? (
+                                  <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase flex items-center bg-emerald-100/90 text-emerald-700 border border-emerald-300/60 shrink-0">
+                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                    <span>Contract Accepted / Hired</span>
+                                  </span>
+                                ) : pr.status === 'Rejected' ? (
+                                  <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase flex items-center bg-rose-100/90 text-rose-700 border border-rose-300/60 shrink-0">
+                                    <X className="w-3.5 h-3.5 mr-1" />
+                                    <span>Rejected</span>
+                                  </span>
+                                ) : (
+                                  <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase flex items-center bg-amber-100/90 text-amber-800 border border-amber-300/60 shrink-0">
+                                    <Clock className="w-3.5 h-3.5 mr-1" />
+                                    <span>Submitted / Under Review</span>
+                                  </span>
+                                )}
+                              </div>
 
-                            {/* High-contrast metadata text line */}
-                            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 mt-1.5">
-                              <span>Client: <strong className="font-extrabold text-slate-900 dark:text-white">{pr.client}</strong></span>
-                              <span className="text-slate-400">•</span>
-                              <span>Bid: <strong className="font-extrabold text-blue-600 dark:text-blue-400">{String(pr.bid || pr.bidAmount || '').replace(/\$/g, '₹')}</strong></span>
-                              <span className="text-slate-400">•</span>
-                              <span>Timeline: <strong className="font-extrabold text-slate-800 dark:text-slate-100">{pr.delivery || pr.deliveryTime}</strong></span>
+                              {/* Metadata Row */}
+                              <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-600 mt-2">
+                                <span className="flex items-center gap-1">
+                                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Client: <strong className="font-extrabold text-slate-900">{pr.client}</strong></span>
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                                  <span>Bid: <strong className="font-extrabold text-blue-600">{String(pr.bid || pr.bidAmount || '').replace(/\$/g, '₹')}</strong></span>
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Timeline: <strong className="font-extrabold text-slate-800">{pr.delivery || pr.deliveryTime}</strong></span>
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 self-start sm:self-center shrink-0">
-                            {pr.date}
-                          </span>
+                          {/* Status Card Badge */}
+                          <div className="shrink-0">
+                            {isGenuinelyAcceptedAndAssigned ? (
+                              <div className="px-4 py-2 bg-emerald-50/90 border border-emerald-200/90 rounded-2xl flex items-center space-x-2 text-emerald-800">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span className="text-xs font-extrabold">Status: Active Contract</span>
+                              </div>
+                            ) : (
+                              <div className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl flex items-center space-x-2 text-slate-600">
+                                <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                <span className="text-xs font-bold">Status: Pending Review</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Proposal Cover Letter / Description with crisp typography */}
+                        {/* Proposal Cover Letter / Description */}
                         {pr.coverLetter && (
-                          <p className={`text-xs p-3.5 rounded-xl border font-medium leading-relaxed ${
-                            isDark ? 'bg-[#040919] border-slate-800/90 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-800'
-                          }`}>
+                          <div className="bg-blue-50/40 border border-blue-100/70 rounded-2xl p-4 text-xs font-medium text-slate-700 leading-relaxed">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-blue-600/80 mb-1">Submitted Cover Letter / Proposal Details</div>
                             "{pr.coverLetter}"
-                          </p>
+                          </div>
                         )}
 
-                        {/* Action / Status footer */}
-                        <div className="flex justify-end pt-1">
-                          {isGenuinelyAcceptedAndAssigned ? (
-                            <button
-                              onClick={() => handleViewSprintTask(pr)}
-                              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer flex items-center space-x-2"
-                            >
-                              <Kanban className="w-4 h-4" />
-                              <span>View Sprint Task Board</span>
-                              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                            </button>
-                          ) : (
-                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center space-x-1.5 py-1">
-                              <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                              <span>Awaiting Client Decision</span>
-                            </span>
-                          )}
+                        {/* Bottom Action Footer */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                          <div className="flex items-center text-xs font-semibold text-slate-500">
+                            <Calendar className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
+                            <span>Submitted on <strong className="text-slate-700">{pr.date}</strong></span>
+                          </div>
+
+                          <div>
+                            {isGenuinelyAcceptedAndAssigned ? (
+                              <button
+                                onClick={() => handleViewSprintTask(pr)}
+                                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer flex items-center space-x-2"
+                              >
+                                <Kanban className="w-4 h-4" />
+                                <span>View Sprint Task Board</span>
+                                <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                              </button>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-500 flex items-center space-x-1.5 py-1">
+                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>Awaiting Client Decision</span>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="p-12 text-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-[#060e22] space-y-3">
-                  <Send className="w-8 h-8 text-slate-600 dark:text-slate-300 mx-auto" />
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">No Submitted Bids Yet</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-300 max-w-sm mx-auto">
-                    Browse available marketplace jobs and submit your first proposal to start working with clients.
+                <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/80 p-8 shadow-2xs">
+                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-base font-bold text-slate-800">No Proposals Submitted Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                    Explore open projects in the marketplace jobs feed and submit your first proposal to get started.
                   </p>
                 </div>
               )}
@@ -1524,22 +1659,16 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         })()}
 
         {/* TAB 1: DEDICATED CLIENT REVIEWS & RATINGS PAGE */}
-        {activeTab === 'reviews' && (() => {
-          const currentFlName = userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer';
-          const myProfileData = {
-            name: currentFlName,
-            user_id: userSession?.user_id || userSession?.username || ''
-          };
-          return (
-            <ClientReviewsView
-              userSession={userSession}
-              freelancerData={myProfileData}
-              reviews={reviews}
-              isDark={isDark}
-              onNavigateToProjects={() => setActiveTab('workspace')}
-            />
-          );
-        })()}
+        {activeTab === 'reviews' && (
+          <ClientReviewsView
+            userSession={userSession}
+            freelancerData={myProfileData}
+            reviews={reviews}
+            isDark={isDark}
+            onNavigateToProjects={() => setActiveTab('workspace')}
+            onNavigateHome={() => setActiveTab('workspace')}
+          />
+        )}
 
         {/* TAB 2: FREELANCER PROFILE & SKILLS PORTFOLIO */}
         {activeTab === 'profile' && (
@@ -1550,11 +1679,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             viewMode="freelancer"
             isDark={isDark}
             showToast={(msg, type = 'info') => setToast({ message: msg, type })}
+            onNavigateHome={() => setActiveTab('workspace')}
           />
         )}
 
         {/* WORKSPACE OVERVIEW TAB */}
-        {activeTab === 'workspace' && (() => {
+        {(!['jobs', 'proposals', 'tasks', 'earnings', 'contracts', 'reviews', 'profile', 'messages', 'notifications', 'settings'].includes(activeTab)) && (() => {
           const {
             assignedProjects,
             totalTasksCount,
@@ -1584,7 +1714,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
               if ((!Array.isArray(kanbanTasks) || kanbanTasks.length === 0) && isDemo) {
                 kanbanTasks = [
-                  { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', project: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: 'Aug 30, 2026' }
+                  { id: 't1', title: 'Setup PyTorch Model Training Cluster', status: 'To Do', assignee: 'Alex Mercer', project: 'AI Automated Test Pipeline', client: 'Haines JP', deadline: calculateProjectDeadline('Sep 8, 2026', '1 Month') }
                 ];
               } else if (!Array.isArray(kanbanTasks)) {
                 kanbanTasks = [];
@@ -1608,10 +1738,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             const projectMap = {};
             activeContracts.forEach(c => {
               const pName = c.projectName || c.project || 'Assigned Project';
+              const pStart = c.startDate || c.postedDate || c.created_at || 'Sep 8, 2026';
+              const pDur = c.duration || '1 Month';
               projectMap[pName] = {
                 name: pName,
                 client: c.clientName || c.client || 'Enterprise Client',
-                deadline: c.deadline || 'Aug 30, 2026',
+                deadline: c.deadline || c.endDate || calculateProjectDeadline(pStart, pDur),
                 total: 0,
                 done: 0,
                 inProgress: 0,
@@ -1624,10 +1756,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               const projName = t.project || t.projectTitle || 'AI Project';
               if (!projectMap[projName]) {
                 if (isDemo || activeContracts.length === 0) {
+                  const tStart = t.startDate || t.postedDate || 'Sep 8, 2026';
+                  const tDur = t.duration || '1 Month';
                   projectMap[projName] = {
                     name: projName,
                     client: t.client || t.clientName || 'Enterprise Client',
-                    deadline: t.deadline || t.due || 'Aug 30, 2026',
+                    deadline: t.deadline || t.due || calculateProjectDeadline(tStart, tDur),
                     total: 0,
                     done: 0,
                     inProgress: 0,
@@ -1705,153 +1839,193 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             <div className="p-8 space-y-8">
               
               {/* PAGE HEADER */}
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Freelancer Work & Earnings Workspace</h2>
-                <p className={`text-xs ${isDark ? 'text-slate-600 dark:text-slate-300' : 'text-slate-700 dark:text-slate-300'} mt-1 font-medium`}>
-                  Track your active projects, earnings, and current work progress.
-                </p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Freelancer Work & Earnings Workspace</h2>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+                    Track your active projects, earnings, and current work progress.
+                  </p>
+                </div>
+
+                {/* Right Side Illustration Card Banner */}
+                <div className="hidden lg:flex items-center space-x-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-3 px-5 shadow-2xs">
+                  <div className="text-right">
+                    <p className="text-xs font-black text-blue-900">Build Skills • Earn Opportunities</p>
+                    <p className="text-[11px] font-bold text-blue-600">Grow Your Freelance Career</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#2563eb] text-white flex items-center justify-center text-lg shadow-xs">
+                    💻
+                  </div>
+                </div>
               </div>
 
               {/* 4 PRIMARY SUMMARY CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Card 1: Wallet Balance */}
-                <div className={`p-5 rounded-2xl border border-emerald-500/40 flex items-start justify-between ${isDark ? 'bg-emerald-950/20' : 'bg-emerald-50/50 shadow-2xs'}`}>
-                  <div>
-                    <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
-                    <p className="text-2xl font-extrabold text-emerald-500 mt-1">{walletBalanceStr}</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Ready for withdrawal</p>
+                <div 
+                  onClick={() => setActiveTab('earnings')}
+                  className="bg-emerald-50/50 border border-emerald-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
+                >
+                  <div className="space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mb-3 shadow-2xs">
+                      <Wallet className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-extrabold text-emerald-700 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
+                    <p className="text-3xl font-black text-slate-900 tracking-tight">{walletBalanceStr}</p>
+                    <p className="text-xs text-slate-500 font-medium">Ready for withdrawal</p>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                    <Wallet className="w-5 h-5" />
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-black shrink-0">
+                    &rarr;
                   </div>
                 </div>
 
                 {/* Card 2: Lifetime Earnings */}
-                <div className={`p-5 rounded-2xl border flex items-start justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-2xs'}`}>
-                  <div>
-                    <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">LIFETIME EARNINGS</p>
-                    <p className="text-2xl font-extrabold text-blue-500 mt-1">{lifetimeEarningsStr}</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Across {completedProjectsCount} Completed Projects</p>
+                <div 
+                  onClick={() => setActiveTab('earnings')}
+                  className="bg-blue-50/50 border border-blue-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
+                >
+                  <div className="space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mb-3 shadow-2xs">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-extrabold text-blue-700 uppercase tracking-wider">LIFETIME EARNINGS</p>
+                    <p className="text-3xl font-black text-slate-900 tracking-tight">{lifetimeEarningsStr}</p>
+                    <p className="text-xs text-slate-500 font-medium">Across {completedProjectsCount} completed projects</p>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-5 h-5" />
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-black shrink-0">
+                    &rarr;
                   </div>
                 </div>
 
                 {/* Card 3: Active Contracts */}
-                <div className={`p-5 rounded-2xl border flex items-start justify-between ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-2xs'}`}>
-                  <div>
-                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">ACTIVE CONTRACTS</p>
-                    <p className="text-2xl font-extrabold text-indigo-400 mt-1">{activeContractsStr}</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Ongoing Sprints</p>
+                <div 
+                  onClick={() => setActiveTab('contracts')}
+                  className="bg-purple-50/50 border border-purple-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
+                >
+                  <div className="space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 mb-3 shadow-2xs">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-extrabold text-purple-700 uppercase tracking-wider">ACTIVE CONTRACTS</p>
+                    <p className="text-3xl font-black text-slate-900 tracking-tight">{activeContractsStr}</p>
+                    <p className="text-xs text-slate-500 font-medium">Ongoing Sprints</p>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                    <Briefcase className="w-5 h-5" />
+                  <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-black shrink-0">
+                    &rarr;
                   </div>
                 </div>
 
                 {/* Card 4: Client Rating */}
                 <div 
                   onClick={() => setActiveTab('reviews')} 
-                  title="Click to view Client Reviews & Performance Feedback"
-                  className={`p-5 rounded-2xl border flex items-start justify-between cursor-pointer transition-all hover:border-amber-400/60 ${isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200 shadow-2xs hover:shadow-xs'}`}
+                  className="bg-amber-50/40 border border-amber-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
                 >
-                  <div>
-                    <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">CLIENT RATING</p>
-                    <p className="text-2xl font-extrabold text-amber-500 mt-1">{clientRatingStr}</p>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 flex items-center space-x-1 font-medium">
-                      <span>Based on verified reviews</span>
-                      <span className="text-xs text-blue-600 font-bold underline ml-1">View Reviews &rarr;</span>
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                    <Star className="w-5 h-5 fill-amber-500" />
+                  <div className="space-y-1">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-500 flex items-center justify-center shrink-0 mb-3 shadow-2xs">
+                      <Star className="w-5 h-5 fill-amber-500" />
+                    </div>
+                    <p className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">CLIENT RATING</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{clientRatingStr}</p>
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <span className="text-slate-500 font-medium">Based on verified reviews</span>
+                      <span 
+                        onClick={(e) => { e.stopPropagation(); setActiveTab('reviews'); }} 
+                        className="font-extrabold text-amber-700 hover:underline cursor-pointer"
+                      >
+                        View Reviews &rarr;
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* ASSIGNED PROJECTS & WORK SUMMARY ROW */}
+              {/* ASSIGNED PROJECTS & WORK SUMMARY ROW (2/3 + 1/3) */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* MY ASSIGNED PROJECTS (2 COLS) */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                      <FolderKanban className="w-4 h-4 text-emerald-500" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                      <span className="text-base">💼</span>
                       <span>MY ASSIGNED PROJECTS</span>
                     </h3>
-                    <span className="text-xs font-bold bg-emerald-500/10 text-emerald-500 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="text-xs font-extrabold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full border border-emerald-200">
                       {assignedProjects.length} Active
                     </span>
                   </div>
 
                   {assignedProjects.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {assignedProjects.map(proj => (
                         <div 
                           key={proj.name} 
-                          className={`p-5 rounded-2xl border transition-all ${
-                            isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs'
-                          }`}
+                          onClick={() => {
+                            if (proj.name) setSelectedSprintProjectFilter(proj.name);
+                            setActiveTab('tasks');
+                          }}
+                          className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4 hover:border-slate-300 transition-all cursor-pointer"
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                            <div>
-                              <h4 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'} leading-snug`}>
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <h4 className="font-black text-lg sm:text-xl text-slate-900 tracking-tight leading-snug">
                                 {proj.name}
                               </h4>
-                              <div className={`flex flex-wrap items-center gap-3 text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'} mt-1 font-medium`}>
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium pt-0.5">
                                 <span className="flex items-center space-x-1">
-                                  <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0 mr-1" />
-                                  <span>Client: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{proj.client}</strong></span>
+                                  <span>👤</span>
+                                  <span>Client: <strong className="font-extrabold text-slate-900">{proj.client}</strong></span>
                                 </span>
                                 <span>•</span>
                                 <span className="flex items-center space-x-1">
-                                  <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0 mr-1" />
-                                  <span>Deadline: <strong className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{proj.deadline}</strong></span>
+                                  <span>📅</span>
+                                  <span>Deadline: <strong className="font-extrabold text-slate-900">{proj.deadline}</strong></span>
                                 </span>
                               </div>
                             </div>
 
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (proj.name) setSelectedSprintProjectFilter(proj.name);
                                 setActiveTab('tasks');
                               }}
-                              className="px-4 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center space-x-1.5 shrink-0 self-start sm:self-center cursor-pointer"
+                              className="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center justify-center space-x-1.5 shrink-0 cursor-pointer"
                             >
-                              <span>View Tasks</span>
+                              <span>View Tasks &rarr;</span>
                             </button>
                           </div>
 
                           {/* Progress Bar & Status breakdown */}
-                          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                          <div className="space-y-2 pt-3 border-t border-slate-100">
                             <div className="flex items-center justify-between text-xs">
-                              <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Sprint Progress</span>
-                              <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{proj.progress}%</span>
+                              <span className="font-bold text-slate-600">Sprint Progress</span>
+                              <span className="font-black text-emerald-600 text-sm">{proj.progress}%</span>
                             </div>
-                            <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
                               <div 
                                 className="h-full bg-emerald-500 rounded-full transition-all duration-500" 
                                 style={{ width: `${proj.progress}%` }} 
                               />
                             </div>
 
-                            <div className={`flex items-center gap-3 pt-1 text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'} font-medium`}>
-                              <span>✓ <strong className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{proj.done}</strong> Done</span>
+                            <div className="flex items-center gap-4 pt-1 text-xs text-slate-500 font-medium">
+                              <span>✓ <strong className="font-black text-slate-900">{proj.done}</strong> Done</span>
                               <span>•</span>
-                              <span>⚡ <strong className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{proj.inProgress}</strong> In Progress</span>
+                              <span>⚡ <strong className="font-black text-slate-900">{proj.inProgress}</strong> In Progress</span>
                               <span>•</span>
-                              <span>⏳ <strong className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{proj.pending}</strong> Pending</span>
+                              <span>🕒 <strong className="font-black text-slate-900">{proj.pending}</strong> Pending</span>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-[#060e22]">
-                      <FolderKanban className="w-8 h-8 text-slate-600 dark:text-slate-300 mx-auto mb-2" />
-                      <h4 className="font-extrabold text-sm text-slate-700 dark:text-slate-200">No Assigned Projects Yet</h4>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-sm mx-auto">
+                    <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-xl font-bold">
+                        📁
+                      </div>
+                      <h4 className="font-extrabold text-slate-900 text-base">No Assigned Projects Yet</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
                         When a client accepts your bid or assigns a project to you, your active sprint projects will appear here.
                       </p>
                     </div>
@@ -1859,42 +2033,47 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 </div>
 
                 {/* MY WORK SUMMARY (1 COL) */}
-                <div className={`p-5 rounded-2xl border space-y-4 flex flex-col justify-between ${
-                  isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs'
-                }`}>
+                <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-5 flex flex-col justify-between">
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        MY WORK SUMMARY
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                        <span>📊</span>
+                        <span>MY WORK SUMMARY</span>
                       </h3>
-                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                      <span className="text-xs font-extrabold text-slate-500">
                         {totalTasksCount} Tasks
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs font-extrabold">
-                      <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        <div className="text-sm font-black">{doneTasksCount}</div>
-                        <div className="text-xs uppercase tracking-wider">Completed</div>
+                    {/* 3 Stat Boxes Grid */}
+                    <div className="grid grid-cols-3 gap-2.5 text-center text-xs font-bold">
+                      <div className="p-3 rounded-2xl bg-emerald-50/70 text-emerald-700 border border-emerald-200/80 space-y-1">
+                        <div className="text-xs text-emerald-600">✓</div>
+                        <div className="text-lg font-black text-slate-900">{doneTasksCount}</div>
+                        <div className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-700">COMPLETED</div>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                        <div className="text-sm font-black">{inProgressCount}</div>
-                        <div className="text-xs uppercase tracking-wider">In Progress</div>
+
+                      <div className="p-3 rounded-2xl bg-blue-50/70 text-blue-700 border border-blue-200/80 space-y-1">
+                        <div className="text-xs text-blue-600">⌛</div>
+                        <div className="text-lg font-black text-slate-900">{inProgressCount}</div>
+                        <div className="text-[10px] uppercase font-extrabold tracking-wider text-blue-700">IN PROGRESS</div>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        <div className="text-sm font-black">{pendingCount}</div>
-                        <div className="text-xs uppercase tracking-wider">Pending</div>
+
+                      <div className="p-3 rounded-2xl bg-slate-50 text-slate-700 border border-slate-200/80 space-y-1">
+                        <div className="text-xs text-slate-500">🕒</div>
+                        <div className="text-lg font-black text-slate-900">{pendingCount}</div>
+                        <div className="text-[10px] uppercase font-extrabold tracking-wider text-slate-600">PENDING</div>
                       </div>
                     </div>
 
-                    <div className="space-y-2 pt-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700">
                         <span>Overall Project Progress</span>
-                        <span className="text-emerald-500 font-black">{overallProgressPercent}%</span>
+                        <span className="text-emerald-600 font-black text-sm">{overallProgressPercent}%</span>
                       </div>
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                         <div 
-                          className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500" 
+                          className="bg-[#2563eb] h-full rounded-full transition-all duration-500" 
                           style={{ width: `${overallProgressPercent}%` }} 
                         />
                       </div>
@@ -1906,81 +2085,82 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                       setSelectedSprintProjectFilter(assignedProjects[0]?.name || 'All Assigned Projects');
                       setActiveTab('tasks');
                     }}
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center space-x-2 mt-4"
+                    className="w-full py-3 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 mt-4"
                   >
-                    <Kanban className="w-4 h-4" />
-                    <span>View Sprint Board</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>📊 View Sprint Board &rarr;</span>
                   </button>
                 </div>
               </div>
 
               {/* RECOMMENDED MARKETPLACE JOBS SECTION */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-4 pt-2">
                 <div className="flex items-center justify-between">
-                  <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    RECOMMENDED MARKETPLACE JOBS
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                    <span>💼</span>
+                    <span>RECOMMENDED MARKETPLACE JOBS</span>
                   </h3>
                   <button
                     onClick={() => setActiveTab('jobs')}
                     className="text-xs font-extrabold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
                   >
-                    <span>Browse All Jobs Feed</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <span>Browse All Jobs Feed &rarr;</span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   {jobs.length === 0 ? (
-                    <div className={`p-8 text-center rounded-2xl border ${isDark ? 'bg-[#060e22] border-slate-800 text-slate-400' : 'bg-white border-slate-200/90 text-slate-500'}`}>
-                      <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      <p className="font-bold text-sm">No open marketplace jobs available at this moment.</p>
+                    <div className="bg-white rounded-3xl p-10 text-center border border-slate-200/80 shadow-xs space-y-3">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center mx-auto text-2xl">
+                        💼
+                      </div>
+                      <h4 className="font-black text-slate-900 text-base">No open marketplace jobs available at this moment.</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
+                        New opportunities will appear here soon. Keep checking!
+                      </p>
                     </div>
                   ) : (
                     jobs.slice(0, 3).map(job => (
                       <div 
                         key={job.id} 
-                      className={`p-4.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                        isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs'
-                      }`}
-                    >
-                      <div className="space-y-2 max-w-2xl">
-                        <div className="flex items-center space-x-3 flex-wrap gap-y-1.5">
-                          <h4 className={`font-extrabold text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                            {job.title}
-                          </h4>
-                          <span className="bg-blue-50 text-[#2563eb] font-extrabold text-xs px-2.5 py-0.5 rounded-lg border border-blue-200">
-                            {job.budget}
-                          </span>
-                        </div>
+                        className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-2 max-w-2xl">
+                          <div className="flex items-center space-x-3 flex-wrap gap-y-1.5">
+                            <h4 className="font-black text-base text-slate-900">
+                              {job.title}
+                            </h4>
+                            <span className="bg-blue-50 text-[#2563eb] font-extrabold text-xs px-3 py-0.5 rounded-lg border border-blue-200">
+                              {job.budget}
+                            </span>
+                          </div>
 
-                        <div className={`flex flex-wrap items-center gap-3 text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                          <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{job.client || 'Client Organization'}</span>
-                          <span>•</span>
-                          <span>{job.posted || 'Aug 11, 2026'}</span>
-                          <span>•</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(Array.isArray(job.skills) ? job.skills : typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : []).slice(0, 4).map((s, i) => (
-                              <span key={i} className={`text-xs px-2.5 py-0.5 rounded-md font-bold ${isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 text-slate-800 border border-slate-200/80'}`}>
-                                {s}
-                              </span>
-                            ))}
+                          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
+                            <span className="font-bold text-slate-900">{job.client || 'Client Organization'}</span>
+                            <span>•</span>
+                            <span>{job.posted || 'Aug 11, 2026'}</span>
+                            <span>•</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(Array.isArray(job.skills) ? job.skills : typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : []).slice(0, 4).map((s, i) => (
+                                <span key={i} className="text-xs px-2.5 py-0.5 rounded-md font-bold bg-slate-100 text-slate-800 border border-slate-200/80">
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <button 
-                        onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
-                        className="px-4.5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all cursor-pointer shrink-0 self-start sm:self-center flex items-center space-x-1.5"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Submit Proposal / Bid</span>
-                      </button>
-                    </div>
-                  )))}
+                        <button 
+                          onClick={() => { setSelectedJob(job); setShowBidModal(true); }}
+                          className="px-4.5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all cursor-pointer shrink-0 self-start sm:self-center flex items-center space-x-1.5"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Submit Proposal / Bid</span>
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-
             </div>
           );
         })()}
@@ -1995,6 +2175,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               onFinancialsChange={loadFreelancerFinancials}
               isDark={isDark}
               showToast={(msg, type) => setToast({ message: msg, type })}
+              onNavigateHome={() => setActiveTab('workspace')}
             />
           );
         })()}
@@ -2029,6 +2210,26 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
           return (
             <div className="p-8 space-y-6">
+              {/* BREADCRUMB NAVIGATION */}
+              <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveTab('workspace');
+                  }}
+                  className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+                >
+                  <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>Home</span>
+                </button>
+                <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                  My Contracts & Agreements
+                </span>
+              </div>
+
               {/* HEADER AREA */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2185,9 +2386,9 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                               Client: <span className="text-slate-900 font-extrabold">{c.clientName || c.client || 'Enterprise Client'}</span>
                             </p>
                             <p className="text-xs text-slate-700 font-semibold pt-0.5">
-                              Start Date: <strong className="text-slate-900">{c.startDate || 'Aug 11, 2026'}</strong>
+                              Start Date: <strong className="text-slate-900">{c.startDate || 'Sep 8, 2026'}</strong>
                               <span className="mx-1 text-slate-400">•</span>
-                              Deadline: <strong className="text-slate-900">{c.deadline || 'Aug 30, 2026'}</strong>
+                              Deadline: <strong className="text-slate-900">{c.deadline || c.endDate || calculateProjectDeadline(c.startDate || 'Sep 8, 2026', c.duration || '1 Month')}</strong>
                             </p>
                           </div>
                         </div>
@@ -2268,7 +2469,27 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: MESSAGES CHAT WORKSPACE */}
         {activeTab === 'messages' && (
-          <div className="p-8">
+          <div className="p-8 space-y-4">
+            {/* BREADCRUMB NAVIGATION */}
+            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveTab('workspace');
+                }}
+                className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+              >
+                <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Home</span>
+              </button>
+              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+              <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                Messages & Communication
+              </span>
+            </div>
+
             <MessagingCenter
               userSession={userSession}
               role="freelancer"
@@ -2282,7 +2503,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* TAB: NOTIFICATIONS CENTER */}
         {activeTab === 'notifications' && (
           <div className="p-8">
-            <NotificationCenter userSession={userSession} onNavigateTab={setActiveTab} />
+            <NotificationCenter userSession={userSession} onNavigateTab={setActiveTab} onNavigateHome={() => setActiveTab('workspace')} />
           </div>
         )}
 
@@ -2295,6 +2516,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             isDark={isDark}
             onNavigateTab={setActiveTab}
             showToastMessage={(msg, type) => setToast({ message: msg, type })}
+            onNavigateHome={() => setActiveTab('workspace')}
           />
         )}
 

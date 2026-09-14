@@ -31,6 +31,67 @@ from .models import (
     FreelancerWithdrawal
 )
 
+import re, calendar
+from datetime import datetime, timedelta
+
+def calculate_project_deadline(start_date_input, duration_str='1 Month'):
+    """
+    Calculates project/contract deadline based on posting or start date + duration string.
+    Properly handles calendar months (e.g., Sep 8, 2026 + 1 Month = Oct 8, 2026).
+    """
+    if not start_date_input:
+        dt = datetime.now()
+    elif isinstance(start_date_input, datetime):
+        dt = start_date_input
+    elif hasattr(start_date_input, 'year') and hasattr(start_date_input, 'month') and hasattr(start_date_input, 'day'):
+        dt = datetime(start_date_input.year, start_date_input.month, start_date_input.day)
+    elif isinstance(start_date_input, str):
+        clean_str = start_date_input.strip()
+        parsed_dt = None
+        for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%fZ"):
+            try:
+                parsed_dt = datetime.strptime(clean_str.split('T')[0] if 'T' in clean_str else clean_str, fmt)
+                break
+            except Exception:
+                pass
+        if not parsed_dt:
+            from django.utils.dateparse import parse_datetime, parse_date
+            p = parse_datetime(clean_str) or parse_date(clean_str)
+            if p:
+                parsed_dt = datetime(p.year, p.month, p.day)
+        dt = parsed_dt if parsed_dt else datetime.now()
+    else:
+        dt = datetime.now()
+
+    dur = duration_str if (duration_str and isinstance(duration_str, str)) else '1 Month'
+    match = re.search(r'(\d+)\s*(month|week|day)s?', dur, re.IGNORECASE)
+
+    if match:
+        num = int(match.group(1))
+        unit = match.group(2).lower()
+        if unit == 'month':
+            month = dt.month - 1 + num
+            year = dt.year + month // 12
+            month = month % 12 + 1
+            max_days = calendar.monthrange(year, month)[1]
+            day = min(dt.day, max_days)
+            target = dt.replace(year=year, month=month, day=day)
+        elif unit == 'week':
+            target = dt + timedelta(days=num * 7)
+        elif unit == 'day':
+            target = dt + timedelta(days=num)
+        else:
+            target = dt
+    else:
+        month = dt.month - 1 + 1
+        year = dt.year + month // 12
+        month = month % 12 + 1
+        max_days = calendar.monthrange(year, month)[1]
+        day = min(dt.day, max_days)
+        target = dt.replace(year=year, month=month, day=day)
+
+    return f"{target.strftime('%b')} {target.day}, {target.year}"
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def health_check(request):
@@ -559,10 +620,20 @@ def projects_api(request):
                     "skills": p.skills_required,
                     "status": p.get_status_display() if hasattr(p, 'get_status_display') else p.status,
                     "postedDate": p.created_at.strftime("%b %d, %Y") if p.created_at else "Just Now",
+                    "deadline": calculate_project_deadline(p.created_at, p.duration),
                     "progress": p.get_progress_percentage(),
                     "applicants": p.proposals.count() if hasattr(p, 'proposals') else 0,
                     "description": p.description,
                     "abstract": p.abstract,
+                    "attached_file_name": p.attached_file_name,
+                    "attached_file_url": p.attached_file_url,
+                    "attachedFile": {
+                        "name": p.attached_file_name or 'Project Document.pdf',
+                        "url": p.attached_file_url,
+                        "size": "PDF Document",
+                        "type": "application/pdf" if (p.attached_file_name or '').lower().endswith('.pdf') else "Document",
+                        "isImage": (p.attached_file_name or '').lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+                    } if (p.attached_file_name or p.attached_file_url) else None,
                     "milestones": json.loads(p.milestones_json) if getattr(p, 'milestones_json', None) else []
                 })
             return Response(project_list, status=status.HTTP_200_OK)
@@ -581,6 +652,18 @@ def projects_api(request):
         abstract = data.get('abstract', '')
         milestones_raw = data.get('milestones') or []
         milestones_str = json.dumps(milestones_raw) if isinstance(milestones_raw, (list, dict)) else str(milestones_raw)
+
+        attached_file_raw = data.get('attachedFile') or data.get('attached_file') or {}
+        if isinstance(attached_file_raw, dict) and (attached_file_raw.get('name') or attached_file_raw.get('url')):
+            file_name = attached_file_raw.get('name', '')
+            file_url = attached_file_raw.get('url', '')
+            file_size = attached_file_raw.get('size', 'PDF Document')
+            file_type = attached_file_raw.get('type', 'Document')
+        else:
+            file_name = data.get('attached_file_name', '')
+            file_url = data.get('attached_file_url', '')
+            file_size = 'PDF Document'
+            file_type = 'Document'
 
         if not title:
             return Response({"error": "Project Title is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -605,6 +688,8 @@ def projects_api(request):
                 skills_required=skills,
                 description=description,
                 abstract=abstract,
+                attached_file_name=file_name,
+                attached_file_url=file_url,
                 milestones_json=milestones_str,
                 status='Open'
             )
@@ -628,6 +713,15 @@ def projects_api(request):
                     "applicants": 0,
                     "description": description,
                     "abstract": abstract,
+                    "attached_file_name": proj.attached_file_name,
+                    "attached_file_url": proj.attached_file_url,
+                    "attachedFile": {
+                        "name": proj.attached_file_name or 'Project Document.pdf',
+                        "url": proj.attached_file_url,
+                        "size": file_size,
+                        "type": file_type,
+                        "isImage": (proj.attached_file_name or '').lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+                    } if (proj.attached_file_name or proj.attached_file_url) else None,
                     "milestones": milestones_raw
                 }
             }, status=status.HTTP_201_CREATED)
@@ -1088,8 +1182,9 @@ def get_contracts(request):
             "agreedAmount": c.agreed_amount,
             "escrow": c.escrow_balance,
             "escrowBalance": c.escrow_balance,
-            "startDate": c.start_date or c.created_at.strftime("%b %d, %Y"),
-            "endDate": c.end_date or "4 Weeks",
+            "startDate": c.start_date or (c.project.created_at.strftime("%b %d, %Y") if c.project and c.project.created_at else c.created_at.strftime("%b %d, %Y")),
+            "endDate": calculate_project_deadline(c.start_date or (c.project.created_at if c.project else c.created_at), c.project.duration if c.project else "1 Month"),
+            "deadline": calculate_project_deadline(c.start_date or (c.project.created_at if c.project else c.created_at), c.project.duration if c.project else "1 Month"),
             "paymentType": c.payment_type,
             "hourlyRate": c.hourly_rate,
             "status": c.status,
@@ -2245,6 +2340,9 @@ def sprint_tasks_api(request, pk=None):
 
         tasks = []
         for t in qs:
+            t_start = t.project.created_at if (t.project and t.project.created_at) else t.created_at
+            t_dur = t.project.duration if (t.project and t.project.duration) else '1 Month'
+            t_dl = calculate_project_deadline(t_start, t_dur)
             tasks.append({
                 "id": t.id,
                 "title": t.title,
@@ -2254,6 +2352,8 @@ def sprint_tasks_api(request, pk=None):
                 "status": t.status,
                 "progress": t.get_progress_percentage(),
                 "budget": t.budget,
+                "deadline": t_dl,
+                "due": t_dl,
                 "created_at": t.created_at.isoformat() if t.created_at else None
             })
         return Response(tasks, status=status.HTTP_200_OK)
@@ -2360,6 +2460,10 @@ def sprint_tasks_api(request, pk=None):
                 project_name=proj.title if proj else (project_title or '')
             )
 
+        st_start = st.project.created_at if (st.project and st.project.created_at) else st.created_at
+        st_dur = st.project.duration if (st.project and st.project.duration) else '1 Month'
+        st_dl = calculate_project_deadline(st_start, st_dur)
+
         return Response({
             "message": "Sprint Task created",
             "id": st.id,
@@ -2372,6 +2476,8 @@ def sprint_tasks_api(request, pk=None):
                 "status": st.status,
                 "progress": st.get_progress_percentage(),
                 "budget": st.budget,
+                "deadline": st_dl,
+                "due": st_dl,
                 "created_at": st.created_at.isoformat() if st.created_at else None
             }
         }, status=status.HTTP_201_CREATED)
