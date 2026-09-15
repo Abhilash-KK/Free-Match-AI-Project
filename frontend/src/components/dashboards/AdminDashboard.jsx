@@ -17,12 +17,19 @@ import {
   Settings,
   ChevronDown,
   Plus,
-  Shield
+  Shield,
+  FileCheck,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Eye,
+  Clock,
+  Briefcase
 } from 'lucide-react';
 
 const AdminDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings' | 'notifications' | 'profile'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'project_verifications' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings' | 'notifications' | 'profile'
   const [toast, setToast] = useState(null); // { message, type }
 
   // Header Profile Dropdown & Logout Confirmation
@@ -37,6 +44,11 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
   const [newSkillName, setNewSkillName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Frontend');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Project Verification Queue Action States
+  const [rejectingProject, setRejectingProject] = useState(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [selectedProjectDetail, setSelectedProjectDetail] = useState(null);
 
   const currentUserId = (userSession?.username || userSession?.user_id || userSession?.email || 'admin').toLowerCase().trim();
   const currentUserName = userSession?.name || userSession?.first_name || 'System Admin';
@@ -66,6 +78,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
   });
 
   const [verifications, setVerifications] = useState([]);
+  const [projectVerifications, setProjectVerifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [skills, setSkills] = useState([]);
@@ -74,9 +87,18 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
 
   const fetchAdminData = async () => {
     try {
-      const res = await fetch('/api/admin-dashboard/');
-      if (res.ok) {
-        const data = await res.json();
+      let data = null;
+      try {
+        const res = await fetch('http://localhost:8000/api/admin-dashboard/');
+        if (res.ok) data = await res.json();
+      } catch (e1) {
+        try {
+          const res2 = await fetch('/api/admin-dashboard/');
+          if (res2.ok) data = await res2.json();
+        } catch (e2) {}
+      }
+
+      if (data) {
         if (data.metrics) setMetrics(data.metrics);
         if (Array.isArray(data.verifications)) setVerifications(data.verifications);
         if (Array.isArray(data.users)) setUsers(data.users);
@@ -89,6 +111,59 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         if (Array.isArray(data.skills)) setSkills(data.skills);
         if (Array.isArray(data.audit_logs)) setAuditLogs(data.audit_logs);
       }
+
+      const backendPending = (data && Array.isArray(data.project_verifications)) ? data.project_verifications : [];
+      
+      // Also collect any pending projects saved in localStorage
+      const localPending = [];
+      try {
+        const allKeys = Object.keys(localStorage);
+        for (const k of allKeys) {
+          if (k.includes('projects') || k.includes('shared')) {
+            try {
+              const itemData = JSON.parse(localStorage.getItem(k));
+              if (Array.isArray(itemData)) {
+                for (const item of itemData) {
+                  const appSt = (item.approval_status || item.approvalStatus || item.status || '').toLowerCase().trim();
+                  if (appSt === 'pending review' || appSt === 'pending admin review') {
+                    localPending.push({
+                      id: item.id || `proj_${Date.now()}`,
+                      project_id: (item.id || '').replace('proj_', ''),
+                      title: item.title || 'Untitled Project',
+                      client: item.client || item.client_name || item.client_id || 'Client User',
+                      client_id: item.client_id || item.clientId || item.client || 'client',
+                      client_email: item.client_email || '',
+                      category: item.category || 'Software Development',
+                      budget: item.budget || '₹5,000',
+                      duration: item.duration || '3 Weeks',
+                      skills: item.skills || [],
+                      postedDate: item.postedDate || item.posted || 'Just Now',
+                      deadline: item.deadline || '3 Weeks',
+                      description: item.description || '',
+                      abstract: item.abstract || '',
+                      attached_file_name: item.attached_file_name || (item.attachedFile ? item.attachedFile.name : ''),
+                      attached_file_url: item.attached_file_url || (item.attachedFile ? item.attachedFile.url : ''),
+                      approval_status: 'Pending Review',
+                      rejection_reason: ''
+                    });
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+
+      // Combine backendPending and localPending, deduplicating by project title / ID
+      const mergedMap = new Map();
+      for (const p of [...backendPending, ...localPending]) {
+        const key = (p.title || p.project_id || p.id || '').toString().toLowerCase().trim();
+        if (key && !mergedMap.has(key)) {
+          mergedMap.set(key, p);
+        }
+      }
+      setProjectVerifications(Array.from(mergedMap.values()));
+
     } catch (err) {
       console.error('Failed to load admin dashboard data', err);
     } finally {
@@ -101,9 +176,11 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     const handleSync = () => fetchAdminData();
     window.addEventListener('freematch_shared_event', handleSync);
     window.addEventListener('freematch_notification_event', handleSync);
+    window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('freematch_shared_event', handleSync);
       window.removeEventListener('freematch_notification_event', handleSync);
+      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
@@ -165,6 +242,57 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       }
     } catch (e) {
       setToast({ message: 'Network error rejecting verification.', type: 'error' });
+    }
+  };
+
+  const handleApproveProject = async (projObj) => {
+    const projId = projObj.project_id || projObj.id;
+    try {
+      const res = await fetch('/api/admin-dashboard/verify-project/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projId, action: 'approve' })
+      });
+      if (res.ok) {
+        setProjectVerifications(prev => prev.filter(p => (p.project_id || p.id) !== projId && p.id !== projId));
+        setToast({ message: `Project '${projObj.title}' approved & published to Freelancer Marketplace!`, type: 'success' });
+        fetchAdminData();
+        window.dispatchEvent(new Event('freematch_shared_event'));
+        window.dispatchEvent(new Event('freematch_notification_event'));
+      } else {
+        setToast({ message: 'Failed to approve project.', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error approving project.', type: 'error' });
+    }
+  };
+
+  const handleRejectProjectSubmit = async () => {
+    if (!rejectingProject) return;
+    const projId = rejectingProject.project_id || rejectingProject.id;
+    try {
+      const res = await fetch('/api/admin-dashboard/verify-project/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projId,
+          action: 'reject',
+          rejection_reason: rejectionReasonInput || 'Does not meet platform guidelines.'
+        })
+      });
+      if (res.ok) {
+        setProjectVerifications(prev => prev.filter(p => (p.project_id || p.id) !== projId && p.id !== projId));
+        setToast({ message: `Project '${rejectingProject.title}' rejected. Client has been notified.`, type: 'info' });
+        setRejectingProject(null);
+        setRejectionReasonInput('');
+        fetchAdminData();
+        window.dispatchEvent(new Event('freematch_shared_event'));
+        window.dispatchEvent(new Event('freematch_notification_event'));
+      } else {
+        setToast({ message: 'Failed to reject project.', type: 'error' });
+      }
+    } catch (e) {
+      setToast({ message: 'Network error rejecting project.', type: 'error' });
     }
   };
 
@@ -265,6 +393,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           <nav className="space-y-1 text-xs font-semibold">
             {[
               { id: 'overview', label: 'Console Overview', icon: LayoutDashboard },
+              { id: 'project_verifications', label: 'Project Verification Queue', icon: FileCheck, badge: projectVerifications.length },
               { id: 'verifications', label: 'Identity Verifications', icon: ShieldCheck, badge: verifications.length },
               { id: 'users', label: 'User Moderation', icon: UserCheck },
               { id: 'governance', label: 'Skill Governance', icon: Tags },
@@ -479,6 +608,96 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                 <p className="text-2xl font-extrabold text-amber-600 mt-1">{metrics.critical_vulnerabilities} Critical Vulnerabilities</p>
                 <p className="text-xs text-slate-600 font-medium mt-1">{metrics.suspended_accounts_count} User Account{metrics.suspended_accounts_count === 1 ? '' : 's'} Suspended</p>
               </div>
+            </div>
+
+            {/* SECTION: PROJECT VERIFICATION QUEUE */}
+            <div className={`p-6 rounded-3xl border border-amber-500/40 ${isDark ? 'bg-[#060e22]' : 'bg-white shadow-xs'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                    <FileCheck className="w-5 h-5 text-amber-600" />
+                    <span>Project Verification Queue</span>
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Review and approve client project postings before they become visible in the Freelancer Browse Jobs Marketplace.
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-extrabold flex items-center space-x-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{projectVerifications.length} Awaiting Review</span>
+                </span>
+              </div>
+
+              {projectVerifications.length === 0 ? (
+                <div className="py-8 text-center bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
+                  <p className="text-xs text-slate-600 font-bold">No pending projects in queue. All client project postings are verified and active.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {projectVerifications.map(p => (
+                    <div key={p.id} className="p-5 rounded-2xl bg-amber-50/30 border border-amber-200/80 hover:border-amber-400/80 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300/80 rounded-md text-[10px] font-extrabold uppercase tracking-wide">
+                            Pending Admin Review
+                          </span>
+                          <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200/80 rounded-md text-[10px] font-bold">
+                            {p.category}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">•</span>
+                          <span className="text-xs text-slate-500 font-semibold">Posted: {p.postedDate}</span>
+                        </div>
+
+                        <h4 className="font-extrabold text-slate-900 text-base leading-snug">{p.title}</h4>
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
+                          <span className="font-bold text-slate-800 flex items-center space-x-1">
+                            <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Client: {p.client} ({p.client_id})</span>
+                          </span>
+                          <span>•</span>
+                          <span>Budget: <strong className="text-slate-900 font-bold">{p.budget}</strong></span>
+                          <span>•</span>
+                          <span>Duration: <strong className="text-slate-900 font-bold">{p.duration}</strong></span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {(Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',') : [])).map((s, i) => (
+                            <span key={i} className="text-[11px] px-2 py-0.5 rounded-md font-bold bg-white text-slate-700 border border-slate-200">
+                              {typeof s === 'string' ? s.trim() : s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
+                        <button
+                          onClick={() => setSelectedProjectDetail(p)}
+                          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-300 transition-colors flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Review Details</span>
+                        </button>
+                        <button
+                          onClick={() => handleApproveProject(p)}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => setRejectingProject(p)}
+                          className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* SECTION 1: FREELANCER IDENTITY VERIFICATION QUEUE */}
@@ -756,6 +975,105 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           </div>
         )}
 
+        {/* TAB: DEDICATED PROJECT VERIFICATION QUEUE */}
+        {activeTab === 'project_verifications' && (
+          <div className="p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center space-x-2">
+                  <FileCheck className="w-6 h-6 text-amber-600" />
+                  <span>Project Verification Queue</span>
+                </h2>
+                <p className="text-xs text-slate-600 font-medium">
+                  Review and verify client project postings before they are published to the Freelancer Marketplace.
+                </p>
+              </div>
+              <span className="px-3.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-extrabold flex items-center space-x-1.5">
+                <Clock className="w-4 h-4" />
+                <span>{projectVerifications.length} Awaiting Verification</span>
+              </span>
+            </div>
+
+            {projectVerifications.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-xs space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <h3 className="text-base font-extrabold text-slate-900">Project Verification Queue Empty</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  All submitted client projects have been reviewed and processed. New project submissions will automatically appear here for verification.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projectVerifications.map(p => (
+                  <div key={p.id} className="p-6 rounded-3xl bg-white border border-amber-200/80 shadow-xs hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-2.5 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full text-xs font-extrabold uppercase tracking-wide">
+                          Pending Review
+                        </span>
+                        <span className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold">
+                          {p.category}
+                        </span>
+                        <span className="text-xs text-slate-400">•</span>
+                        <span className="text-xs text-slate-500 font-semibold">Posted {p.postedDate}</span>
+                      </div>
+
+                      <h3 className="font-extrabold text-slate-900 text-lg leading-snug">{p.title}</h3>
+
+                      <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
+                        <span className="font-bold text-slate-800 flex items-center space-x-1">
+                          <Briefcase className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span>Client: {p.client} ({p.client_id})</span>
+                        </span>
+                        <span>•</span>
+                        <span>Budget: <strong className="text-slate-900 font-bold">{p.budget}</strong></span>
+                        <span>•</span>
+                        <span>Duration: <strong className="text-slate-900 font-bold">{p.duration}</strong></span>
+                      </div>
+
+                      <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                        {p.description}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {(Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',') : [])).map((s, i) => (
+                          <span key={i} className="text-xs px-2.5 py-0.5 rounded-lg font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                            {typeof s === 'string' ? s.trim() : s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 self-start md:self-center border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+                      <button
+                        onClick={() => setSelectedProjectDetail(p)}
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl border border-slate-300 transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Review Spec</span>
+                      </button>
+                      <button
+                        onClick={() => handleApproveProject(p)}
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Approve Project</span>
+                      </button>
+                      <button
+                        onClick={() => setRejectingProject(p)}
+                        className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Reject</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* MODAL: ADD CATEGORY */}
         {showAddCategoryModal && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -854,6 +1172,160 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                   className="px-4 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer"
                 >
                   Log Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: REJECT PROJECT REASON */}
+        {rejectingProject && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="p-6 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
+              <div className="flex items-center space-x-3 text-rose-600">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
+                  <XCircle className="w-6 h-6 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold tracking-tight">Reject Project Post</h3>
+                  <p className="text-xs text-slate-500 font-semibold">{rejectingProject.title}</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Please provide specific feedback for the client (<strong>{rejectingProject.client}</strong>). This rejection reason will be displayed on their project page.
+              </p>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Rejection Feedback / Reason</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. Scope unclear, budget too low for requirements, or missing key details."
+                  className="w-full p-3 border border-slate-300 rounded-xl text-xs bg-transparent focus:outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingProject(null);
+                    setRejectionReasonInput('');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectProjectSubmit}
+                  className="px-4 py-2 rounded-xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: VIEW FULL PROJECT DETAILS */}
+        {selectedProjectDetail && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="p-6 sm:p-8 rounded-3xl max-w-2xl w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-md text-[10px] font-extrabold uppercase">
+                    {selectedProjectDetail.approval_status || 'Pending Review'}
+                  </span>
+                  <h3 className="text-xl font-extrabold text-slate-900 mt-1">{selectedProjectDetail.title}</h3>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    Client: <strong className="text-slate-800">{selectedProjectDetail.client}</strong> ({selectedProjectDetail.client_id}) • Posted {selectedProjectDetail.postedDate}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedProjectDetail(null)}
+                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 font-bold text-xs cursor-pointer"
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+                <div>
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Category</span>
+                  <p className="font-extrabold text-slate-800 mt-0.5">{selectedProjectDetail.category}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Budget</span>
+                  <p className="font-extrabold text-slate-800 mt-0.5">{selectedProjectDetail.budget}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold uppercase text-[10px]">Duration</span>
+                  <p className="font-extrabold text-slate-800 mt-0.5">{selectedProjectDetail.duration}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Required Skills</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {(Array.isArray(selectedProjectDetail.skills) ? selectedProjectDetail.skills : (typeof selectedProjectDetail.skills === 'string' ? selectedProjectDetail.skills.split(',') : [])).map((s, i) => (
+                    <span key={i} className="text-xs px-2.5 py-1 rounded-lg font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      {typeof s === 'string' ? s.trim() : s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Full Description</h4>
+                <p className="text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  {selectedProjectDetail.description}
+                </p>
+              </div>
+
+              {selectedProjectDetail.abstract && (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Technical Abstract / Spec</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    {selectedProjectDetail.abstract}
+                  </p>
+                </div>
+              )}
+
+              {selectedProjectDetail.attached_file_name && (
+                <div>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Attached Document</h4>
+                  <div className="flex items-center space-x-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="font-bold text-slate-800 truncate">{selectedProjectDetail.attached_file_name}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    const p = selectedProjectDetail;
+                    setSelectedProjectDetail(null);
+                    setRejectingProject(p);
+                  }}
+                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 cursor-pointer"
+                >
+                  Reject Project
+                </button>
+                <button
+                  onClick={() => {
+                    const p = selectedProjectDetail;
+                    setSelectedProjectDetail(null);
+                    handleApproveProject(p);
+                  }}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer flex items-center space-x-1"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Approve & Publish</span>
                 </button>
               </div>
             </div>

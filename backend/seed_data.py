@@ -148,8 +148,8 @@ def seed_database():
         client=client_user,
         freelancer=alex_user,
         defaults={
-            'total_amount': 11500.00,
-            'escrow_amount': 11500.00,
+            'agreed_amount': '₹11,500',
+            'escrow_balance': '₹11,500',
             'status': 'Active'
         }
     )

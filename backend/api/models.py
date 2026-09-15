@@ -70,6 +70,11 @@ class Project(models.Model):
         ('Cancelled', 'Cancelled'),
         ('Closed', 'Closed'),
     )
+    APPROVAL_STATUS_CHOICES = (
+        ('Pending Review', 'Pending Review'),
+        ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
+    )
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
     title = models.CharField(max_length=200)
     category = models.ForeignKey(SkillCategory, on_delete=models.SET_NULL, null=True, blank=True)
@@ -81,6 +86,8 @@ class Project(models.Model):
     attached_file_name = models.CharField(max_length=255, blank=True, default='')
     attached_file_url = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
+    approval_status = models.CharField(max_length=30, choices=APPROVAL_STATUS_CHOICES, default='Approved')
+    rejection_reason = models.TextField(blank=True, default='')
     milestones_json = models.TextField(blank=True, default='[]')
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -591,7 +591,7 @@ def projects_api(request):
                 else:
                     projects = Project.objects.none()
             else:
-                projects = Project.objects.all().order_by('-created_at')
+                projects = Project.objects.filter(approval_status='Approved').order_by('-created_at')
 
             if status_param:
                 st_clean = status_param.strip().lower()
@@ -619,6 +619,10 @@ def projects_api(request):
                     "duration": p.duration,
                     "skills": p.skills_required,
                     "status": p.get_status_display() if hasattr(p, 'get_status_display') else p.status,
+                    "approval_status": getattr(p, 'approval_status', 'Approved'),
+                    "approvalStatus": getattr(p, 'approval_status', 'Approved'),
+                    "rejection_reason": getattr(p, 'rejection_reason', ''),
+                    "rejectionReason": getattr(p, 'rejection_reason', ''),
                     "postedDate": p.created_at.strftime("%b %d, %Y") if p.created_at else "Just Now",
                     "deadline": calculate_project_deadline(p.created_at, p.duration),
                     "progress": p.get_progress_percentage(),
@@ -691,12 +695,28 @@ def projects_api(request):
                 attached_file_name=file_name,
                 attached_file_url=file_url,
                 milestones_json=milestones_str,
-                status='Open'
+                status='Open',
+                approval_status='Pending Review',
+                rejection_reason=''
             )
 
             client_friendly_name = f"{user.first_name} {user.last_name}".strip() or user.username
+            admin_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True) | Q(profile__role='admin')).distinct()
+            for admin_u in admin_users:
+                Notification.objects.create(
+                    user=admin_u,
+                    notification_type='project',
+                    title='New Project Awaiting Review',
+                    message=f"Project '{proj.title}' posted by {client_friendly_name} requires verification.",
+                    project_id=f"proj_{proj.id}",
+                    project_name=proj.title,
+                    related_user_id=user.username,
+                    related_user_name=client_friendly_name,
+                    source_id=f"proj_{proj.id}"
+                )
+
             return Response({
-                "message": "Project posted and persisted in PostgreSQL database!",
+                "message": "Project posted successfully and sent for admin verification!",
                 "project": {
                     "id": f"proj_{proj.id}",
                     "title": proj.title,
@@ -708,6 +728,9 @@ def projects_api(request):
                     "duration": duration,
                     "skills": skills,
                     "status": "Open for Bids",
+                    "approval_status": "Pending Review",
+                    "approvalStatus": "Pending Review",
+                    "rejection_reason": "",
                     "postedDate": "Just Now",
                     "progress": 0,
                     "applicants": 0,
@@ -1928,6 +1951,9 @@ def proposals_api(request):
 
         if not proj:
             return Response({"error": "Target project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if proj and getattr(proj, 'approval_status', 'Approved') != 'Approved':
+            return Response({"error": "This project is pending admin review and is not accepting bids."}, status=status.HTTP_400_BAD_REQUEST)
 
         freelancer_identifier = data.get('freelancer_id') or data.get('freelancer')
         fl_str = str(freelancer_identifier).strip() if freelancer_identifier is not None else ''
@@ -3727,6 +3753,34 @@ def admin_dashboard_api(request):
                 'type': ev_type
             })
 
+        # 8. Project Verification Queue (pending review projects)
+        pending_projects_qs = Project.objects.filter(approval_status='Pending Review').select_related('client', 'category').order_by('-created_at')
+        project_verification_list = []
+        for p in pending_projects_qs:
+            c = p.client
+            client_display = f"{c.first_name} {c.last_name}".strip() or c.username if c else 'Client'
+            client_uname = c.username if c else 'client'
+            project_verification_list.append({
+                'id': f"proj_{p.id}",
+                'project_id': p.id,
+                'title': p.title,
+                'client': client_display,
+                'client_id': client_uname,
+                'client_email': c.email if c else '',
+                'category': p.category.name if p.category else 'Software Development',
+                'budget': p.budget,
+                'duration': p.duration,
+                'skills': p.skills_required,
+                'postedDate': p.created_at.strftime("%b %d, %Y") if p.created_at else "Just Now",
+                'deadline': calculate_project_deadline(p.created_at, p.duration),
+                'description': p.description,
+                'abstract': p.abstract,
+                'attached_file_name': p.attached_file_name,
+                'attached_file_url': p.attached_file_url,
+                'approval_status': p.approval_status,
+                'rejection_reason': p.rejection_reason
+            })
+
         return Response({
             'metrics': {
                 'platform_revenue': f"₹{platform_revenue:,.0f}" if platform_revenue > 0 else '₹0',
@@ -3740,6 +3794,7 @@ def admin_dashboard_api(request):
                 'total_transactions_count': completed_payments.count()
             },
             'verifications': verification_list,
+            'project_verifications': project_verification_list,
             'users': user_list,
             'categories': cat_list,
             'skills': skill_list,
@@ -3748,6 +3803,61 @@ def admin_dashboard_api(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_verify_project_api(request):
+    """
+    Approve or reject a client's posted project in the verification queue.
+    """
+    from .models import Project, Notification
+    proj_id_raw = request.data.get('project_id') or request.data.get('id')
+    action = str(request.data.get('action', 'approve')).lower().strip()
+    reason = str(request.data.get('rejection_reason', '') or request.data.get('reason', '')).strip()
+
+    if not proj_id_raw:
+        return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    clean_id = str(proj_id_raw).replace('proj_', '').replace('cp', '').strip()
+    proj = Project.objects.filter(id=int(clean_id) if clean_id.isdigit() else None).first()
+    if not proj:
+        return Response({"error": f"Project '{proj_id_raw}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if action == 'approve':
+        proj.approval_status = 'Approved'
+        proj.rejection_reason = ''
+        proj.save()
+
+        if proj.client:
+            Notification.objects.create(
+                user=proj.client,
+                notification_type='project',
+                title='Project Approved!',
+                message=f"Your project '{proj.title}' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.",
+                project_id=f"proj_{proj.id}",
+                project_name=proj.title,
+                source_id=f"proj_{proj.id}"
+            )
+        return Response({"message": f"Project '{proj.title}' approved successfully!", "approval_status": "Approved"}, status=status.HTTP_200_OK)
+
+    elif action == 'reject':
+        proj.approval_status = 'Rejected'
+        proj.rejection_reason = reason if reason else 'Does not meet platform project quality & safety guidelines.'
+        proj.save()
+
+        if proj.client:
+            Notification.objects.create(
+                user=proj.client,
+                notification_type='project',
+                title='Project Review Update - Action Required',
+                message=f"Your project '{proj.title}' was reviewed and rejected. Reason: {proj.rejection_reason}",
+                project_id=f"proj_{proj.id}",
+                project_name=proj.title,
+                source_id=f"proj_{proj.id}"
+            )
+        return Response({"message": f"Project '{proj.title}' rejected.", "approval_status": "Rejected", "rejection_reason": proj.rejection_reason}, status=status.HTTP_200_OK)
+
+    return Response({"error": "Invalid action. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

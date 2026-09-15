@@ -370,9 +370,11 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           if (Array.isArray(apiProjects)) {
             const activeOnly = apiProjects.filter(p => {
               const st = (p.status || '').toLowerCase().trim();
+              const appStatus = (p.approval_status || p.approvalStatus || 'Approved').toLowerCase().trim();
+              const isApproved = appStatus === 'approved';
               const isClosedOrDone = st === 'closed' || st === 'cancelled' || st === 'completed' || st === 'in progress';
               const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
-              return !isClosedOrDone && !isAssigned;
+              return isApproved && !isClosedOrDone && !isAssigned;
             });
             const mapped = activeOnly.map((p, idx) => ({
               id: p.id || `job_${idx}`,
