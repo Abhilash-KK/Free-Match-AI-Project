@@ -88,6 +88,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           text: 'Account reactivated successfully! You can now log in.'
         });
         setDeactivatedUserHandle('');
+      } else if (res.status === 403 && (data.suspended || (data.error && data.error.toLowerCase().includes('suspended')))) {
+        setMessage({
+          type: 'suspended',
+          text: 'Your account has been suspended.'
+        });
       } else {
         setMessage({ type: 'error', text: data.error || 'Failed to reactivate account.' });
       }
@@ -110,6 +115,17 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
   useEffect(() => {
     if (mode === 'register' && role === 'Admin') {
       setRole('Client');
+    }
+  }, [mode, role]);
+
+  useEffect(() => {
+    if (mode === 'register') {
+      setFirstName('');
+      setLastName('');
+      setRegUserId('');
+      setEmail('');
+      setRegPassword('');
+      setRegConfirmPassword('');
     }
   }, [mode, role]);
 
@@ -337,7 +353,12 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         setLoading(false);
         return;
       } else if (response.status === 403) {
-        if (data.deactivated || (data.error && data.error.toLowerCase().includes('deactivated'))) {
+        if (data.suspended || data.is_suspended || (data.error && data.error.toLowerCase().includes('suspended'))) {
+          setMessage({
+            type: 'suspended',
+            text: 'Your account has been suspended.'
+          });
+        } else if (data.deactivated || (data.error && data.error.toLowerCase().includes('deactivated'))) {
           setDeactivatedUserHandle(data.user_id || enteredIdentifier);
           setMessage({
             type: 'deactivated',
@@ -665,15 +686,25 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
               className={`mb-5 p-4 rounded-2xl text-xs font-semibold space-y-2.5 ${
                 message.type === 'error'
                   ? isDark ? 'bg-rose-950/70 text-rose-300 border border-rose-800/80' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : message.type === 'suspended'
+                  ? isDark ? 'bg-rose-950/80 text-rose-300 border border-rose-800/80' : 'bg-rose-50 text-rose-900 border border-rose-300'
                   : message.type === 'deactivated'
                   ? isDark ? 'bg-amber-950/80 text-amber-300 border border-amber-800/80' : 'bg-amber-50 text-amber-900 border border-amber-300'
                   : isDark ? 'bg-blue-950/70 text-blue-300 border border-blue-800/80' : 'bg-blue-50 text-blue-700 border border-blue-200'
               }`}
             >
               <p className="font-extrabold flex items-center gap-1.5 text-xs">
-                {message.type === 'deactivated' && '🔒 '}
+                {(message.type === 'deactivated' || message.type === 'suspended') && '🔒 '}
                 {message.text}
               </p>
+
+              {message.type === 'suspended' && (
+                <div className="pt-2 border-t border-rose-300/40 dark:border-rose-800/40">
+                  <p className="text-xs font-medium text-rose-800 dark:text-rose-300 leading-relaxed">
+                    Your account has been suspended by the administrator. Only an administrator can reactivate this account. Please contact the administrator for assistance.
+                  </p>
+                </div>
+              )}
 
               {message.type === 'deactivated' && (
                 <div className="pt-2 space-y-2 border-t border-amber-300/40 dark:border-amber-800/40">
@@ -878,9 +909,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           <input
                             type="text"
                             required
+                            autoComplete="off"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
-                            placeholder="Johnathan"
+                            placeholder="e.g. Jonathan"
                             className={`w-full pl-9 pr-3 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                               isDark 
                                 ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
@@ -904,9 +936,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                           <input
                             type="text"
                             required
+                            autoComplete="off"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
-                            placeholder="Doe"
+                            placeholder="e.g. Doe"
                             className={`w-full pl-9 pr-3 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                               isDark 
                                 ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
@@ -931,9 +964,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <input
                           type="text"
                           required
+                          autoComplete="off"
                           value={regUserId}
                           onChange={(e) => setRegUserId(e.target.value)}
-                          placeholder="e.g. johnathan123"
+                          placeholder="e.g. jonathan123"
                           className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
                               ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
@@ -957,9 +991,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <input
                           type="email"
                           required
+                          autoComplete="off"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="john@freematch.ai"
+                          placeholder="e.g. jonathan@gmail.com"
                           className={`w-full pl-10 pr-4 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
                               ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
@@ -983,9 +1018,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <input
                           type={showRegPassword ? 'text' : 'password'}
                           required
+                          autoComplete="new-password"
                           value={regPassword}
                           onChange={(e) => setRegPassword(e.target.value)}
-                          placeholder="••••••••••••"
+                          placeholder="Enter your password"
                           className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
                               ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 
@@ -1017,9 +1053,10 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                         <input
                           type={showRegConfirmPassword ? 'text' : 'password'}
                           required
+                          autoComplete="new-password"
                           value={regConfirmPassword}
                           onChange={(e) => setRegConfirmPassword(e.target.value)}
-                          placeholder="••••••••••••"
+                          placeholder="Confirm your password"
                           className={`w-full pl-10 pr-11 py-3 border rounded-2xl text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all ${
                             isDark 
                               ? 'bg-[#09142e]/90 text-white border-slate-700/80 placeholder-slate-400' 

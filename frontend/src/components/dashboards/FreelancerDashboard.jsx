@@ -11,6 +11,7 @@ import { calculateFreelancerFinancials } from '../../utils/freelancerFinancials'
 import { fetchNotifications } from '../../utils/notificationService';
 import { calculateProjectDeadline } from '../../utils/dateUtils';
 import { openDocumentViewer } from '../../utils/documentViewer';
+import { formatCurrency } from '../../utils/currencyUtils';
 import { 
   Zap, 
   LayoutDashboard, 
@@ -42,7 +43,11 @@ import {
   MoreVertical,
   Filter,
   ChevronRight,
-  Home
+  Home,
+  FolderKanban,
+  AlertCircle,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
@@ -61,7 +66,19 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
   const [freelancerDbContracts, setFreelancerDbContracts] = useState([]);
   const [freelancerFinancials, setFreelancerFinancials] = useState(null);
   const [freelancerDbTasks, setFreelancerDbTasks] = useState([]);
+  const [freelancerDbReviews, setFreelancerDbReviews] = useState([]);
   const [messagesCount, setMessagesCount] = useState(0);
+
+  // My Projects & Document Approval Verification State
+  const [selectedMyProjectDetail, setSelectedMyProjectDetail] = useState(null);
+  const [myProjectsSearchQuery, setMyProjectsSearchQuery] = useState('');
+  const [myProjectsFilter, setMyProjectsFilter] = useState('All');
+  const [freelancerVerificationInfo, setFreelancerVerificationInfo] = useState({
+    verified: false,
+    verification_status: 'Pending',
+    verification_rejection_reason: '',
+    resume_name: ''
+  });
 
   // Proposal Form State
   const [coverLetter, setCoverLetter] = useState('');
@@ -314,6 +331,201 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       .catch(() => {});
   }, [currentFlId]);
 
+  const loadFreelancerProfileVerification = React.useCallback(() => {
+    if (!currentFlId) return;
+    fetch(`http://localhost:8000/api/freelancer-profile/?username=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setFreelancerVerificationInfo({
+            verified: Boolean(data.verified),
+            verification_status: data.verification_status || (data.verified ? 'Approved' : 'Pending'),
+            verification_rejection_reason: data.verification_rejection_reason || '',
+            resume_name: data.resume_name || 'Freelancer_Verification_Doc.pdf'
+          });
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId]);
+
+  const loadFreelancerReviews = React.useCallback(() => {
+    if (!currentFlId) {
+      setFreelancerDbReviews([]);
+      return;
+    }
+    fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(currentFlId)}`)
+      .then(res => res.json())
+      .then(apiReviews => {
+        let combined = Array.isArray(apiReviews) ? apiReviews : [];
+        if (currentFlName && currentFlName !== currentFlId) {
+          fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(currentFlName)}`)
+            .then(res => res.json())
+            .then(nameReviews => {
+              if (Array.isArray(nameReviews) && nameReviews.length > 0) {
+                combined = [...combined, ...nameReviews];
+              }
+              const uniqueMap = new Map();
+              combined.forEach(r => {
+                if (r) {
+                  const key = r.id || `${r.reviewer_username || r.reviewer}_${r.projectTitle}`;
+                  if (!uniqueMap.has(key)) uniqueMap.set(key, r);
+                }
+              });
+              setFreelancerDbReviews(Array.from(uniqueMap.values()));
+            })
+            .catch(() => {
+              setFreelancerDbReviews(combined);
+            });
+        } else {
+          setFreelancerDbReviews(combined);
+        }
+      })
+      .catch(() => {});
+  }, [currentFlId, currentFlName]);
+
+  const reviewStats = useMemo(() => {
+    let list = Array.isArray(freelancerDbReviews) ? [...freelancerDbReviews] : [];
+
+    if (isDemo && list.length === 0) {
+      return {
+        hasReviews: true,
+        avgRatingStr: '4.9 / 5',
+        reviewCount: 12,
+        subtitle: 'Based on 12 verified reviews'
+      };
+    }
+
+    if (list.length === 0) {
+      return {
+        hasReviews: false,
+        avgRatingStr: 'No ratings yet',
+        reviewCount: 0,
+        subtitle: 'Based on verified reviews'
+      };
+    }
+
+    const validRatings = list.map(r => Number(r.rating || 0)).filter(r => r > 0);
+    if (validRatings.length === 0) {
+      return {
+        hasReviews: false,
+        avgRatingStr: 'No ratings yet',
+        reviewCount: 0,
+        subtitle: 'Based on verified reviews'
+      };
+    }
+
+    const sum = validRatings.reduce((a, b) => a + b, 0);
+    const avg = sum / validRatings.length;
+    const count = validRatings.length;
+
+    return {
+      hasReviews: true,
+      avgRatingStr: `${avg.toFixed(1)} / 5`,
+      reviewCount: count,
+      subtitle: `Based on ${count} verified ${count === 1 ? 'review' : 'reviews'}`
+    };
+  }, [freelancerDbReviews, isDemo]);
+
+  const myProjectsList = useMemo(() => {
+    const combined = [];
+    const seenIds = new Set();
+
+    if (Array.isArray(freelancerDbContracts) && freelancerDbContracts.length > 0) {
+      freelancerDbContracts.forEach(c => {
+        const pId = c.projectId || c.contractId || c.id || `proj_ctr_${c.id}`;
+        if (!seenIds.has(pId)) {
+          seenIds.add(pId);
+          combined.push({
+            id: pId,
+            contractId: c.contractId || c.id || 'CTR-9938',
+            title: c.projectName || c.project || c.title || 'AI powered document analysis system',
+            client: c.clientName || c.client || 'Client',
+            clientEmail: c.clientEmail || 'Abhilashkk123@gmail.com',
+            category: c.category || 'Software Development',
+            description: c.description || 'AI powered document analysis system.',
+            budget: c.agreedAmount || c.agreed_amount || c.amount || '₹45,000',
+            agreedAmount: c.agreedAmount || c.agreed_amount || c.amount || '₹45,000',
+            agreed_amount: c.agreedAmount || c.agreed_amount || c.amount || '₹45,000',
+            duration: c.duration || '3 Weeks',
+            startDate: c.startDate || 'Sep 8, 2026',
+            deadline: c.deadline || c.endDate || 'Sep 29, 2026',
+            status: c.status || 'In Progress',
+            approvalStatus: c.approvalStatus || c.approval_status || 'Approved',
+            rejectionReason: c.rejectionReason || c.rejection_reason || '',
+            milestones: c.milestones || []
+          });
+        }
+      });
+    }
+
+    if (isDemo && combined.length === 0) {
+      combined.push({
+        id: 'proj_demo_9938',
+        contractId: 'CTR-9938',
+        title: 'AI powered document analysis system',
+        client: 'Abhilash KK',
+        clientEmail: 'Abhilashkk123@gmail.com',
+        category: 'Artificial Intelligence / ML',
+        description: 'AI powered document analysis system with automated OCR classification, NLP extraction, and secure cloud storage integration.',
+        budget: '₹45,000',
+        duration: '3 Weeks',
+        startDate: 'Sep 8, 2026',
+        deadline: 'Sep 29, 2026',
+        status: 'In Progress',
+        approvalStatus: 'Approved',
+        rejectionReason: '',
+        milestones: [
+          { id: 'm1', title: 'Document OCR & NLP Model Integration', status: 'Completed', amount: '₹22,500' },
+          { id: 'm2', title: 'REST API & Dashboard Workflows', status: 'In Progress', amount: '₹22,500' }
+        ]
+      });
+    }
+
+    return combined;
+  }, [freelancerDbContracts, isDemo]);
+
+  const getProjectProgress = (proj) => {
+    const projectTasks = freelancerDbTasks.filter(t => 
+      (t.project || t.projectName || '').toLowerCase().trim() === (proj.title || '').toLowerCase().trim() ||
+      (t.contractId || '').toLowerCase() === (proj.contractId || '').toLowerCase()
+    );
+    if (projectTasks.length > 0) {
+      const done = projectTasks.filter(t => (t.status || '').toLowerCase() === 'done' || (t.status || '').toLowerCase() === 'completed').length;
+      return { done, total: projectTasks.length, percentage: Math.round((done / projectTasks.length) * 100) };
+    }
+    if (Array.isArray(proj.milestones) && proj.milestones.length > 0) {
+      const done = proj.milestones.filter(m => (m.status || '').toLowerCase() === 'completed' || (m.status || '').toLowerCase() === 'approved').length;
+      return { done, total: proj.milestones.length, percentage: Math.round((done / proj.milestones.length) * 100) };
+    }
+    const isDone = (proj.status || '').toLowerCase() === 'completed';
+    return { done: isDone ? 3 : 2, total: 3, percentage: isDone ? 100 : 66 };
+  };
+
+  const filteredMyProjects = useMemo(() => {
+    return myProjectsList.filter(proj => {
+      const q = myProjectsSearchQuery.toLowerCase().trim();
+      const matchesSearch = !q || (
+        (proj.title || '').toLowerCase().includes(q) ||
+        (proj.client || '').toLowerCase().includes(q) ||
+        (proj.category || '').toLowerCase().includes(q) ||
+        (proj.contractId || '').toLowerCase().includes(q) ||
+        (proj.description || '').toLowerCase().includes(q)
+      );
+
+      const status = (proj.status || '').toLowerCase().trim();
+      let matchesFilter = true;
+      if (myProjectsFilter === 'In Progress') {
+        matchesFilter = status === 'in progress' || status === 'active';
+      } else if (myProjectsFilter === 'Completed') {
+        matchesFilter = status === 'completed';
+      } else if (myProjectsFilter === 'Active') {
+        matchesFilter = status !== 'completed' && status !== 'cancelled';
+      }
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [myProjectsList, myProjectsSearchQuery, myProjectsFilter]);
+
   // Sync proposals and jobs across components via storage events
   React.useEffect(() => {
     const handleSync = () => {
@@ -331,9 +543,11 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           if (Array.isArray(parsed)) {
             const activeProjects = parsed.filter(p => {
               const st = (p.status || '').toLowerCase().trim();
+              const appSt = (p.approval_status || p.approvalStatus || 'Approved').toLowerCase().trim();
+              const isApproved = appSt === 'approved';
               const isClosedOrDone = st === 'closed' || st === 'cancelled' || st === 'completed' || st === 'in progress';
               const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
-              return !isClosedOrDone && !isAssigned;
+              return isApproved && !isClosedOrDone && !isAssigned;
             });
             setJobs(activeProjects.map((p, idx) => ({
               id: p.id || `job_${idx}`,
@@ -443,9 +657,13 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     loadFreelancerFinancials();
     loadFreelancerTasks();
     loadMessagesCount();
+    loadFreelancerProfileVerification();
+    loadFreelancerReviews();
 
     window.addEventListener('storage', handleSync);
     window.addEventListener('storage', loadFreelancerProposals);
+    window.addEventListener('storage', loadFreelancerProfileVerification);
+    window.addEventListener('storage', loadFreelancerReviews);
     window.addEventListener('freematch_shared_event', handleSync);
     window.addEventListener('freematch_shared_event', loadMarketplaceProjects);
     window.addEventListener('freematch_shared_event', loadFreelancerProposals);
@@ -453,6 +671,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     window.addEventListener('freematch_shared_event', loadFreelancerFinancials);
     window.addEventListener('freematch_shared_event', loadFreelancerTasks);
     window.addEventListener('freematch_shared_event', loadMessagesCount);
+    window.addEventListener('freematch_shared_event', loadFreelancerProfileVerification);
+    window.addEventListener('freematch_shared_event', loadFreelancerReviews);
+    window.addEventListener('freematch_review_submitted', loadFreelancerReviews);
+    window.addEventListener('freematch_user_verification_event', loadFreelancerProfileVerification);
     window.addEventListener('freematch_kanban_event', loadFreelancerTasks);
     window.addEventListener('freematch_notification_event', loadBackendNotifs);
     window.addEventListener('focus', loadMarketplaceProjects);
@@ -460,6 +682,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     return () => {
       window.removeEventListener('storage', handleSync);
       window.removeEventListener('storage', loadFreelancerProposals);
+      window.removeEventListener('storage', loadFreelancerReviews);
       window.removeEventListener('freematch_shared_event', handleSync);
       window.removeEventListener('freematch_shared_event', loadMarketplaceProjects);
       window.removeEventListener('freematch_shared_event', loadFreelancerProposals);
@@ -467,6 +690,8 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       window.removeEventListener('freematch_shared_event', loadFreelancerFinancials);
       window.removeEventListener('freematch_shared_event', loadFreelancerTasks);
       window.removeEventListener('freematch_shared_event', loadMessagesCount);
+      window.removeEventListener('freematch_shared_event', loadFreelancerReviews);
+      window.removeEventListener('freematch_review_submitted', loadFreelancerReviews);
       window.removeEventListener('freematch_kanban_event', loadFreelancerTasks);
       window.removeEventListener('freematch_notification_event', loadBackendNotifs);
       window.removeEventListener('focus', loadMarketplaceProjects);
@@ -723,7 +948,8 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               {[
                 { id: 'workspace', label: 'Dashboard', icon: LayoutDashboard },
                 { id: 'jobs', label: 'Browse Jobs Feed', icon: Search },
-                { id: 'proposals', label: 'My Submitted Bids', icon: Send, badge: myProposalsCount }
+                { id: 'proposals', label: 'My Submitted Bids', icon: Send, badge: myProposalsCount },
+                { id: 'my_projects', label: 'My Projects', icon: FolderKanban, badge: myProjectsList.length }
               ].map(item => {
                 const IconComp = item.icon;
                 return (
@@ -1325,6 +1551,276 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           );
         })()}
 
+        {/* TAB: MY PROJECTS PAGE */}
+        {activeTab === 'my_projects' && (
+          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full animate-fadeIn">
+            {/* Breadcrumb & Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveTab('workspace');
+                    }}
+                    className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
+                  >
+                    <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Home</span>
+                  </button>
+                  <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
+                    My Projects
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center text-xl shrink-0 shadow-2xs">
+                    <FolderKanban className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                      My Projects
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                      View projects assigned to you along with real-time project admin verification status.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="relative w-full md:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search project title, client, or category..."
+                  value={myProjectsSearchQuery}
+                  onChange={(e) => setMyProjectsSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border rounded-xl text-xs bg-slate-50/50 border-slate-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
+                {['All', 'Active', 'In Progress', 'Completed'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setMyProjectsFilter(tab)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                      myProjectsFilter === tab
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Project Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredMyProjects.length > 0 ? (
+                filteredMyProjects.map((proj) => {
+                  const progress = getProjectProgress(proj);
+                  const docStatus = (
+                    proj.documentVerificationStatus ||
+                    proj.verification_status ||
+                    freelancerVerificationInfo?.verification_status ||
+                    (freelancerVerificationInfo?.verified ? 'Approved' : 'Pending Verification')
+                  ).toLowerCase().trim();
+
+                  const isDocApproved = docStatus === 'approved' || (freelancerVerificationInfo?.verified === true && docStatus !== 'rejected');
+                  const isDocRejected = docStatus === 'rejected' || freelancerVerificationInfo?.verification_status === 'Rejected';
+
+                  return (
+                    <div
+                      key={proj.id}
+                      className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-blue-200 transition-all space-y-4 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        {/* Top Row: Category & Verification Status */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="px-3 py-1 bg-blue-50 text-blue-700 font-extrabold text-[11px] rounded-full border border-blue-100">
+                            {proj.category}
+                          </span>
+
+                          {/* Admin Project Document Verification Badge */}
+                          {isDocApproved ? (
+                            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Identity and document verified by admin">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Document Verified by Admin</span>
+                            </span>
+                          ) : isDocRejected ? (
+                            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-200" title={`Document verification rejected by admin. ${proj.rejectionReason || freelancerVerificationInfo?.verification_rejection_reason || ''}`}>
+                              <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Document Verification Rejected</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-amber-50 text-amber-700 border border-amber-200" title="Document verification pending admin review">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Document Verification Pending</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title & Client info */}
+                        <div>
+                          <h3 className="text-lg font-black text-slate-900 line-clamp-1">{proj.title}</h3>
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
+                            Client: <span className="font-extrabold text-slate-700">{proj.client}</span> ({proj.clientEmail})
+                          </p>
+                        </div>
+
+                        {/* Description overview */}
+                        <p className="text-xs text-slate-600 font-medium line-clamp-2 leading-relaxed bg-slate-50/70 p-3 rounded-2xl border border-slate-100">
+                          {proj.description}
+                        </p>
+
+                        {/* Financials & Timeline Metadata */}
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Agreed Budget</span>
+                            <span className="font-black text-[#2563eb] text-sm">{formatCurrency(proj.agreedAmount || proj.agreed_amount || proj.agreedBudget || proj.budget)}</span>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span className="text-[10px] uppercase font-extrabold text-slate-400 block">Target Deadline</span>
+                            <span className="font-extrabold text-slate-800">{proj.deadline}</span>
+                          </div>
+                        </div>
+
+                        {/* CURRENT PROJECT STATUS & SPRINT TASK PROGRESS SECTION */}
+                        {(() => {
+                          const pApproval = (proj.approvalStatus || proj.approval_status || 'Approved').toLowerCase().trim();
+                          const pStatus = (proj.status || 'In Progress').toLowerCase().trim();
+
+                          let statusLabel = 'In Progress';
+                          let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200';
+                          let dotColor = 'bg-blue-500';
+
+                          if (pApproval === 'pending' || pApproval === 'pending review') {
+                            statusLabel = 'Pending Admin Approval';
+                            badgeStyle = 'bg-amber-50 text-amber-800 border-amber-200';
+                            dotColor = 'bg-amber-500';
+                          } else if (pApproval === 'rejected' || pStatus === 'rejected') {
+                            statusLabel = 'Rejected';
+                            badgeStyle = 'bg-rose-50 text-rose-700 border-rose-200';
+                            dotColor = 'bg-rose-500';
+                          } else if (pStatus === 'completed') {
+                            statusLabel = 'Completed';
+                            badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                            dotColor = 'bg-emerald-500';
+                          } else if (pStatus === 'open' || pStatus === 'open for bids') {
+                            statusLabel = 'Open for Bids';
+                            badgeStyle = 'bg-sky-50 text-sky-800 border-sky-200';
+                            dotColor = 'bg-sky-500';
+                          } else if (pStatus === 'hiring') {
+                            statusLabel = 'Hiring';
+                            badgeStyle = 'bg-indigo-50 text-indigo-800 border-indigo-200';
+                            dotColor = 'bg-indigo-500';
+                          }
+
+                          // Calculate real sprint task progress from database tasks
+                          const pTasks = (freelancerDbTasks || []).filter(t => {
+                            const tProjId = String(t.project_id || t.project || '').toLowerCase().trim();
+                            const pId = String(proj.id || '').toLowerCase().trim();
+                            const pTitle = String(proj.title || '').toLowerCase().trim();
+                            return (tProjId && (tProjId === pId || tProjId.includes(pId))) || (t.project && String(t.project).toLowerCase().trim() === pTitle);
+                          });
+
+                          let completedTasks = 0;
+                          let inProgressTasks = 0;
+                          let pendingTasks = 0;
+
+                          pTasks.forEach(t => {
+                            const st = (t.status || '').toLowerCase().trim();
+                            if (st === 'done' || st === 'completed' || st === 'approved') {
+                              completedTasks++;
+                            } else if (st === 'in progress' || st === 'doing' || st === 'under review' || st === 'in review') {
+                              inProgressTasks++;
+                            } else {
+                              pendingTasks++;
+                            }
+                          });
+
+                          const totalTasks = pTasks.length;
+                          let completionPct = 0;
+                          if (totalTasks > 0) {
+                            completionPct = Math.round(((completedTasks * 100) + (inProgressTasks * 30)) / totalTasks);
+                          } else {
+                            completionPct = pStatus === 'completed' ? 100 : (pStatus === 'in progress' ? 15 : 0);
+                          }
+
+                          return (
+                            <div className="space-y-3 pt-1">
+                              <div>
+                                <span className="text-slate-500 uppercase text-[10px] font-extrabold tracking-wider block mb-1">
+                                  CURRENT PROJECT STATUS
+                                </span>
+                                <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-black ${badgeStyle}`}>
+                                  <div className="flex items-center space-x-2">
+                                    <span className={`w-2 h-2 rounded-full ${dotColor} ${statusLabel === 'In Progress' ? 'animate-pulse' : ''}`} />
+                                    <span className="font-extrabold">{statusLabel}</span>
+                                  </div>
+                                  <span className="text-[10px] uppercase tracking-wider font-extrabold opacity-75">
+                                    {proj.contractId || `Ref #${proj.id}`}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* SPRINT TASK PROGRESS SECTION */}
+                              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                                <div className="flex items-center justify-between text-xs font-bold">
+                                  <span className="text-slate-500 uppercase text-[10px] tracking-wider font-extrabold">SPRINT TASK PROGRESS</span>
+                                  <span className="text-blue-600 font-extrabold">{completionPct}%</span>
+                                </div>
+                                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                  <div 
+                                    className="bg-blue-600 h-full rounded-full transition-all duration-500" 
+                                    style={{ width: `${Math.max(5, Math.min(100, completionPct))}%` }} 
+                                  />
+                                </div>
+                                <div className="text-[11px] font-semibold text-slate-500 flex items-center justify-between pt-0.5">
+                                  <span>Tasks: <strong className="text-slate-700">{completedTasks} Completed</strong> • <strong className="text-blue-600">{inProgressTasks} In Progress</strong> • <strong className="text-slate-600">{pendingTasks} Pending</strong></span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Card Footer Actions */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
+                        <div className="text-[11px] font-bold text-slate-400">
+                          Ref: <span className="text-blue-600 font-extrabold">{proj.contractId}</span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedMyProjectDetail(proj)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer flex items-center space-x-1.5 transition-all shadow-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Details</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="col-span-full bg-white rounded-3xl p-12 text-center border border-dashed border-slate-300 space-y-3">
+                  <FolderKanban className="w-12 h-12 text-slate-300 mx-auto" />
+                  <h3 className="font-extrabold text-lg text-slate-800">No Projects Found</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    No assigned projects match your search or filter criteria. Projects accepted from client contracts will appear here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TAB: BROWSE JOBS FEED */}
         {activeTab === 'jobs' && (
           <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
@@ -1660,17 +2156,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           );
         })()}
 
-        {/* TAB 1: DEDICATED CLIENT REVIEWS & RATINGS PAGE */}
-        {activeTab === 'reviews' && (
-          <ClientReviewsView
-            userSession={userSession}
-            freelancerData={myProfileData}
-            reviews={reviews}
-            isDark={isDark}
-            onNavigateToProjects={() => setActiveTab('workspace')}
-            onNavigateHome={() => setActiveTab('workspace')}
-          />
-        )}
+
 
         {/* TAB 2: FREELANCER PROFILE & SKILLS PORTFOLIO */}
         {activeTab === 'profile' && (
@@ -1686,7 +2172,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         )}
 
         {/* WORKSPACE OVERVIEW TAB */}
-        {(!['jobs', 'proposals', 'tasks', 'earnings', 'contracts', 'reviews', 'profile', 'messages', 'notifications', 'settings'].includes(activeTab)) && (() => {
+        {(!['jobs', 'proposals', 'tasks', 'earnings', 'contracts', 'reviews', 'profile', 'messages', 'notifications', 'settings', 'my_projects'].includes(activeTab)) && (() => {
           const {
             assignedProjects,
             totalTasksCount,
@@ -1697,7 +2183,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             walletBalanceStr,
             lifetimeEarningsStr,
             activeContractsStr,
-            clientRatingStr,
             completedProjectsCount
           } = (() => {
             const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
@@ -1742,10 +2227,14 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               const pName = c.projectName || c.project || 'Assigned Project';
               const pStart = c.startDate || c.postedDate || c.created_at || 'Sep 8, 2026';
               const pDur = c.duration || '1 Month';
+              const cAmt = c.agreedAmount || c.agreed_amount || c.amount || '0';
               projectMap[pName] = {
                 name: pName,
                 client: c.clientName || c.client || 'Enterprise Client',
                 deadline: c.deadline || c.endDate || calculateProjectDeadline(pStart, pDur),
+                budget: cAmt,
+                agreedAmount: cAmt,
+                agreed_amount: cAmt,
                 total: 0,
                 done: 0,
                 inProgress: 0,
@@ -1802,20 +2291,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             const totalWeighted = (dn * 100) + (ur * 60) + (inp * 30);
             const overallPct = tot > 0 ? Math.round(totalWeighted / tot) : 0;
 
-            let calculatedRatingStr = isDemo ? '4.9 / 5.0' : 'No ratings yet';
-            try {
-              let allRevs = Array.isArray(reviews) ? [...reviews] : [];
-              const flName = (userSession?.name || userSession?.user_id || '').toLowerCase().trim();
-              if (flName) {
-                const matched = allRevs.filter(r => r && r.reviewee && String(r.reviewee).toLowerCase().includes(flName.split(' ')[0]));
-                if (matched.length > 0) {
-                  const avg = matched.reduce((a, b) => a + Number(b.rating || 5), 0) / matched.length;
-                  calculatedRatingStr = `${avg.toFixed(1)} / 5.0`;
-                }
-              }
-            } catch (e) {}
-
-            // Unified, single source-of-truth financial calculation
             const fin = calculateFreelancerFinancials({
               userSession,
               contracts: freelancerDbContracts || [],
@@ -1832,7 +2307,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               walletBalanceStr: fin.availableBalanceStr,
               lifetimeEarningsStr: fin.lifetimeEarningsStr,
               activeContractsStr: fin.activeContractsCount,
-              clientRatingStr: calculatedRatingStr,
               completedProjectsCount: fin.completedProjectsCount
             };
           })();
@@ -1922,17 +2396,21 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                   onClick={() => setActiveTab('reviews')} 
                   className="bg-amber-50/40 border border-amber-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
                 >
-                  <div className="space-y-1">
+                  <div className="space-y-1 w-full">
                     <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-500 flex items-center justify-center shrink-0 mb-3 shadow-2xs">
                       <Star className="w-5 h-5 fill-amber-500" />
                     </div>
                     <p className="text-xs font-extrabold text-amber-700 uppercase tracking-wider">CLIENT RATING</p>
-                    <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{clientRatingStr}</p>
-                    <div className="flex items-center justify-between text-xs pt-1">
-                      <span className="text-slate-500 font-medium">Based on verified reviews</span>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      {reviewStats.hasReviews ? `⭐ ${reviewStats.avgRatingStr}` : 'No ratings yet'}
+                    </p>
+                    <div className="flex items-center justify-between text-xs pt-1 w-full">
+                      <span className="text-slate-500 font-medium">
+                        {reviewStats.subtitle}
+                      </span>
                       <span 
                         onClick={(e) => { e.stopPropagation(); setActiveTab('reviews'); }} 
-                        className="font-extrabold text-amber-700 hover:underline cursor-pointer"
+                        className="font-extrabold text-amber-700 hover:underline cursor-pointer shrink-0 ml-2"
                       >
                         View Reviews &rarr;
                       </span>
@@ -2502,6 +2980,24 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           </div>
         )}
 
+        {/* TAB: CLIENT REVIEWS & RATINGS */}
+        {activeTab === 'reviews' && (
+          <div className="p-8">
+            <ClientReviewsView
+              userSession={userSession}
+              freelancerData={{
+                name: currentFlName,
+                user_id: currentFlId,
+                username: currentFlId
+              }}
+              reviews={freelancerDbReviews}
+              isDark={isDark}
+              onNavigateHome={() => setActiveTab('workspace')}
+              onNavigateToProjects={() => setActiveTab('my_projects')}
+            />
+          </div>
+        )}
+
         {/* TAB: NOTIFICATIONS CENTER */}
         {activeTab === 'notifications' && (
           <div className="p-8">
@@ -2553,6 +3049,177 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           </div>
         )}
 
+        {/* MODAL: MY PROJECT DETAILS */}
+        {selectedMyProjectDetail && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="p-6 sm:p-8 rounded-3xl max-w-2xl w-full bg-white border border-slate-200 text-slate-900 space-y-6 shadow-2xl animate-fadeIn max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-start justify-between border-b pb-4 border-slate-100">
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-3 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-200">
+                    <FolderKanban className="w-6 h-6 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">{selectedMyProjectDetail.title}</h3>
+                    <div className="flex items-center space-x-2 text-xs font-bold text-blue-600 mt-0.5">
+                      <span>Contract ID: {selectedMyProjectDetail.contractId}</span>
+                      <span>•</span>
+                      <span className="text-slate-500">{selectedMyProjectDetail.category}</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedMyProjectDetail(null)}
+                  className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Admin Project Verification Banner Section */}
+              {(() => {
+                const docStatus = (
+                  selectedMyProjectDetail.documentVerificationStatus ||
+                  selectedMyProjectDetail.verification_status ||
+                  freelancerVerificationInfo?.verification_status ||
+                  (freelancerVerificationInfo?.verified ? 'Approved' : 'Pending Verification')
+                ).toLowerCase().trim();
+
+                const isDocApproved = docStatus === 'approved' || (freelancerVerificationInfo?.verified === true && docStatus !== 'rejected');
+                const isDocRejected = docStatus === 'rejected' || freelancerVerificationInfo?.verification_status === 'Rejected';
+
+                return (
+                  <div className={`p-4 rounded-2xl border space-y-2 ${
+                    isDocApproved
+                      ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                      : isDocRejected
+                      ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                      : 'bg-amber-50/70 border-amber-200 text-amber-950'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2 font-black text-xs">
+                        {isDocApproved ? (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                            <span>Document Verification Status: DOCUMENT VERIFIED BY ADMIN</span>
+                          </>
+                        ) : isDocRejected ? (
+                          <>
+                            <XCircle className="w-4 h-4 text-rose-600" />
+                            <span>Document Verification Status: DOCUMENT VERIFICATION REJECTED</span>
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-4 h-4 text-amber-600" />
+                            <span>Document Verification Status: DOCUMENT VERIFICATION PENDING</span>
+                          </>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-bold opacity-75">Ref: {selectedMyProjectDetail.contractId}</span>
+                    </div>
+
+                    {isDocRejected && (selectedMyProjectDetail.rejectionReason || freelancerVerificationInfo?.verification_rejection_reason) && (
+                      <div className="p-3 bg-white/80 rounded-xl border border-rose-200 text-xs text-rose-700">
+                        <strong className="font-bold block mb-0.5">Admin Rejection Feedback:</strong>
+                        <span>{selectedMyProjectDetail.rejectionReason || freelancerVerificationInfo?.verification_rejection_reason}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Project Meta Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">CLIENT</span>
+                  <p className="font-extrabold text-slate-900 text-xs truncate">{selectedMyProjectDetail.client}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">BUDGET</span>
+                  <p className="font-extrabold text-[#2563eb] text-xs">{formatCurrency(selectedMyProjectDetail.agreedAmount || selectedMyProjectDetail.agreed_amount || selectedMyProjectDetail.agreedBudget || selectedMyProjectDetail.budget)}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">START DATE</span>
+                  <p className="font-extrabold text-slate-900 text-xs">{selectedMyProjectDetail.startDate}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
+                  <span className="text-[10px] font-extrabold uppercase text-slate-400 block">DEADLINE</span>
+                  <p className="font-extrabold text-slate-900 text-xs">{selectedMyProjectDetail.deadline}</p>
+                </div>
+              </div>
+
+              {/* Project Description Overview */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Project Overview</h4>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 font-medium leading-relaxed">
+                  {selectedMyProjectDetail.description}
+                </div>
+              </div>
+
+              {/* Sprint Tasks Breakdown */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider">Sprint Deliverables</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {selectedMyProjectDetail.milestones && selectedMyProjectDetail.milestones.length > 0 ? (
+                    selectedMyProjectDetail.milestones.map((m, idx) => (
+                      <div key={m.id || idx} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                        <div className="space-y-0.5">
+                          <h5 className="font-extrabold text-slate-900 text-xs">{m.title || `Phase ${idx + 1}`}</h5>
+                          <p className="text-[11px] text-slate-500">Valued at {m.amount || '₹0'}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                          (m.status || '').toLowerCase() === 'completed' || (m.status || '').toLowerCase() === 'approved'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}>
+                          {m.status || 'In Progress'}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                      <div>
+                        <h5 className="font-extrabold text-slate-900 text-xs">Phase 1: Project Deliverable</h5>
+                        <p className="text-[11px] text-slate-500">Milestones under active development</p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                        In Progress
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    setSelectedMyProjectDetail(null);
+                    setActiveTab('tasks');
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] rounded-xl text-xs font-extrabold flex items-center justify-center space-x-2 cursor-pointer transition-colors border border-blue-200"
+                >
+                  <Kanban className="w-4 h-4" />
+                  <span>Open Sprint Task Board</span>
+                </button>
+                <button
+                  onClick={() => handleDownloadContractPDF(selectedMyProjectDetail)}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-center space-x-2 cursor-pointer shadow-xs transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download PDF Contract</span>
+                </button>
+                <button
+                  onClick={() => setSelectedMyProjectDetail(null)}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold cursor-pointer transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CONTRACT DETAILS MODAL */}
         {selectedContractDetail && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
@@ -2582,7 +3249,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                   <span className="text-[10px] font-extrabold uppercase text-slate-700">CONTRACT VALUE (₹)</span>
-                  <p className="font-extrabold text-[#2563eb] text-sm">{selectedContractDetail.amount || selectedContractDetail.agreedAmount || '₹1,50,000'}</p>
+                  <p className="font-extrabold text-[#2563eb] text-sm">{formatCurrency(selectedContractDetail.agreedAmount || selectedContractDetail.agreed_amount || selectedContractDetail.amount)}</p>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                   <span className="text-[10px] font-extrabold uppercase text-slate-700">START DATE</span>

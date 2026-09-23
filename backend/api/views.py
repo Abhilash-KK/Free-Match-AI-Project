@@ -241,11 +241,21 @@ def login_user(request):
             "error": f"Incorrect account type. This account is registered as a {actual_label}. Please select {actual_label} to log in."
         }, status=status.HTTP_403_FORBIDDEN)
 
-    # Check account deactivation state
+    # Check account suspension & deactivation state
+    is_suspended = (not user.is_active) or profile.deactivation_period == 'Suspended by Admin'
+    if is_suspended:
+        return Response({
+            "error": "Your account has been suspended by the administrator. Only an administrator can reactivate this account. Please contact the administrator for assistance.",
+            "suspended": True,
+            "is_suspended": True,
+            "deactivated": False,
+            "user_id": user.username
+        }, status=status.HTTP_403_FORBIDDEN)
+
     if profile.is_deactivated:
         from django.utils import timezone
         if profile.deactivation_until and profile.deactivation_until <= timezone.now():
-            # Automatically reactivate expired account
+            # Automatically reactivate expired user self-deactivation
             profile.is_deactivated = False
             profile.deactivated_at = None
             profile.deactivation_until = None
@@ -255,6 +265,7 @@ def login_user(request):
             return Response({
                 "error": "Your account is currently deactivated.",
                 "deactivated": True,
+                "is_suspended": False,
                 "deactivation_period": profile.deactivation_period,
                 "deactivation_until": profile.deactivation_until.isoformat() if profile.deactivation_until else None,
                 "user_id": user.username
@@ -485,15 +496,27 @@ def get_reviews(request):
     try:
         reviews_qs = Review.objects.all().order_by('-created_at')
         if client_query:
-            reviews_qs = reviews_qs.filter(
+            is_digit = client_query.isdigit()
+            q_filter = (
                 Q(reviewer__username__iexact=client_query) |
-                Q(reviewer__email__iexact=client_query)
+                Q(reviewer__email__iexact=client_query) |
+                Q(reviewer__first_name__icontains=client_query) |
+                Q(reviewer__last_name__icontains=client_query)
             )
+            if is_digit:
+                q_filter |= Q(reviewer__id=int(client_query))
+            reviews_qs = reviews_qs.filter(q_filter)
         elif freelancer_query:
-            reviews_qs = reviews_qs.filter(
+            is_digit = freelancer_query.isdigit()
+            q_filter = (
                 Q(reviewee__username__iexact=freelancer_query) |
-                Q(reviewee__email__iexact=freelancer_query)
+                Q(reviewee__email__iexact=freelancer_query) |
+                Q(reviewee__first_name__icontains=freelancer_query) |
+                Q(reviewee__last_name__icontains=freelancer_query)
             )
+            if is_digit:
+                q_filter |= Q(reviewee__id=int(freelancer_query))
+            reviews_qs = reviews_qs.filter(q_filter)
         elif request.user.is_authenticated and not request.user.is_staff:
             reviews_qs = reviews_qs.filter(Q(reviewer=request.user) | Q(reviewee=request.user))
         else:
@@ -576,7 +599,7 @@ def projects_api(request):
     GET: Retrieve project postings filtered by client_id / user_id / username.
     POST: Create and persist a new project posting in PostgreSQL database for authenticated client.
     """
-    from .models import Project, SkillCategory
+    from .models import Project, SkillCategory, Contract, Proposal
     if request.method == 'GET':
         try:
             status_param = request.GET.get('status')
@@ -608,6 +631,22 @@ def projects_api(request):
             for p in projects:
                 client_display = (f"{p.client.first_name} {p.client.last_name}".strip() or p.client.username) if p.client else 'Client'
                 client_uname = p.client.username if p.client else 'client'
+
+                # Dynamically resolve agreed contract / accepted bid amount as the authoritative project budget
+                active_contract = Contract.objects.filter(
+                    Q(project=p) | Q(project_name__iexact=p.title)
+                ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at').first()
+
+                accepted_proposal = Proposal.objects.filter(project=p, status='Accepted').order_by('-submitted_at').first()
+
+                agreed_amount_str = None
+                if active_contract and active_contract.agreed_amount:
+                    agreed_amount_str = active_contract.agreed_amount
+                elif accepted_proposal and accepted_proposal.bid_amount:
+                    agreed_amount_str = accepted_proposal.bid_amount
+
+                effective_budget = agreed_amount_str if agreed_amount_str else p.budget
+
                 project_list.append({
                     "id": f"proj_{p.id}",
                     "title": p.title,
@@ -615,7 +654,12 @@ def projects_api(request):
                     "client_id": client_uname,
                     "clientId": client_uname,
                     "category": p.category.name if p.category else 'Software Development',
-                    "budget": p.budget,
+                    "budget": effective_budget,
+                    "original_budget": p.budget,
+                    "agreed_budget": effective_budget,
+                    "agreedBudget": effective_budget,
+                    "agreed_amount": effective_budget,
+                    "agreedAmount": effective_budget,
                     "duration": p.duration,
                     "skills": p.skills_required,
                     "status": p.get_status_display() if hasattr(p, 'get_status_display') else p.status,
@@ -1142,6 +1186,9 @@ def get_contracts(request):
 
         milestones_list = []
         completed_count = 0
+        m_done = 0
+        m_total = 0
+        m_progress = 0
 
         if c.milestones.exists():
             for m in c.milestones.all().order_by('milestone_number'):
@@ -1188,6 +1235,12 @@ def get_contracts(request):
             m_done = completed_count
             m_total = total_tasks
             
+        c_client_email = c.client.email if (c.client and c.client.email) else (c.project.client.email if (c.project and c.project.client and c.project.client.email) else '')
+        c_approval_status = c.project.approval_status if (c.project and hasattr(c.project, 'approval_status')) else 'Approved'
+        c_rejection_reason = c.project.rejection_reason if (c.project and hasattr(c.project, 'rejection_reason')) else ''
+        c_category = c.project.category.name if (c.project and c.project.category) else 'Software Development'
+        c_description = c.project.description if (c.project and c.project.description) else f'Contract agreement for {c.project_name}'
+
         contract_list.append({
             "id": c.contract_id or f"CTR-{c.id:04d}",
             "db_id": c.id,
@@ -1200,6 +1253,7 @@ def get_contracts(request):
             "freelancerId": c.freelancer_id_str,
             "client": c.client_name,
             "clientName": c.client_name,
+            "clientEmail": c_client_email,
             "clientId": c.client_id_str,
             "amount": c.agreed_amount,
             "agreedAmount": c.agreed_amount,
@@ -1211,6 +1265,12 @@ def get_contracts(request):
             "paymentType": c.payment_type,
             "hourlyRate": c.hourly_rate,
             "status": c.status,
+            "category": c_category,
+            "description": c_description,
+            "approvalStatus": c_approval_status,
+            "approval_status": c_approval_status,
+            "rejectionReason": c_rejection_reason,
+            "rejection_reason": c_rejection_reason,
             "createdAt": c.created_at.isoformat(),
             "milestones": milestones_list,
             "milestonesDone": m_done,
@@ -1293,6 +1353,20 @@ def create_contract(request):
 
     try:
         proposal_obj = Proposal.objects.filter(id=proposal_id_str).first() if proposal_id_str.isdigit() else None
+        if not proposal_obj and project_obj and freelancer_user:
+            proposal_obj = Proposal.objects.filter(project=project_obj, freelancer=freelancer_user).first()
+
+        raw_agreed = data.get('agreed_amount') or data.get('amount')
+        if raw_agreed:
+            agreed_amount = raw_agreed
+        elif proposal_obj and proposal_obj.bid_amount:
+            agreed_amount = proposal_obj.bid_amount
+        elif project_obj and project_obj.budget:
+            agreed_amount = project_obj.budget
+        else:
+            agreed_amount = '₹5,000'
+
+        escrow_balance = data.get('escrow_balance') or data.get('escrow') or agreed_amount
 
         contract_obj = Contract.objects.create(
             contract_id=contract_id,
@@ -1315,9 +1389,10 @@ def create_contract(request):
             escrow_balance=escrow_balance
         )
 
-        # Update Project status to 'In Progress'
+        # Update Project status to 'In Progress' and budget to agreed_amount
         if project_obj:
             project_obj.status = 'In Progress'
+            project_obj.budget = agreed_amount
             project_obj.save()
 
         # Update Proposal status to 'Accepted'
@@ -2008,12 +2083,27 @@ def project_detail_api(request, pk):
     GET, PUT, DELETE for individual project by ID.
     """
     from .models import Project, Proposal, Contract, SprintTask
+    from django.db.models import Q
     clean_pk = str(pk).replace('proj_', '').replace('cp', '')
     proj = Project.objects.filter(id=clean_pk).first() if clean_pk.isdigit() else Project.objects.filter(title__iexact=str(pk).strip()).first()
     if not proj:
         return Response({"error": f"Project with ID '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
+        active_contract = Contract.objects.filter(
+            Q(project=proj) | Q(project_name__iexact=proj.title)
+        ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at').first()
+
+        accepted_proposal = Proposal.objects.filter(project=proj, status='Accepted').order_by('-submitted_at').first()
+
+        agreed_amount_str = None
+        if active_contract and active_contract.agreed_amount:
+            agreed_amount_str = active_contract.agreed_amount
+        elif accepted_proposal and accepted_proposal.bid_amount:
+            agreed_amount_str = accepted_proposal.bid_amount
+
+        effective_budget = agreed_amount_str if agreed_amount_str else proj.budget
+
         return Response({
             "id": f"proj_{proj.id}",
             "title": proj.title,
@@ -2021,7 +2111,12 @@ def project_detail_api(request, pk):
             "client_id": proj.client.username,
             "clientId": proj.client.username,
             "category": proj.category.name if proj.category else 'Software Development',
-            "budget": proj.budget,
+            "budget": effective_budget,
+            "original_budget": proj.budget,
+            "agreed_budget": effective_budget,
+            "agreedBudget": effective_budget,
+            "agreed_amount": effective_budget,
+            "agreedAmount": effective_budget,
             "duration": proj.duration,
             "skills": proj.skills_required,
             "status": proj.get_status_display() if hasattr(proj, 'get_status_display') else proj.status,
@@ -2246,15 +2341,50 @@ def hire_freelancer_api(request):
     if not fl_user:
         return Response({"error": "Freelancer not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    if proj:
-        proj.status = 'In Progress'
-        proj.save()
-
     # Find or create proposal
     prop = Proposal.objects.filter(project=proj, freelancer=fl_user).first() if proj else None
     if prop:
         prop.status = 'Accepted'
         prop.save()
+
+    # If agreed_amount is not explicitly passed or is default, use accepted proposal's bid amount
+    raw_agreed = data.get('agreed_amount') or data.get('amount')
+    if raw_agreed:
+        agreed_amount = raw_agreed
+    elif prop and prop.bid_amount:
+        agreed_amount = prop.bid_amount
+    elif proj and proj.budget:
+        agreed_amount = proj.budget
+    else:
+        agreed_amount = '₹5,000'
+
+    if proj:
+        proj.status = 'In Progress'
+        proj.budget = agreed_amount
+        proj.save()
+
+    # Check for existing contract to prevent duplicate creation
+    existing_ctr = None
+    if proj and fl_user:
+        existing_ctr = Contract.objects.filter(project=proj, freelancer=fl_user).exclude(status__in=['Cancelled', 'Archived']).first()
+    if not existing_ctr and proj:
+        existing_ctr = Contract.objects.filter(project=proj).exclude(status__in=['Cancelled', 'Archived']).first()
+    
+    if existing_ctr:
+        existing_ctr.status = 'Active'
+        if agreed_amount:
+            existing_ctr.agreed_amount = agreed_amount
+            existing_ctr.escrow_balance = agreed_amount
+        existing_ctr.save()
+        return Response({
+            "success": True,
+            "message": "Existing contract updated and activated.",
+            "contract": {
+                "id": existing_ctr.contract_id or f"CTR-{existing_ctr.id:04d}",
+                "status": existing_ctr.status,
+                "agreed_amount": existing_ctr.agreed_amount
+            }
+        }, status=status.HTTP_200_OK)
 
     contract_id_str = f"CNT-{get_random_string(4, '0123456789')}"
     contract = Contract.objects.create(
@@ -2896,6 +3026,9 @@ def freelancer_profile_detail_api(request):
             "bio": user_prof.bio or '',
             "rating": fl_prof.rating,
             "total_earnings": f"₹{fl_prof.total_earnings:,.2f}",
+            "verified": fl_prof.verified,
+            "verification_status": getattr(fl_prof, 'verification_status', 'Approved' if fl_prof.verified else 'Pending Verification'),
+            "verification_rejection_reason": getattr(fl_prof, 'verification_rejection_reason', ''),
             "skills": skills_arr,
             "avatar_url": fl_prof.avatar_url,
             "resume_name": fl_prof.resume_name,
@@ -3560,11 +3693,31 @@ def reactivate_account_api(request):
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
     profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    # Reject self-reactivation for Admin-suspended accounts
+    is_suspended = (not user.is_active) or profile.deactivation_period == 'Suspended by Admin'
+    
+    # Check if caller is an Admin
+    is_admin = False
+    if request.user and request.user.is_authenticated:
+        req_profile = getattr(request.user, 'profile', None)
+        if request.user.is_superuser or request.user.is_staff or (req_profile and req_profile.role == 'admin'):
+            is_admin = True
+
+    if is_suspended and not is_admin:
+        return Response({
+            "error": "Your account has been suspended by the administrator. Only an administrator can reactivate this account. Please contact the administrator for assistance.",
+            "suspended": True
+        }, status=status.HTTP_403_FORBIDDEN)
+
     profile.is_deactivated = False
     profile.deactivated_at = None
     profile.deactivation_until = None
     profile.deactivation_period = ''
     profile.save()
+
+    user.is_active = True
+    user.save()
 
     return Response({
         "success": True,
@@ -3664,7 +3817,7 @@ def admin_dashboard_api(request):
         platform_revenue = round(total_released * 0.10, 2)
 
         # 2. Total Escrow Volume (Active contracts escrow held)
-        active_contracts = Contract.objects.filter(status='Active')
+        active_contracts = Contract.objects.filter(status='Active', project__isnull=False).exclude(project__status__in=['Completed', 'Cancelled', 'Archived'])
         active_escrow = 0.0
         for c in active_contracts:
             amt_str = str(c.escrow_balance or c.agreed_amount or '0').replace('₹', '').replace('$', '').replace(',', '').strip()
@@ -3678,12 +3831,16 @@ def admin_dashboard_api(request):
         total_projects_count = Project.objects.count()
         suspended_users_count = User.objects.filter(Q(is_active=False) | Q(profile__is_deactivated=True)).distinct().count()
 
-        # 4. Identity Verification Queue (genuine unverified freelancers with profiles/resumes)
-        unverified_freelancers = FreelancerProfile.objects.filter(verified=False).select_related('user')
+        # 4. Identity Verification Queue (genuine pending freelancers awaiting verification review)
+        unverified_freelancers = FreelancerProfile.objects.filter(
+            Q(verification_status__iexact='Pending Verification') |
+            Q(verification_status__iexact='Pending') |
+            Q(verification_status='')
+        ).exclude(verification_status__iexact='Approved').exclude(verification_status__iexact='Rejected').select_related('user')
         verification_list = []
         for fl in unverified_freelancers:
             u = fl.user
-            doc_name = fl.resume_name if fl.resume_name else 'ID & Credentials Submitted'
+            doc_name = fl.resume_name if fl.resume_name else 'Freelancer_Verification_Doc.pdf'
             skills = fl.skills_list if fl.skills_list else 'Full Stack Development'
             role = fl.title if fl.title else 'Freelancer'
             name = f"{u.first_name} {u.last_name}".strip() or u.username
@@ -3694,8 +3851,12 @@ def admin_dashboard_api(request):
                 'role': role,
                 'skills': skills,
                 'docs': doc_name,
+                'resume_name': fl.resume_name or doc_name,
+                'resume_url': fl.resume_url or '',
+                'resume_size': fl.resume_size or 'PDF Document',
                 'date': u.date_joined.strftime('%b %d, %Y') if u.date_joined else 'Recently',
-                'status': 'Pending Verification'
+                'status': getattr(fl, 'verification_status', 'Pending Verification'),
+                'rejection_reason': getattr(fl, 'verification_rejection_reason', '')
             })
 
         # 5. User Account Moderation (genuine users in database)
@@ -3781,6 +3942,35 @@ def admin_dashboard_api(request):
                 'rejection_reason': p.rejection_reason
             })
 
+        # Serialize active contracts list
+        active_contracts_list = []
+        for c in active_contracts.select_related('client', 'freelancer', 'project'):
+            c_id_str = c.contract_id or f"CTR-{c.id}"
+            proj_title = c.project.title if c.project else (c.project_name or 'Assigned Project')
+            client_name = (f"{c.client.first_name} {c.client.last_name}".strip() or c.client.username) if c.client else (c.client_name or 'Client')
+            client_email = (c.client.email if c.client and c.client.email else f"{c.client.username if c.client else 'client'}@freematch.ai")
+            fl_name = (f"{c.freelancer.first_name} {c.freelancer.last_name}".strip() or c.freelancer.username) if c.freelancer else (c.freelancer_name or 'Freelancer')
+            fl_email = (c.freelancer.email if c.freelancer and c.freelancer.email else f"{c.freelancer.username if c.freelancer else 'freelancer'}@freematch.ai")
+            
+            progress_pct = c.project.get_progress_percentage() if c.project else 0
+            
+            active_contracts_list.append({
+                'id': c.id,
+                'contract_id': c_id_str,
+                'project_title': proj_title,
+                'client_name': client_name,
+                'client_email': client_email,
+                'freelancer_name': fl_name,
+                'freelancer_email': fl_email,
+                'agreed_amount': c.agreed_amount or '₹5,000',
+                'escrow_balance': c.escrow_balance or '₹5,000',
+                'start_date': c.start_date or (c.created_at.strftime("%b %d, %Y") if c.created_at else 'Active'),
+                'end_date': c.end_date or '3 Weeks',
+                'status': c.status,
+                'payment_type': c.payment_type or 'Fixed Price',
+                'progress_pct': progress_pct
+            })
+
         return Response({
             'metrics': {
                 'platform_revenue': f"₹{platform_revenue:,.0f}" if platform_revenue > 0 else '₹0',
@@ -3795,6 +3985,7 @@ def admin_dashboard_api(request):
             },
             'verifications': verification_list,
             'project_verifications': project_verification_list,
+            'active_contracts': active_contracts_list,
             'users': user_list,
             'categories': cat_list,
             'skills': skill_list,
@@ -3821,43 +4012,50 @@ def admin_verify_project_api(request):
     clean_id = str(proj_id_raw).replace('proj_', '').replace('cp', '').strip()
     proj = Project.objects.filter(id=int(clean_id) if clean_id.isdigit() else None).first()
     if not proj:
-        return Response({"error": f"Project '{proj_id_raw}' not found."}, status=status.HTTP_404_NOT_FOUND)
+        proj = Project.objects.filter(title__iexact=str(proj_id_raw).strip()).first()
 
-    if action == 'approve':
-        proj.approval_status = 'Approved'
-        proj.rejection_reason = ''
-        proj.save()
+    if proj:
+        if action == 'approve':
+            proj.approval_status = 'Approved'
+            proj.rejection_reason = ''
+            proj.save()
 
-        if proj.client:
-            Notification.objects.create(
-                user=proj.client,
-                notification_type='project',
-                title='Project Approved!',
-                message=f"Your project '{proj.title}' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.",
-                project_id=f"proj_{proj.id}",
-                project_name=proj.title,
-                source_id=f"proj_{proj.id}"
-            )
-        return Response({"message": f"Project '{proj.title}' approved successfully!", "approval_status": "Approved"}, status=status.HTTP_200_OK)
+            if proj.client:
+                Notification.objects.create(
+                    user=proj.client,
+                    notification_type='project',
+                    title='Project Approved!',
+                    message=f"Your project '{proj.title}' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.",
+                    project_id=f"proj_{proj.id}",
+                    project_name=proj.title,
+                    source_id=f"proj_{proj.id}"
+                )
+            return Response({"message": f"Project '{proj.title}' approved successfully!", "approval_status": "Approved", "project_id": f"proj_{proj.id}"}, status=status.HTTP_200_OK)
 
-    elif action == 'reject':
-        proj.approval_status = 'Rejected'
-        proj.rejection_reason = reason if reason else 'Does not meet platform project quality & safety guidelines.'
-        proj.save()
+        elif action == 'reject':
+            proj.approval_status = 'Rejected'
+            proj.rejection_reason = reason if reason else 'Does not meet platform project quality & safety guidelines.'
+            proj.save()
 
-        if proj.client:
-            Notification.objects.create(
-                user=proj.client,
-                notification_type='project',
-                title='Project Review Update - Action Required',
-                message=f"Your project '{proj.title}' was reviewed and rejected. Reason: {proj.rejection_reason}",
-                project_id=f"proj_{proj.id}",
-                project_name=proj.title,
-                source_id=f"proj_{proj.id}"
-            )
-        return Response({"message": f"Project '{proj.title}' rejected.", "approval_status": "Rejected", "rejection_reason": proj.rejection_reason}, status=status.HTTP_200_OK)
+            if proj.client:
+                Notification.objects.create(
+                    user=proj.client,
+                    notification_type='project',
+                    title='Project Review Update - Action Required',
+                    message=f"Your project '{proj.title}' was reviewed and rejected. Reason: {proj.rejection_reason}",
+                    project_id=f"proj_{proj.id}",
+                    project_name=proj.title,
+                    source_id=f"proj_{proj.id}"
+                )
+            return Response({"message": f"Project '{proj.title}' rejected.", "approval_status": "Rejected", "rejection_reason": proj.rejection_reason, "project_id": f"proj_{proj.id}"}, status=status.HTTP_200_OK)
 
-    return Response({"error": "Invalid action. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Invalid action. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({
+            "message": f"Project verification status updated to {action.capitalize()}.",
+            "approval_status": "Approved" if action == "approve" else "Rejected",
+            "rejection_reason": reason if action == "reject" else ""
+        }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -3865,9 +4063,10 @@ def admin_verify_user_api(request):
     """
     Approve or reject a freelancer's identity verification application.
     """
-    from .models import UserProfile, FreelancerProfile
+    from .models import UserProfile, FreelancerProfile, Notification
     username = request.data.get('user_id') or request.data.get('username') or request.data.get('id')
     action = str(request.data.get('action', 'approve')).lower().strip()
+    reason = str(request.data.get('rejection_reason', '') or request.data.get('reason', '')).strip()
 
     if str(username).startswith('v_'):
         username = str(username)[2:]
@@ -3877,27 +4076,42 @@ def admin_verify_user_api(request):
         return Response({"error": "User account not found."}, status=status.HTTP_404_NOT_FOUND)
 
     is_verified = (action == 'approve')
+    status_str = 'Approved' if is_verified else 'Rejected'
+    rejection_text = '' if is_verified else (reason if reason else 'Verification documents do not meet platform security & compliance standards.')
+
     user_prof, _ = UserProfile.objects.get_or_create(user=user)
     user_prof.verified = is_verified
+    user_prof.verification_status = status_str
+    user_prof.verification_rejection_reason = rejection_text
     user_prof.save()
 
     fl_prof = getattr(user, 'freelancer_profile', None)
     if fl_prof:
         fl_prof.verified = is_verified
+        fl_prof.verification_status = status_str
+        fl_prof.verification_rejection_reason = rejection_text
         fl_prof.save()
 
-    create_event_notification(
+    notif_title = 'Identity Verification Approved!' if is_verified else 'Identity Verification Application Update'
+    notif_msg = (
+        'Congratulations! Your identity and KYC verification has been approved by admin. Verified Freelancer Pro badge awarded.'
+        if is_verified
+        else f'Your identity verification application was reviewed and rejected. Reason: {rejection_text}'
+    )
+
+    Notification.objects.create(
         user=user,
         notification_type='general',
-        title='Identity Verification Approved' if is_verified else 'Verification Update',
-        message='Congratulations! Your identity and KYC verification has been approved. Verified Freelancer Pro badge awarded.' if is_verified else 'Your verification application was not approved at this time.',
-        source_id=str(user.id),
-        event_key=f"{user.id}:VERIFICATION_STATUS:{action}"
+        title=notif_title,
+        message=notif_msg,
+        source_id=str(user.id)
     )
 
     return Response({
-        "message": f"User {user.username} verification status updated to {action}.",
+        "message": f"User '{user.username}' identity verification status updated to {status_str}.",
         "verified": is_verified,
+        "verification_status": status_str,
+        "rejection_reason": rejection_text,
         "user_id": user.username
     }, status=status.HTTP_200_OK)
 
@@ -3917,50 +4131,136 @@ def admin_toggle_user_status_api(request):
         return Response({"error": "User account not found."}, status=status.HTTP_404_NOT_FOUND)
 
     user_prof, _ = UserProfile.objects.get_or_create(user=user)
-    new_deactivated = not user_prof.is_deactivated
-    user_prof.is_deactivated = new_deactivated
-    user_prof.save()
+    
+    # Determine current suspension state
+    is_currently_suspended = (not user.is_active) or user_prof.deactivation_period == 'Suspended by Admin'
+    new_suspended = not is_currently_suspended
 
-    user.is_active = not new_deactivated
+    from django.utils import timezone
+    now = timezone.now()
+
+    if new_suspended:
+        user.is_active = False
+        user_prof.is_deactivated = True
+        user_prof.deactivation_period = 'Suspended by Admin'
+        user_prof.deactivated_at = now
+    else:
+        user.is_active = True
+        user_prof.is_deactivated = False
+        user_prof.deactivation_period = ''
+        user_prof.deactivated_at = None
+        user_prof.deactivation_until = None
+
     user.save()
+    user_prof.save()
 
     create_event_notification(
         user=user,
         notification_type='general',
-        title='Account Status Updated' if not new_deactivated else 'Account Suspended',
-        message='Your account has been reactivated by platform administration.' if not new_deactivated else 'Your account has been suspended by platform administration.',
+        title='Account Status Updated' if not new_suspended else 'Account Suspended',
+        message='Your account has been reactivated by platform administration.' if not new_suspended else 'Your account has been suspended by platform administration.',
         source_id=str(user.id),
-        event_key=f"{user.id}:ADMIN_STATUS_TOGGLE:{new_deactivated}"
+        event_key=f"{user.id}:ADMIN_STATUS_TOGGLE:{new_suspended}"
     )
 
     return Response({
-        "message": f"User {user.username} status updated to {'Suspended' if new_deactivated else 'Active'}",
-        "status": 'Suspended' if new_deactivated else 'Active',
+        "message": f"User {user.username} status updated to {'Suspended' if new_suspended else 'Active'}",
+        "status": 'Suspended' if new_suspended else 'Active',
         "user_id": user.username
     }, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
+@api_view(['GET', 'POST', 'DELETE'])
+@permission_classes([AllowAny])
+def categories_api(request):
+    """
+    GET: Return all active project categories from the database.
+    POST: Create a new SkillCategory.
+    DELETE: Remove a category from database while preserving existing projects.
+    """
+    from .models import SkillCategory, Project
+    try:
+        if request.method == 'GET':
+            cats = SkillCategory.objects.all().order_by('id')
+            data = []
+            for c in cats:
+                sk_cnt = 0
+                try:
+                    sk_cnt = c.skills.count()
+                except Exception:
+                    pass
+                data.append({
+                    "id": f"c_{c.id}",
+                    "raw_id": c.id,
+                    "name": c.name,
+                    "description": c.description,
+                    "activeSkills": sk_cnt,
+                    "projects": Project.objects.filter(category=c).count()
+                })
+            return Response(data, status=status.HTTP_200_OK)
+
+        elif request.method == 'DELETE' or (request.method == 'POST' and request.data.get('action') == 'delete'):
+            cat_id = request.data.get('id') or request.data.get('cat_id') or request.GET.get('id')
+            cat_name = request.data.get('name') or request.data.get('category_name') or request.GET.get('name')
+            
+            target = None
+            if cat_id:
+                clean_id = str(cat_id).replace('c_', '')
+                if clean_id.isdigit():
+                    target = SkillCategory.objects.filter(id=int(clean_id)).first()
+            if not target and cat_name:
+                target = SkillCategory.objects.filter(name__iexact=str(cat_name).strip()).first()
+                
+            if not target:
+                return Response({"error": "Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Check if category has associated projects
+            assoc_projects_count = Project.objects.filter(category=target).count()
+            if assoc_projects_count > 0:
+                return Response({
+                    "error": "This category is currently associated with existing projects and cannot be permanently deleted. You can deactivate it instead.",
+                    "has_projects": True,
+                    "project_count": assoc_projects_count
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            deleted_name = target.name
+            target.delete()
+            return Response({"message": f"Category '{deleted_name}' removed successfully."}, status=status.HTTP_200_OK)
+
+        else:
+            name = (request.data.get('name') or '').strip()
+            desc = (request.data.get('description') or f"Category for {name}").strip()
+            if not name:
+                return Response({"error": "Category name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            cat, created = SkillCategory.objects.get_or_create(name=name, defaults={'description': desc})
+            skills_cnt = 0
+            try:
+                skills_cnt = cat.skills.count()
+            except Exception:
+                pass
+
+            return Response({
+                "message": f"Category '{cat.name}' {'created' if created else 'already exists'}.",
+                "category": {
+                    "id": f"c_{cat.id}",
+                    "name": cat.name,
+                    "activeSkills": skills_cnt,
+                    "projects": 0
+                }
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET', 'POST', 'DELETE'])
 @permission_classes([AllowAny])
 def admin_category_api(request):
     """
-    Add a new SkillCategory in the database.
+    Proxy handler for admin category management.
     """
-    from .models import SkillCategory
-    name = (request.data.get('name') or '').strip()
-    desc = (request.data.get('description') or f"Category for {name}").strip()
-    if not name:
-        return Response({"error": "Category name is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    cat, created = SkillCategory.objects.get_or_create(name=name, defaults={'description': desc})
-    return Response({
-        "message": f"Category '{cat.name}' {'created' if created else 'already exists'}.",
-        "category": {
-            "id": f"c_{cat.id}",
-            "name": cat.name,
-            "activeSkills": cat.skills.count(),
-            "projects": 0
-        }
-    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    return categories_api(request)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

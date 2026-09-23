@@ -1196,11 +1196,35 @@ export default function FreelancerProfileView({
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{name}</h1>
-                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-extrabold rounded-full flex items-center space-x-1">
-                  <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 mr-1" />
-                  <span>Verified Freelancer Pro</span>
-                </span>
+                {(profile.verified || profile.verification_status === 'Approved') ? (
+                  <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-extrabold rounded-full flex items-center space-x-1">
+                    <BadgeCheck className="w-3.5 h-3.5 text-emerald-400 mr-1" />
+                    <span>Verified Freelancer Pro</span>
+                  </span>
+                ) : profile.verification_status === 'Rejected' ? (
+                  <span className="px-3 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/30 text-xs font-extrabold rounded-full flex items-center space-x-1" title={profile.verification_rejection_reason || 'Identity verification rejected'}>
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400 mr-1" />
+                    <span>Verification Rejected</span>
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-extrabold rounded-full flex items-center space-x-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-400 mr-1" />
+                    <span>Pending Verification</span>
+                  </span>
+                )}
               </div>
+
+              {profile.verification_status === 'Rejected' && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1 mt-2">
+                  <div className="flex items-center space-x-2 font-extrabold text-rose-800">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>Identity Verification Rejected by Admin</span>
+                  </div>
+                  <p className="font-medium text-slate-700">
+                    <strong>Rejection Reason:</strong> {profile.verification_rejection_reason || 'Verification documents did not meet platform guidelines.'}
+                  </p>
+                </div>
+              )}
 
               <p className="text-sm sm:text-base font-bold text-blue-400 leading-snug">
                 {headline}

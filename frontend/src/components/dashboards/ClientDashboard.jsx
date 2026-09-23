@@ -95,6 +95,37 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   // 1. PROJECT POSTING FORM STATE
   const [projectTitle, setProjectTitle] = useState('');
   const [category, setCategory] = useState('Software Development');
+  const [availableCategories, setAvailableCategories] = useState([
+    'Software Development',
+    'Data Science & AI',
+    'UI/UX & Visual Design',
+    'Cybersecurity'
+  ]);
+
+  const loadCategories = React.useCallback(() => {
+    fetch('http://localhost:8000/api/categories/')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const names = data.map(c => typeof c === 'string' ? c : c.name).filter(Boolean);
+          if (names.length > 0) {
+            setAvailableCategories(names);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+    window.addEventListener('freematch_shared_event', loadCategories);
+    window.addEventListener('storage', loadCategories);
+    return () => {
+      window.removeEventListener('freematch_shared_event', loadCategories);
+      window.removeEventListener('storage', loadCategories);
+    };
+  }, [loadCategories]);
+
   const [budget, setBudget] = useState('5000');
   const [duration, setDuration] = useState('3 Weeks');
   const [skillsReq, setSkillsReq] = useState('React, Python');
@@ -908,7 +939,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     return [];
   });
 
-  useEffect(() => {
+  const loadTasks = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
     fetch(`http://localhost:8000/api/sprint-tasks/?client_id=${encodeURIComponent(currentUserId || '')}`)
       .then(res => res.json())
@@ -929,7 +960,59 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         }
       })
       .catch(() => {});
-  }, [taskStorageKey, currentUserId]);
+  }, [currentUserId, taskStorageKey]);
+
+  useEffect(() => {
+    loadTasks();
+    window.addEventListener('storage', loadTasks);
+    window.addEventListener('freematch_shared_event', loadTasks);
+    window.addEventListener('freematch_kanban_event', loadTasks);
+    return () => {
+      window.removeEventListener('storage', loadTasks);
+      window.removeEventListener('freematch_shared_event', loadTasks);
+      window.removeEventListener('freematch_kanban_event', loadTasks);
+    };
+  }, [loadTasks]);
+
+  const milestoneMetrics = React.useMemo(() => {
+    let relevantTasks = tasks || [];
+
+    const pendingCount = relevantTasks.filter(t => {
+      const s = (t.status || '').toLowerCase().trim();
+      return s === 'to do' || s === 'pending' || s === 'to_do';
+    }).length;
+
+    const inProgressCount = relevantTasks.filter(t => {
+      const s = (t.status || '').toLowerCase().trim();
+      return s === 'in progress' || s === 'in_progress';
+    }).length;
+
+    const underReviewCount = relevantTasks.filter(t => {
+      const s = (t.status || '').toLowerCase().trim();
+      return s === 'under review' || s === 'under_review';
+    }).length;
+
+    const completedCount = relevantTasks.filter(t => {
+      const s = (t.status || '').toLowerCase().trim();
+      return s === 'done' || s === 'completed';
+    }).length;
+
+    const totalCount = relevantTasks.length;
+
+    let progressPct = 0;
+    if (totalCount > 0) {
+      progressPct = Math.round(((completedCount * 100) + (underReviewCount * 60) + (inProgressCount * 30)) / totalCount);
+    }
+
+    return {
+      pendingCount,
+      inProgressCount,
+      underReviewCount,
+      completedCount,
+      totalCount,
+      progressPct
+    };
+  }, [tasks]);
 
   // 6. MESSAGES STATE (Client-scoped)
   const [selectedChat, setSelectedChat] = useState('Alex Mercer');
@@ -2745,7 +2828,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           const pendingAppsCount = pendingAppsList.length;
           const pendingReviewCount = pendingAppsList.length;
 
-          const totalBudgetSum = clientProjects.reduce((sum, p) => sum + parseCurrency(p.budget), 0);
+          const totalBudgetSum = clientProjects.reduce((sum, p) => sum + parseCurrency(p.agreedBudget || p.agreed_budget || p.agreedAmount || p.agreed_amount || p.budget), 0);
           const formattedTotalBudget = `₹${totalBudgetSum.toLocaleString('en-IN')}`;
 
           const activeContracts = contracts.filter(c => c.status === 'Active');
@@ -2872,7 +2955,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     <div className="space-y-1">
                       <p className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wider">AVAILABLE WALLET BALANCE</p>
                       <p className="text-3xl font-black text-slate-900">{clientFinancials?.available_balance_str || '₹0'}</p>
-                      <p className="text-xs text-slate-500 font-medium">Escrow Locked: {clientFinancials?.escrow_balance_str || (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹45,000')}</p>
+                      <p className="text-xs text-slate-500 font-medium">Escrow Locked: {clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0' ? clientFinancials.escrow_balance_str : (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
                     </div>
                   </div>
 
@@ -2943,7 +3026,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             </div>
 
                             <div className="text-right">
-                              <p className="text-lg font-black text-slate-900">{formatCurrency(p.budget)}</p>
+                              <p className="text-lg font-black text-slate-900">{formatCurrency(p.agreedBudget || p.agreed_budget || p.agreedAmount || p.agreed_amount || p.budget)}</p>
                               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">BUDGET</p>
                             </div>
                           </div>
@@ -3021,18 +3104,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
                 <div className="space-y-3 flex-1">
                   {proposals.length === 0 ? (
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-xs">
-                          J
-                        </div>
-                        <div>
-                          <p className="font-extrabold text-xs text-slate-900">James123@gmail.com</p>
-                          <p className="text-[11px] text-slate-500 truncate max-w-[110px]">Ai powered docu...</p>
-                          <p className="text-xs font-black text-[#2563eb]">₹45000</p>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700">Accepted</span>
+                    <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/80 text-center py-6">
+                      <p className="text-xs font-bold text-slate-500">No recent hiring activity</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Applications and proposals will appear here</p>
                     </div>
                   ) : (
                     proposals.slice(0, 3).map((item, idx) => (
@@ -3048,7 +3122,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <div className="min-w-0">
                             <p className="font-extrabold text-xs text-slate-900 truncate">{item.freelancer || item.freelancerName || 'Freelancer'}</p>
                             <p className="text-[11px] text-slate-500 truncate">{item.projectTitle || item.project || 'Proposal'}</p>
-                            <p className="text-xs font-black text-[#2563eb]">{item.bid || item.bidAmount || '₹45,000'}</p>
+                            <p className="text-xs font-black text-[#2563eb]">{item.bid || item.bidAmount || '₹0'}</p>
                           </div>
                         </div>
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-700 shrink-0">
@@ -3086,8 +3160,8 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                       />
                       <path
-                        className="text-[#2563eb]"
-                        strokeDasharray="15, 100"
+                        className="text-[#2563eb] transition-all duration-500"
+                        strokeDasharray={`${milestoneMetrics.progressPct}, 100`}
                         strokeWidth="4"
                         strokeLinecap="round"
                         stroke="currentColor"
@@ -3095,7 +3169,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                       />
                     </svg>
-                    <span className="absolute font-black text-slate-900 text-lg">15%</span>
+                    <span className="absolute font-black text-slate-900 text-lg">{milestoneMetrics.progressPct}%</span>
                   </div>
 
                   {/* LEGEND */}
@@ -3105,7 +3179,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                         <span>Completed</span>
                       </span>
-                      <span className="text-slate-900">0</span>
+                      <span className="text-slate-900">{milestoneMetrics.completedCount}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -3113,7 +3187,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]"></span>
                         <span>In Progress</span>
                       </span>
-                      <span className="text-slate-900">1</span>
+                      <span className="text-slate-900">{milestoneMetrics.inProgressCount}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -3121,12 +3195,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
                         <span>Pending</span>
                       </span>
-                      <span className="text-slate-900">5</span>
+                      <span className="text-slate-900">{milestoneMetrics.pendingCount}</span>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between font-black text-slate-900">
                       <span>Total</span>
-                      <span>6</span>
+                      <span>{milestoneMetrics.totalCount}</span>
                     </div>
                   </div>
                 </div>
@@ -3157,7 +3231,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <Lock className="w-5 h-5 text-blue-700" />
                     </div>
                     <div>
-                      <p className="text-xl font-black text-slate-900">₹45,000</p>
+                      <p className="text-xl font-black text-slate-900">{clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0' ? clientFinancials.escrow_balance_str : (pendingEscrowSum > 0 ? formattedPendingEscrow : '₹0')}</p>
                       <p className="text-xs font-bold text-slate-500">Escrow Locked</p>
                     </div>
                   </div>
@@ -3174,24 +3248,34 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <div 
-                    onClick={() => setActiveTab('freelancers')}
-                    className="p-3.5 rounded-2xl bg-slate-50/60 border border-slate-200/80 flex items-center justify-between hover:border-blue-200 cursor-pointer transition-all"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-sm">
-                        J
-                      </div>
-                      <div>
-                        <p className="font-extrabold text-xs text-slate-900">James123@gmail.com</p>
-                        <div className="flex items-center space-x-1 text-xs text-amber-500 mt-0.5">
-                          <span>★★★★★</span>
-                          <span className="text-slate-600 font-extrabold ml-1">4.8</span>
-                        </div>
-                      </div>
+                  {hiredFreelancers.length === 0 ? (
+                    <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/80 text-center py-6">
+                      <p className="text-xs font-bold text-slate-500">No hired freelancers yet</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Hired talent will appear here</p>
                     </div>
-                    <span className="text-slate-400 font-bold text-base">›</span>
-                  </div>
+                  ) : (
+                    hiredFreelancers.slice(0, 3).map((fl, idx) => (
+                      <div 
+                        key={fl.id || idx}
+                        onClick={() => setActiveTab('freelancers')}
+                        className="p-3.5 rounded-2xl bg-slate-50/60 border border-slate-200/80 flex items-center justify-between hover:border-blue-200 cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#2563eb] text-white flex items-center justify-center font-black text-sm shrink-0">
+                            {(fl.name || fl.freelancerName || 'F')[0].toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-xs text-slate-900 truncate">{fl.name || fl.freelancerName || 'Freelancer'}</p>
+                            <div className="flex items-center space-x-1 text-xs text-amber-500 mt-0.5">
+                              <span>★★★★★</span>
+                              <span className="text-slate-600 font-extrabold ml-1">{fl.rating || '5.0'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-slate-400 font-bold text-base">›</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -3520,7 +3604,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                             <Wallet className="w-5 h-5 text-[#2563eb]" />
                           </div>
                           <div>
-                            <span className="font-black text-slate-900 text-2xl sm:text-3xl block leading-none">{formatCurrency(p.budget)}</span>
+                            <span className="font-black text-slate-900 text-2xl sm:text-3xl block leading-none">{formatCurrency(p.agreedBudget || p.agreed_budget || p.agreedAmount || p.agreed_amount || p.budget)}</span>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mt-1">AGREED BUDGET</span>
                           </div>
                         </div>
@@ -4580,7 +4664,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <p className="text-3xl font-black text-[#d97706] tracking-tight">
                     {clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0'
                       ? clientFinancials.escrow_balance_str
-                      : (clientFinancials?.pending_release_str && clientFinancials?.pending_release_str !== '₹0' ? clientFinancials.pending_release_str : '₹45,000')}
+                      : (clientFinancials?.pending_release_str && clientFinancials?.pending_release_str !== '₹0' ? clientFinancials.pending_release_str : '₹0')}
                   </p>
                   <p className="text-xs text-slate-500 font-medium mt-1">Held securely in milestone escrow</p>
                 </div>
@@ -4633,7 +4717,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <span className="text-sm font-black text-slate-900">
                   {clientFinancials?.pending_release_str && clientFinancials?.pending_release_str !== '₹0'
                     ? clientFinancials.pending_release_str
-                    : (clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0' ? clientFinancials.escrow_balance_str : '₹45,000')}
+                    : (clientFinancials?.escrow_balance_str && clientFinancials?.escrow_balance_str !== '₹0' ? clientFinancials.escrow_balance_str : '₹0')}
                 </span>
               </div>
               <div className="hidden sm:block h-5 w-px bg-slate-300"></div>
@@ -5436,10 +5520,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           onChange={(e) => setCategory(e.target.value)}
                           className="w-full p-3 pr-8 border rounded-xl text-xs font-bold bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-500 appearance-none transition-all shadow-2xs"
                         >
-                          <option value="Software Development">Software Development</option>
-                          <option value="Data Science & AI">Data Science & AI</option>
-                          <option value="UI/UX & Visual Design">UI/UX & Visual Design</option>
-                          <option value="Cybersecurity">Cybersecurity</option>
+                          {availableCategories.map(catName => (
+                            <option key={catName} value={catName}>{catName}</option>
+                          ))}
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-700 absolute right-3 top-3.5 pointer-events-none" />
                       </div>
@@ -6242,7 +6325,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <p className="text-slate-800 font-medium">Category: <span className="text-[#2563eb] font-bold">{p.category}</span></p>
                   <p className="text-slate-800 font-medium">Duration: <span className="font-bold">{p.duration || '3 Weeks'}</span></p>
                   <p className="text-slate-800 font-medium">Target Deadline: <span className="text-[#2563eb] font-extrabold">{p.deadline || calculateProjectDeadline(p.postedDate || p.created_at, p.duration)}</span></p>
-                  <p className="text-slate-800 font-medium">Agreed Budget: <span className="text-slate-900 font-extrabold">{formatCurrency(p.budget)}</span></p>
+                  <p className="text-slate-800 font-medium">Agreed Budget: <span className="text-slate-900 font-extrabold">{formatCurrency(p.agreedBudget || p.agreed_budget || p.agreedAmount || p.agreed_amount || (linkedContract ? (linkedContract.agreedAmount || linkedContract.agreed_amount || linkedContract.amount) : p.budget))}</span></p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/80 space-y-1.5">

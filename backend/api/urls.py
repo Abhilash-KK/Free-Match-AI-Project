@@ -54,8 +54,9 @@ urlpatterns = [
     path('admin-dashboard/verify/', views.admin_verify_user_api, name='admin_verify_user_api'),
     path('admin-dashboard/verify-project/', views.admin_verify_project_api, name='admin_verify_project_api'),
     path('admin-dashboard/toggle-user/', views.admin_toggle_user_status_api, name='admin_toggle_user_status_api'),
-    path('admin-dashboard/category/', views.admin_category_api, name='admin_category_api'),
+    path('admin-dashboard/category/', views.categories_api, name='admin_category_api'),
     path('admin-dashboard/skill/', views.admin_skill_api, name='admin_skill_api'),
+    path('categories/', views.categories_api, name='categories_api'),
 
     # GLOBAL SEARCH ROUTE
     path('search/', views.global_search_api, name='global_search_api'),
