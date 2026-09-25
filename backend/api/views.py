@@ -1510,7 +1510,10 @@ def update_contract_status(request, pk):
     from .models import Contract
     new_status = request.data.get('status', 'Cancelled')
     try:
-        contract = Contract.objects.filter(Q(id=pk) | Q(contract_id=pk)).first()
+        if str(pk).isdigit():
+            contract = Contract.objects.filter(Q(id=pk) | Q(contract_id=pk)).first()
+        else:
+            contract = Contract.objects.filter(contract_id=pk).first()
         if not contract:
             return Response({"error": "Contract not found"}, status=status.HTTP_404_NOT_FOUND)
         old_status = contract.status
@@ -2878,7 +2881,7 @@ def send_message_api(request):
     from .models import Message, User, Notification
     data = request.data
     sender_query = data.get('sender') or data.get('sender_id') or data.get('user_id')
-    receiver_query = data.get('receiver') or data.get('receiver_id') or data.get('recipient')
+    receiver_query = data.get('receiver') or data.get('receiver_id') or data.get('recipient') or data.get('recipient_id')
     content = (data.get('content') or data.get('text') or '').strip()
 
     if not sender_query or not receiver_query or not content:
@@ -2984,7 +2987,6 @@ def _get_request_freelancer_user(request):
         return request.user
 
     return None
-
 
 @api_view(['GET', 'PUT', 'POST'])
 @permission_classes([AllowAny])

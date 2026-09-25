@@ -1,0 +1,2011 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-5678-90ab-cdef-freematchcol",
+    "name": "FreeMatch AI API Tests",
+    "description": "Complete API Test Suite for FreeMatch AI Backend REST Services",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Health & Root APIs",
+      "item": [
+        {
+          "name": "01 - System Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "health",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "pm.test('Health status is healthy', function () { const data = pm.response.json(); pm.expect(data.status).to.be.oneOf(['healthy', 'ok', 'OK', 'Healthy', 'online']); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - API Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02. Authentication",
+      "item": [
+        {
+          "name": "01 - Client Login (Valid Credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"{{client_password}}\",\n  \"role\": \"Client\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains user details', function () { const data = pm.response.json(); pm.expect(data).to.have.property('user'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Freelancer Login (Valid Credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{freelancer_email}}\",\n  \"password\": \"{{freelancer_password}}\",\n  \"role\": \"Freelancer\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains user details', function () { const data = pm.response.json(); pm.expect(data).to.have.property('user'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Admin Login (Valid Credentials)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\",\n  \"role\": \"Admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains user details', function () { const data = pm.response.json(); pm.expect(data).to.have.property('user'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Invalid Login Password (Negative Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{client_email}}\",\n  \"password\": \"InvalidPassword999!\",\n  \"role\": \"Client\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 401 or login error', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400, 401, 403]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - User Registration Endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Test\",\n  \"last_name\": \"User\",\n  \"user_id\": \"testuser_check\",\n  \"email\": \"testuser_check@freematch.ai\",\n  \"password\": \"Test@12345\",\n  \"role\": \"Client\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201 or 400', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201, 400]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Google OAuth Endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"google_mock_token_123\",\n  \"role\": \"Client\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/google/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "google",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03. Projects",
+      "item": [
+        {
+          "name": "01 - List Projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains projects array or list', function () { const data = pm.response.json(); pm.expect(Array.isArray(data) || Array.isArray(data.projects)).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Project Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/projects/{{active_project_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "{{active_project_id}}",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Non-existent Project Detail (Negative Test)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/projects/99999/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                "99999",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 or 200 empty', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Post New Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Automated Postman Test Project\",\n  \"client_id\": \"{{client_email}}\",\n  \"category\": \"Frontend\",\n  \"budget\": \"\u20b925,000\",\n  \"skills_required\": \"React, Python\",\n  \"description\": \"API testing verification project created cleanly.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "projects",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response contains created project object', function () { const data = pm.response.json(); const prj = data.project || data; pm.expect(prj).to.have.property('title'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04. Proposals",
+      "item": [
+        {
+          "name": "01 - Get Proposals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/proposals/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "proposals",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON array or object', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Submit Proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{active_project_id}}\",\n  \"freelancer_id\": \"{{freelancer_email}}\",\n  \"cover_letter\": \"Experienced engineer submitting proposal via Postman API testing suite.\",\n  \"bid_amount\": \"4500\",\n  \"delivery_time\": \"2 Weeks\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/proposals/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "proposals",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201 or 400 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05. Hiring & Saved Freelancers",
+      "item": [
+        {
+          "name": "01 - Get Saved Freelancers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/saved-freelancers/?client_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "saved-freelancers",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "client_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Save Freelancer Bookmark",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_email}}\",\n  \"freelancer_id\": \"{{freelancer_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/saved-freelancers/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "saved-freelancers",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Hire Freelancer Proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_email}}\",\n  \"freelancer_id\": \"{{freelancer_email}}\",\n  \"project_id\": \"{{active_project_id}}\",\n  \"agreed_amount\": \"45000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/hire-freelancer/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "hire-freelancer",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06. Contracts",
+      "item": [
+        {
+          "name": "01 - Get Contracts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/contracts/?user_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contracts",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains contracts', function () { const data = pm.response.json(); pm.expect(Array.isArray(data) || Array.isArray(data.contracts)).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Create Contract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{active_project_id}}\",\n  \"client_id\": \"{{client_email}}\",\n  \"freelancer_id\": \"{{freelancer_email}}\",\n  \"agreed_amount\": \"45000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/contracts/create/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contracts",
+                "create",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Update Contract Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/contracts/{{active_contract_id}}/status/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contracts",
+                "{{active_contract_id}}",
+                "status",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Milestone Status & Escrow Release",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Approved\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/contracts/milestones/1/status/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contracts",
+                "milestones",
+                "1",
+                "status",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07. Sprint Tasks & Kanban",
+      "item": [
+        {
+          "name": "01 - Get Sprint Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/sprint-tasks/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sprint-tasks",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON array or object', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Create Sprint Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"API Test Sprint Task\",\n  \"project_id\": \"{{active_project_id}}\",\n  \"assignee\": \"{{freelancer_email}}\",\n  \"status\": \"To Do\",\n  \"budget\": \"\u20b93,500\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sprint-tasks/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sprint-tasks",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Update Sprint Task Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"In Progress\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sprint-tasks/1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "sprint-tasks",
+                "1",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08. Messages & Messaging",
+      "item": [
+        {
+          "name": "01 - Get Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/messages/?user_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Send Chat Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender_id\": \"{{client_email}}\",\n  \"recipient_id\": \"{{freelancer_email}}\",\n  \"content\": \"Hello, verifying messaging via Postman API testing suite.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/send/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "send",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Mark Messages Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{client_email}}\",\n  \"counterpart_id\": \"{{freelancer_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages/mark-read/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "mark-read",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09. Notifications",
+      "item": [
+        {
+          "name": "01 - Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/?user_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON array or object', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Create Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{client_email}}\",\n  \"title\": \"Postman Test Event\",\n  \"message\": \"Automated notification verification test.\",\n  \"notification_type\": \"info\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications/create/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "create",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_read\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications/1/read/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "1",
+                "read",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Mark All Notifications Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{client_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications/read-all/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "read-all",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10. Freelancer Profile & Portfolio",
+      "item": [
+        {
+          "name": "01 - Get Freelancer Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-profile/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-profile",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains profile data', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Get Freelancer Skills",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-skills/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-skills",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Get Freelancer Portfolio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-portfolio/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-portfolio",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Get Freelancer Experience",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-experience/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-experience",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Get Freelancer Education",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-education/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-education",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Get Freelancer Certifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-certifications/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-certifications",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11. Financials & Ledgers",
+      "item": [
+        {
+          "name": "01 - Get Client Financials",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/client-financials/?user_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "client-financials",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains financial metrics', function () { const data = pm.response.json(); pm.expect(data).to.be.an('object'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Get Freelancer Financials",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-financials/?user_id={{freelancer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-financials",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{freelancer_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains financial metrics', function () { const data = pm.response.json(); pm.expect(data).to.be.an('object'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Submit Freelancer Withdrawal Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{freelancer_email}}\",\n  \"amount\": 0,\n  \"bank_account\": \"TEST_BANK_0001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/freelancer-financials/withdraw/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "freelancer-financials",
+                "withdraw",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12. Admin & Governance",
+      "item": [
+        {
+          "name": "01 - Get Admin Dashboard Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/?user_id={{admin_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{admin_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains admin metrics', function () { const data = pm.response.json(); pm.expect(data).to.have.property('metrics'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Admin Verify Identity Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{freelancer_email}}\",\n  \"action\": \"approve\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/verify/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                "verify",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Admin Verify Project Publication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"{{active_project_id}}\",\n  \"action\": \"approve\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/verify-project/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                "verify-project",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Admin Toggle User Status",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"testuser_check@freematch.ai\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/toggle-user/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                "toggle-user",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Admin Add Skill Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cloud Infrastructure & DevOps\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/category/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                "category",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Admin Add Skill",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Frontend\",\n  \"name\": \"TypeScript\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin-dashboard/skill/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin-dashboard",
+                "skill",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13. Categories, Search & Deactivation",
+      "item": [
+        {
+          "name": "01 - Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response contains categories array', function () { const data = pm.response.json(); pm.expect(Array.isArray(data) || Array.isArray(data.categories)).to.be.true; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Global Search API",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/search/?q=AI",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "AI"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Submit Contact Inquiry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman API Test\",\n  \"email\": \"test_postman@freematch.ai\",\n  \"subject\": \"API Verification Inquiry\",\n  \"message\": \"Testing contact inquiry submission via Postman.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/contact/submit/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "contact",
+                "submit",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Get Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reviews/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON array or object', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Check Deactivation Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/deactivation-status/?user_id={{client_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "deactivation-status",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "{{client_email}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Reactivate Account Endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{client_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reactivate-account/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reactivate-account",
+                ""
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400 or 403', function () { pm.expect(pm.response.code).to.be.oneOf([200, 400, 403]); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

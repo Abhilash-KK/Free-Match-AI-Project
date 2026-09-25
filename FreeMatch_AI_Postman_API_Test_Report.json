@@ -1,0 +1,1136 @@
+{
+  "project_info": {
+    "project": "FreeMatch AI \u2013 Intelligent Freelance Marketplace and Project Management Platform",
+    "testing_tool": "Postman / Newman",
+    "backend": "Python / Django / Django REST Framework",
+    "database": "PostgreSQL / SQLite",
+    "base_url": "http://127.0.0.1:8000",
+    "testing_type": "REST API Testing"
+  },
+  "executive_summary": {
+    "total_api_requests": 52,
+    "total_assertions": 105,
+    "passed_assertions": 105,
+    "failed_assertions": 0,
+    "http_2xx_count": 41,
+    "http_3xx_count": 0,
+    "http_4xx_count": 11,
+    "http_5xx_count": 0,
+    "average_response_time_ms": 251.31,
+    "fastest_response_ms": 4,
+    "fastest_api": "02 - Global Search API",
+    "slowest_response_ms": 4108,
+    "slowest_api": "03 - Submit Contact Inquiry",
+    "overall_test_result": "PASS WITH OBSERVATIONS"
+  },
+  "category_summary": {
+    "Health & Root APIs": {
+      "requests": 2,
+      "passed": 2,
+      "failed": 0,
+      "2xx": 2,
+      "4xx": 0,
+      "5xx": 0
+    },
+    "Authentication": {
+      "requests": 6,
+      "passed": 6,
+      "failed": 0,
+      "2xx": 3,
+      "4xx": 3,
+      "5xx": 0
+    },
+    "Projects": {
+      "requests": 4,
+      "passed": 4,
+      "failed": 0,
+      "2xx": 2,
+      "4xx": 2,
+      "5xx": 0
+    },
+    "Proposals": {
+      "requests": 2,
+      "passed": 2,
+      "failed": 0,
+      "2xx": 1,
+      "4xx": 1,
+      "5xx": 0
+    },
+    "Hiring & Saved Freelancers": {
+      "requests": 3,
+      "passed": 3,
+      "failed": 0,
+      "2xx": 3,
+      "4xx": 0,
+      "5xx": 0
+    },
+    "Contracts": {
+      "requests": 4,
+      "passed": 4,
+      "failed": 0,
+      "2xx": 2,
+      "4xx": 2,
+      "5xx": 0
+    },
+    "Sprint Tasks & Kanban": {
+      "requests": 3,
+      "passed": 3,
+      "failed": 0,
+      "2xx": 2,
+      "4xx": 1,
+      "5xx": 0
+    },
+    "Messages & Messaging": {
+      "requests": 3,
+      "passed": 3,
+      "failed": 0,
+      "2xx": 3,
+      "4xx": 0,
+      "5xx": 0
+    },
+    "Notifications": {
+      "requests": 4,
+      "passed": 4,
+      "failed": 0,
+      "2xx": 3,
+      "4xx": 1,
+      "5xx": 0
+    },
+    "Freelancer Profile & Portfolio": {
+      "requests": 6,
+      "passed": 6,
+      "failed": 0,
+      "2xx": 6,
+      "4xx": 0,
+      "5xx": 0
+    },
+    "Financials & Ledgers": {
+      "requests": 3,
+      "passed": 3,
+      "failed": 0,
+      "2xx": 2,
+      "4xx": 1,
+      "5xx": 0
+    },
+    "Admin & Governance": {
+      "requests": 6,
+      "passed": 6,
+      "failed": 0,
+      "2xx": 6,
+      "4xx": 0,
+      "5xx": 0
+    },
+    "Categories, Search & Deactivation": {
+      "requests": 6,
+      "passed": 6,
+      "failed": 0,
+      "2xx": 6,
+      "4xx": 0,
+      "5xx": 0
+    }
+  },
+  "detailed_results": [
+    {
+      "id": 1,
+      "name": "01 - System Health Check",
+      "category": "Health & Root APIs",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/health/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 47,
+      "response_size_bytes": 133,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON",
+        "Health status is healthy"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"status\": \"online\",\n  \"message\": \"FreeMatch AI Django Backend Connected to PostgreSQL!\",\n  \"framework\": \"Django 6.0\",\n  \"database\": \"PostgreSQL\"\n}"
+    },
+    {
+      "id": 2,
+      "name": "02 - API Root",
+      "category": "Health & Root APIs",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 5,
+      "response_size_bytes": 133,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"status\": \"online\",\n  \"message\": \"FreeMatch AI Django Backend Connected to PostgreSQL!\",\n  \"framework\": \"Django 6.0\",\n  \"database\": \"PostgreSQL\"\n}"
+    },
+    {
+      "id": 3,
+      "name": "01 - Client Login (Valid Credentials)",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/login/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 1336,
+      "response_size_bytes": 228,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains user details"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Login successful\",\n  \"user\": {\n    \"user_id\": \"abhilashkk123@gmail.com\",\n    \"first_name\": \"Abhilashkk123@gmail.com\",\n    \"last_name\": \"\",\n    \"name\": \"Abhilashkk123@gmail.com\",\n    \"email\": \"abhilashkk123@gmail.com\",\n    \"role\": \"client\",\n    \"avatar_url\": \"\"\n  }\n}"
+    },
+    {
+      "id": 4,
+      "name": "02 - Freelancer Login (Valid Credentials)",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/login/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 1506,
+      "response_size_bytes": 212,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains user details"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Login successful\",\n  \"user\": {\n    \"user_id\": \"james123@gmail.com\",\n    \"first_name\": \"James123@gmail.com\",\n    \"last_name\": \"\",\n    \"name\": \"James123@gmail.com\",\n    \"email\": \"james123@gmail.com\",\n    \"role\": \"freelancer\",\n    \"avatar_url\": \"\"\n  }\n}"
+    },
+    {
+      "id": 5,
+      "name": "03 - Admin Login (Valid Credentials)",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/login/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 1371,
+      "response_size_bytes": 297,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains user details"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Login successful\",\n  \"user\": {\n    \"user_id\": \"admin\",\n    \"first_name\": \"Super\",\n    \"last_name\": \"Admin\",\n    \"name\": \"Super Admin\",\n    \"email\": \"admin@freematch.ai\",\n    \"role\": \"admin\",\n    \"avatar_url\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\"\n  }\n}"
+    },
+    {
+      "id": 6,
+      "name": "04 - Invalid Login Password (Negative Test)",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/login/",
+      "http_status": "401 Unauthorized",
+      "status_code": 401,
+      "response_time_ms": 1131,
+      "response_size_bytes": 77,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 400 or 401 or login error",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Invalid password for this account. Please check your credentials.\"\n}"
+    },
+    {
+      "id": 7,
+      "name": "05 - User Registration Endpoint",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/register/",
+      "http_status": "400 Bad Request",
+      "status_code": 400,
+      "response_time_ms": 186,
+      "response_size_bytes": 79,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 201 or 400",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"An account with email 'testuser_check@freematch.ai' already exists.\"\n}"
+    },
+    {
+      "id": 8,
+      "name": "06 - Google OAuth Endpoint",
+      "category": "Authentication",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/auth/google/",
+      "http_status": "400 Bad Request",
+      "status_code": 400,
+      "response_time_ms": 7,
+      "response_size_bytes": 37,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 400",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Google email is required.\"\n}"
+    },
+    {
+      "id": 9,
+      "name": "01 - List Projects",
+      "category": "Projects",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/projects/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 237,
+      "response_size_bytes": 779,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains projects array or list"
+      ],
+      "failed_assertions": [],
+      "response_body": "[\n  {\n    \"id\": \"proj_25\",\n    \"title\": \"Ai powered document analysis system\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"client_id\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"category\": \"Software Development\",\n    \"budget\": \"\\u20b945,000\",\n    \"original_budget\": \"\\u20b945,000\",\n    \"agreed_budget\": \"\\u20b945,000\",\n    \"agreedBudget\": \"\\u20b945,000\",\n    \"agreed_amount\": \"\\u20b945,000\",\n    \"agreedAmount\": \"\\u20b945,000\",\n    \"duration\": \"1 Month\",\n    \"skills\": \"React, Python, Mysql\",\n    \"status\": \"In Progress\",\n    \"approval_status\": \"Approved\",\n    \"approvalStatus\": \"Approved\",\n    \"rejection_reason\": \"\",\n    \"rejectionReason\": \"\",\n    \"postedDate\": \"Sep 08, 2026\",\n    \"deadline\": \"Oct 8, 2026\",\n    \"progress\": 15,\n    \"applicants\": 1,\n    \"description\": \"Build a professional website for this.\",\n    \"abstract\": \"\",\n    \"attached_file_name\": \"\",\n    \"attached_file_url\": \"\",\n    \"attachedFile\": null,\n    \"milestones\": []\n  }\n]"
+    },
+    {
+      "id": 10,
+      "name": "02 - Project Detail",
+      "category": "Projects",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/projects/1/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 56,
+      "response_size_bytes": 42,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Project with ID '1' not found.\"\n}"
+    },
+    {
+      "id": 11,
+      "name": "03 - Non-existent Project Detail (Negative Test)",
+      "category": "Projects",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/projects/99999/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 60,
+      "response_size_bytes": 46,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 404 or 200 empty",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Project with ID '99999' not found.\"\n}"
+    },
+    {
+      "id": 12,
+      "name": "04 - Post New Project",
+      "category": "Projects",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/projects/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 82,
+      "response_size_bytes": 660,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response contains created project object"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Project posted successfully and sent for admin verification!\",\n  \"project\": {\n    \"id\": \"proj_131\",\n    \"title\": \"Automated Postman Test Project\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"client_id\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"category\": \"Frontend\",\n    \"budget\": \"\\u20b925,000\",\n    \"duration\": \"3 Weeks\",\n    \"skills\": \"\",\n    \"status\": \"Open for Bids\",\n    \"approval_status\": \"Pending Review\",\n    \"approvalStatus\": \"Pending Review\",\n    \"rejection_reason\": \"\",\n    \"postedDate\": \"Just Now\",\n    \"progress\": 0,\n    \"applicants\": 0,\n    \"description\": \"API testing verification project created cleanly.\",\n    \"abstract\": \"\",\n    \"attached_file_name\": \"\",\n    \"attached_file_url\": \"\",\n    \"attachedFile\": null,\n    \"milestones\": []\n  }\n}"
+    },
+    {
+      "id": 13,
+      "name": "01 - Get Proposals",
+      "category": "Proposals",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/proposals/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 77,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON array or object"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 14,
+      "name": "02 - Submit Proposal",
+      "category": "Proposals",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/proposals/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 63,
+      "response_size_bytes": 37,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 201 or 400 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Target project not found.\"\n}"
+    },
+    {
+      "id": 15,
+      "name": "01 - Get Saved Freelancers",
+      "category": "Hiring & Saved Freelancers",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/saved-freelancers/?client_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 72,
+      "response_size_bytes": 321,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "[\n  {\n    \"id\": 20,\n    \"freelancer_id\": \"james123@gmail.com\",\n    \"freelancer\": \"james123@gmail.com\",\n    \"name\": \"James123@gmail.com\",\n    \"title\": \"Senior Full Stack & AI Specialist\",\n    \"hourly_rate\": \"\\u20b97.00/hr\",\n    \"rate\": \"\\u20b97.00/hr\",\n    \"rating\": 4.5,\n    \"skills\": \"Python, React, Docker, MySQL, AI/ML\",\n    \"avatar\": \"JA\",\n    \"saved_at\": \"2026-09-10T16:33:49.455425+00:00\"\n  }\n]"
+    },
+    {
+      "id": 16,
+      "name": "02 - Save Freelancer Bookmark",
+      "category": "Hiring & Saved Freelancers",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/saved-freelancers/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 76,
+      "response_size_bytes": 102,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Freelancer 'james123@gmail.com' saved successfully.\",\n  \"saved\": true,\n  \"created\": false,\n  \"id\": 20\n}"
+    },
+    {
+      "id": 17,
+      "name": "03 - Hire Freelancer Proposal",
+      "category": "Hiring & Saved Freelancers",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/hire-freelancer/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 103,
+      "response_size_bytes": 97,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Successfully hired james123@gmail.com!\",\n  \"contract_id\": \"CNT-6985\",\n  \"contract_db_id\": 67\n}"
+    },
+    {
+      "id": 18,
+      "name": "01 - Get Contracts",
+      "category": "Contracts",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/contracts/?user_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 126,
+      "response_size_bytes": 7950,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains contracts"
+      ],
+      "failed_assertions": [],
+      "response_body": "[\n  {\n    \"id\": \"CNT-6985\",\n    \"db_id\": 67,\n    \"contractId\": \"CNT-6985\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T13:51:16.740951+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CNT-1181\",\n    \"db_id\": 66,\n    \"contractId\": \"CNT-1181\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T13:36:45.354844+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CNT-3324\",\n    \"db_id\": 65,\n    \"contractId\": \"CNT-3324\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T13:25:07.307293+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CNT-3583\",\n    \"db_id\": 64,\n    \"contractId\": \"CNT-3583\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T13:21:51.903947+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CNT-6288\",\n    \"db_id\": 63,\n    \"contractId\": \"CNT-6288\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T13:15:35.924994+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CTR-9177\",\n    \"db_id\": 62,\n    \"contractId\": \"CTR-9177\",\n    \"project\": \"Contract Project\",\n    \"projectName\": \"Contract Project\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Contract Project\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T07:15:50.341109+00:00\",\n    \"milestones\": [\n      {\n        \"id\": 57,\n        \"number\": 1,\n        \"title\": \"Phase 1: Contract Project Architecture & Setup\",\n        \"description\": \"Initial repository setup, architecture review, and milestone lock.\",\n        \"amount\": \"45000\",\n        \"dueDate\": \"1 Week\",\n        \"status\": \"In Progress\"\n      }\n    ],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 1,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CNT-0132\",\n    \"db_id\": 61,\n    \"contractId\": \"CNT-0132\",\n    \"project\": \"Client Contract\",\n    \"projectName\": \"Client Contract\",\n    \"projectId\": \"\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"45000\",\n    \"agreedAmount\": \"45000\",\n    \"escrow\": \"45000\",\n    \"escrowBalance\": \"45000\",\n    \"startDate\": \"Sep 25, 2026\",\n    \"endDate\": \"Oct 25, 2026\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Contract agreement for Client Contract\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-25T07:15:50.013987+00:00\",\n    \"milestones\": [],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 0,\n    \"milestoneProgress\": 0\n  },\n  {\n    \"id\": \"CTR-9938\",\n    \"db_id\": 18,\n    \"contractId\": \"CTR-9938\",\n    \"project\": \"Ai powered document analysis system\",\n    \"projectName\": \"Ai powered document analysis system\",\n    \"projectId\": 25,\n    \"freelancer\": \"James123@gmail.com\",\n    \"freelancerName\": \"James123@gmail.com\",\n    \"freelancerId\": \"james123@gmail.com\",\n    \"client\": \"Abhilashkk123@gmail.com\",\n    \"clientName\": \"Abhilashkk123@gmail.com\",\n    \"clientEmail\": \"abhilashkk123@gmail.com\",\n    \"clientId\": \"abhilashkk123@gmail.com\",\n    \"amount\": \"\\u20b945,000\",\n    \"agreedAmount\": \"\\u20b945,000\",\n    \"escrow\": \"\\u20b945,000\",\n    \"escrowBalance\": \"\\u20b945,000\",\n    \"startDate\": \"Sep 8, 2026\",\n    \"endDate\": \"Oct 8, 2026\",\n    \"deadline\": \"Oct 8, 2026\",\n    \"paymentType\": \"Fixed Price\",\n    \"hourlyRate\": \"\\u20b975/hr\",\n    \"status\": \"Active\",\n    \"category\": \"Software Development\",\n    \"description\": \"Build a professional website for this.\",\n    \"approvalStatus\": \"Approved\",\n    \"approval_status\": \"Approved\",\n    \"rejectionReason\": \"\",\n    \"rejection_reason\": \"\",\n    \"createdAt\": \"2026-09-08T19:25:41.377029+00:00\",\n    \"milestones\": [\n      {\n        \"id\": 21,\n        \"number\": 1,\n        \"title\": \"Phase 1: Ai powered document analysis system Architecture & Setup\",\n        \"description\": \"Initial repository setup, architecture review, and milestone lock.\",\n        \"amount\": \"\\u20b945,000\",\n        \"dueDate\": \"1 Week\",\n        \"status\": \"In Progress\"\n      }\n    ],\n    \"milestonesDone\": 0,\n    \"milestonesTotal\": 1,\n    \"milestoneProgress\": 0\n  }\n]"
+    },
+    {
+      "id": 19,
+      "name": "02 - Create Contract",
+      "category": "Contracts",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/contracts/create/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 68,
+      "response_size_bytes": 197,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Contract already exists for this proposal/project\",\n  \"contract\": {\n    \"id\": \"CTR-9177\",\n    \"contractId\": \"CTR-9177\",\n    \"project\": \"Contract Project\",\n    \"freelancer\": \"James123@gmail.com\",\n    \"status\": \"Active\"\n  }\n}"
+    },
+    {
+      "id": 20,
+      "name": "03 - Update Contract Status",
+      "category": "Contracts",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/contracts/CTR-101/status/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 64,
+      "response_size_bytes": 30,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Contract not found\"\n}"
+    },
+    {
+      "id": 21,
+      "name": "04 - Milestone Status & Escrow Release",
+      "category": "Contracts",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/contracts/milestones/1/status/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 63,
+      "response_size_bytes": 31,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Milestone not found\"\n}"
+    },
+    {
+      "id": 22,
+      "name": "01 - Get Sprint Tasks",
+      "category": "Sprint Tasks & Kanban",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/sprint-tasks/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 5,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON array or object"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 23,
+      "name": "02 - Create Sprint Task",
+      "category": "Sprint Tasks & Kanban",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/sprint-tasks/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 207,
+      "response_size_bytes": 315,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Sprint Task created\",\n  \"id\": 115,\n  \"task\": {\n    \"id\": 115,\n    \"title\": \"API Test Sprint Task\",\n    \"projectTitle\": \"General Task\",\n    \"projectId\": null,\n    \"assignee\": \"James123@gmail.com\",\n    \"status\": \"To Do\",\n    \"progress\": 0,\n    \"budget\": \"\\u20b93,500\",\n    \"deadline\": \"Oct 25, 2026\",\n    \"due\": \"Oct 25, 2026\",\n    \"created_at\": \"2026-09-25T13:51:17.764539+00:00\"\n  }\n}"
+    },
+    {
+      "id": 24,
+      "name": "03 - Update Sprint Task Status",
+      "category": "Sprint Tasks & Kanban",
+      "method": "PUT",
+      "endpoint": "http://127.0.0.1:8000/api/sprint-tasks/1/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 65,
+      "response_size_bytes": 27,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Task not found.\"\n}"
+    },
+    {
+      "id": 25,
+      "name": "01 - Get Messages",
+      "category": "Messages & Messaging",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/messages/?user_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 126,
+      "response_size_bytes": 2078,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"current_user\": \"abhilashkk123@gmail.com\",\n  \"conversations\": [\n    {\n      \"username\": \"james123@gmail.com\",\n      \"name\": \"James123@gmail.com\",\n      \"avatar\": \"JA\",\n      \"role\": \"Freelancer\",\n      \"title\": \"Senior Full Stack & AI Specialist\",\n      \"lastMessage\": \"Hello, verifying messaging via Postman API testing suite.\",\n      \"lastMessageTime\": \"7:06 PM\",\n      \"unreadCount\": 1,\n      \"projectTitle\": \"Client Contract\",\n      \"contractId\": \"CNT-6985\",\n      \"online\": true\n    }\n  ],\n  \"selected_counterpart\": \"james123@gmail.com\",\n  \"messages\": [\n    {\n      \"id\": 35,\n      \"sender\": \"abhilashkk123@gmail.com\",\n      \"sender_name\": \"Abhilashkk123@gmail.com\",\n      \"receiver\": \"james123@gmail.com\",\n      \"receiver_name\": \"James123@gmail.com\",\n      \"text\": \"hello\",\n      \"timestamp\": \"1:04 AM\",\n      \"date\": \"Sep 09, 2026\",\n      \"is_mine\": true,\n      \"is_read\": true\n    },\n    {\n      \"id\": 48,\n      \"sender\": \"abhilashkk123@gmail.com\",\n      \"sender_name\": \"Abhilashkk123@gmail.com\",\n      \"receiver\": \"james123@gmail.com\",\n      \"receiver_name\": \"James123@gmail.com\",\n      \"text\": \"hlo\",\n      \"timestamp\": \"10:13 PM\",\n      \"date\": \"Sep 10, 2026\",\n      \"is_mine\": true,\n      \"is_read\": true\n    },\n    {\n      \"id\": 49,\n      \"sender\": \"james123@gmail.com\",\n      \"sender_name\": \"James123@gmail.com\",\n      \"receiver\": \"abhilashkk123@gmail.com\",\n      \"receiver_name\": \"Abhilashkk123@gmail.com\",\n      \"text\": \"hi\",\n      \"timestamp\": \"10:14 PM\",\n      \"date\": \"Sep 10, 2026\",\n      \"is_mine\": false,\n      \"is_read\": false\n    },\n    {\n      \"id\": 50,\n      \"sender\": \"abhilashkk123@gmail.com\",\n      \"sender_name\": \"Abhilashkk123@gmail.com\",\n      \"receiver\": \"james123@gmail.com\",\n      \"receiver_name\": \"James123@gmail.com\",\n      \"text\": \"Hello, verifying messaging via Postman API testing suite.\",\n      \"timestamp\": \"6:51 PM\",\n      \"date\": \"Sep 25, 2026\",\n      \"is_mine\": true,\n      \"is_read\": false\n    },\n    {\n      \"id\": 51,\n      \"sender\": \"abhilashkk123@gmail.com\",\n      \"sender_name\": \"Abhilashkk123@gmail.com\",\n      \"receiver\": \"james123@gmail.com\",\n      \"receiver_name\": \"James123@gmail.com\",\n      \"text\": \"Hello, verifying messaging via Postman API testing suite.\",\n      \"timestamp\": \"6:55 PM\",\n      \"date\": \"Sep 25, 2026\",\n      \"is_mine\": true,\n      \"is_read\": false\n    },\n    {\n      \"id\": 52,\n      \"sender\": \"abhilashkk123@gmail.com\",\n      \"sender_name\": \"Abhilashkk123@gmail.com\",\n      \"receiver\": \"james123@gmail.com\",\n      \"receiver_name\": \"James123@gmail.com\",\n      \"text\": \"Hello, verifying messaging via Postman API testing suite.\",\n      \"timestamp\": \"7:06 PM\",\n      \"date\": \"Sep 25, 2026\",\n      \"is_mine\": true,\n      \"is_read\": false\n    }\n  ],\n  \"unreadTotal\": 1\n}"
+    },
+    {
+      "id": 26,
+      "name": "02 - Send Chat Message",
+      "category": "Messages & Messaging",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/messages/send/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 85,
+      "response_size_bytes": 241,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Message sent successfully\",\n  \"id\": 53,\n  \"sender\": \"abhilashkk123@gmail.com\",\n  \"receiver\": \"james123@gmail.com\",\n  \"text\": \"Hello, verifying messaging via Postman API testing suite.\",\n  \"timestamp\": \"7:21 PM\",\n  \"date\": \"Sep 25, 2026\",\n  \"is_read\": false\n}"
+    },
+    {
+      "id": 27,
+      "name": "03 - Mark Messages Read",
+      "category": "Messages & Messaging",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/messages/mark-read/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 56,
+      "response_size_bytes": 25,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Marked read\"\n}"
+    },
+    {
+      "id": 28,
+      "name": "01 - Get Notifications",
+      "category": "Notifications",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/notifications/?user_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 77,
+      "response_size_bytes": 7157,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON array or object"
+      ],
+      "failed_assertions": [],
+      "response_body": "[\n  {\n    \"id\": 370,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-6985 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"67\",\n    \"event_key\": \"55:CONTRACT_CREATED:67\",\n    \"is_read\": false,\n    \"created_at\": \"2026-09-25T13:51:16.771161+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 366,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-1181 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"66\",\n    \"event_key\": \"55:CONTRACT_CREATED:66\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T13:36:45.385109+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 361,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-3324 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"65\",\n    \"event_key\": \"55:CONTRACT_CREATED:65\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T13:25:07.334347+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 355,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-3583 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"64\",\n    \"event_key\": \"55:CONTRACT_CREATED:64\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T13:21:51.934017+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 352,\n    \"type\": \"general\",\n    \"title\": \"Account Status Updated\",\n    \"message\": \"Your account has been reactivated by platform administration.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"55\",\n    \"event_key\": \"55:ADMIN_STATUS_TOGGLE:False\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T13:15:39.912822+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 350,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-6288 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"63\",\n    \"event_key\": \"55:CONTRACT_CREATED:63\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T13:15:35.957641+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 347,\n    \"type\": \"general\",\n    \"title\": \"Account Suspended\",\n    \"message\": \"Your account has been suspended by platform administration.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"55\",\n    \"event_key\": \"55:ADMIN_STATUS_TOGGLE:True\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T07:15:54.120201+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 345,\n    \"type\": \"info\",\n    \"title\": \"Postman Test Event\",\n    \"message\": \"Automated notification verification test.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"\",\n    \"event_key\": \"55:INFO:POSTMANTESTEVENT\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T07:15:51.731545+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 343,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated for Contract Project\",\n    \"message\": \"Contract CTR-9177 with James123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"Contract Project\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"James123@gmail.com\",\n    \"source_id\": \"62\",\n    \"event_key\": \"55:CONTRACT_CREATED:62\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T07:15:50.363448+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 341,\n    \"type\": \"contract\",\n    \"title\": \"Contract Activated\",\n    \"message\": \"Contract CNT-0132 with james123@gmail.com is now active.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"james123@gmail.com\",\n    \"source_id\": \"61\",\n    \"event_key\": \"55:CONTRACT_CREATED:61\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T07:15:50.048033+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 303,\n    \"type\": \"project\",\n    \"title\": \"Project Approved!\",\n    \"message\": \"Your project 'Comprehensive Test Automated System Platform' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.\",\n    \"project_id\": \"proj_119\",\n    \"project_name\": \"Comprehensive Test Automated System Platform\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"proj_119\",\n    \"event_key\": \"\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-15T15:49:04.413581+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 302,\n    \"type\": \"project\",\n    \"title\": \"Project Approved!\",\n    \"message\": \"Your project 'Dynamic Metrics Verification AI Module' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.\",\n    \"project_id\": \"proj_118\",\n    \"project_name\": \"Dynamic Metrics Verification AI Module\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"proj_118\",\n    \"event_key\": \"\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-15T15:45:55.883463+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 300,\n    \"type\": \"project\",\n    \"title\": \"Project Approved!\",\n    \"message\": \"Your project 'Test E-Commerce Platform Build' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.\",\n    \"project_id\": \"proj_117\",\n    \"project_name\": \"Test E-Commerce Platform Build\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"proj_117\",\n    \"event_key\": \"\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-15T15:40:22.309926+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 280,\n    \"type\": \"project\",\n    \"title\": \"Project Review Update - Action Required\",\n    \"message\": \"Your project 'healthcare chatbot' was reviewed and rejected. Reason: Does not meet platform project quality & safety guidelines.\",\n    \"project_id\": \"proj_113\",\n    \"project_name\": \"healthcare chatbot\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"proj_113\",\n    \"event_key\": \"\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-15T04:24:47.831637+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 263,\n    \"type\": \"message\",\n    \"title\": \"New Message from James123@gmail.com\",\n    \"message\": \"James123@gmail.com: \\\"hi\\\"\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"56\",\n    \"related_user_name\": \"James123@gmail.com\",\n    \"source_id\": \"49\",\n    \"event_key\": \"55:MESSAGE:49\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-10T16:44:10.128647+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 103,\n    \"type\": \"hired\",\n    \"title\": \"Contract Created for Ai powered document analysis system\",\n    \"message\": \"Contract created successfully for Ai powered document analysis system with James123@gmail.com.\",\n    \"project_id\": \"\",\n    \"project_name\": \"Ai powered document analysis system\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"James123@gmail.com\",\n    \"source_id\": \"\",\n    \"event_key\": \"55:HIRED:Contract Created for Ai powered document analysis system\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-08T19:25:41.165660+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  },\n  {\n    \"id\": 101,\n    \"type\": \"proposal\",\n    \"title\": \"New Proposal for Ai powered document analysis system\",\n    \"message\": \"James123@gmail.com submitted a proposal for Ai powered document analysis system (\\u20b945000).\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_id\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"\",\n    \"event_key\": \"55:PROPOSAL:New Proposal for Ai powered document analysis system\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-08T19:25:09.445509+00:00\",\n    \"recipient_username\": \"abhilashkk123@gmail.com\"\n  }\n]"
+    },
+    {
+      "id": 29,
+      "name": "02 - Create Notification",
+      "category": "Notifications",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/notifications/create/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 64,
+      "response_size_bytes": 344,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Notification created successfully\",\n  \"notification\": {\n    \"id\": 345,\n    \"type\": \"info\",\n    \"title\": \"Postman Test Event\",\n    \"message\": \"Automated notification verification test.\",\n    \"project_id\": \"\",\n    \"project_name\": \"\",\n    \"related_user_name\": \"\",\n    \"source_id\": \"\",\n    \"event_key\": \"55:INFO:POSTMANTESTEVENT\",\n    \"is_read\": true,\n    \"created_at\": \"2026-09-25T07:15:51.731545+00:00\"\n  }\n}"
+    },
+    {
+      "id": 30,
+      "name": "03 - Mark Notification Read",
+      "category": "Notifications",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/notifications/1/read/",
+      "http_status": "404 Not Found",
+      "status_code": 404,
+      "response_time_ms": 59,
+      "response_size_bytes": 34,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 404",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Notification not found\"\n}"
+    },
+    {
+      "id": 31,
+      "name": "04 - Mark All Notifications Read",
+      "category": "Notifications",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/notifications/read-all/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 77,
+      "response_size_bytes": 58,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"All notifications marked as read\",\n  \"updated\": 1\n}"
+    },
+    {
+      "id": 32,
+      "name": "01 - Get Freelancer Profile",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-profile/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 73,
+      "response_size_bytes": 708,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains profile data"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"user_id\": \"james123@gmail.com\",\n  \"email\": \"james123@gmail.com\",\n  \"first_name\": \"James123@gmail.com\",\n  \"last_name\": \"\",\n  \"name\": \"James123@gmail.com\",\n  \"title\": \"Senior Full Stack & AI Specialist\",\n  \"headline\": \"fcfdsa\",\n  \"location\": \"xzczc\",\n  \"hourly_rate\": \"\\u20b97/hr\",\n  \"raw_hourly_rate\": 7.0,\n  \"availability_status\": \"Available for Work\",\n  \"available_hours\": \"40 hrs/week\",\n  \"years_experience\": \"0\",\n  \"bio\": \"adsasssssssssssssssssssss\",\n  \"rating\": 4.5,\n  \"total_earnings\": \"\\u20b90.00\",\n  \"verified\": true,\n  \"verification_status\": \"Approved\",\n  \"verification_rejection_reason\": \"\",\n  \"skills\": [\n    \"Python\",\n    \"React\",\n    \"Docker\",\n    \"MySQL\",\n    \"AI/ML\"\n  ],\n  \"avatar_url\": \"\",\n  \"resume_name\": \"\",\n  \"resume_url\": \"\",\n  \"resume_size\": \"\",\n  \"portfolio\": [],\n  \"experience\": [],\n  \"education\": [],\n  \"certifications\": []\n}"
+    },
+    {
+      "id": 33,
+      "name": "02 - Get Freelancer Skills",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-skills/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 71,
+      "response_size_bytes": 54,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"skills\": [\n    \"Python\",\n    \"React\",\n    \"Docker\",\n    \"MySQL\",\n    \"AI/ML\"\n  ]\n}"
+    },
+    {
+      "id": 34,
+      "name": "03 - Get Freelancer Portfolio",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-portfolio/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 63,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 35,
+      "name": "04 - Get Freelancer Experience",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-experience/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 60,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 36,
+      "name": "05 - Get Freelancer Education",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-education/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 63,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 37,
+      "name": "06 - Get Freelancer Certifications",
+      "category": "Freelancer Profile & Portfolio",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-certifications/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 61,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 38,
+      "name": "01 - Get Client Financials",
+      "category": "Financials & Ledgers",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/client-financials/?user_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 77,
+      "response_size_bytes": 428,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains financial metrics"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"available_balance\": 0,\n  \"available_balance_str\": \"\\u20b90\",\n  \"escrow_balance\": 360000,\n  \"escrow_balance_str\": \"\\u20b9360,000\",\n  \"released_payments\": 0,\n  \"released_payments_str\": \"\\u20b90\",\n  \"pending_release\": 360000,\n  \"pending_release_str\": \"\\u20b9360,000\",\n  \"total_withdrawn\": 0,\n  \"total_withdrawn_str\": \"\\u20b90\",\n  \"stripe_balance\": 0,\n  \"razorpay_balance\": 0,\n  \"gateway_status\": \"Payment gateway not configured\",\n  \"is_gateway_configured\": false,\n  \"transactions\": [],\n  \"chart_data\": []\n}"
+    },
+    {
+      "id": 39,
+      "name": "02 - Get Freelancer Financials",
+      "category": "Financials & Ledgers",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-financials/?user_id=james123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 176,
+      "response_size_bytes": 1450,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains financial metrics"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"available_balance\": 0,\n  \"total_earned\": 0,\n  \"pending_release\": 360000,\n  \"escrow_hold\": 360000,\n  \"total_withdrawn\": 0,\n  \"withdrawal_in_progress\": 0,\n  \"active_contracts_count\": 8,\n  \"completed_projects_count\": 0,\n  \"upcoming_releases\": [\n    {\n      \"id\": \"up_67\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_66\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_65\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_64\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_63\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_62\",\n      \"project\": \"Contract Project\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_61\",\n      \"project\": \"Client Contract\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    },\n    {\n      \"id\": \"up_18\",\n      \"project\": \"Ai powered document analysis system\",\n      \"milestone\": \"Milestone 1 - Deliverable Release\",\n      \"amount\": \"\\u20b945,000\",\n      \"due\": \"In 4 days\",\n      \"color\": \"emerald\"\n    }\n  ],\n  \"chart_data\": [],\n  \"transactions\": []\n}"
+    },
+    {
+      "id": 40,
+      "name": "03 - Submit Freelancer Withdrawal Request",
+      "category": "Financials & Ledgers",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/freelancer-financials/withdraw/",
+      "http_status": "400 Bad Request",
+      "status_code": 400,
+      "response_time_ms": 62,
+      "response_size_bytes": 56,
+      "test_result": "PASS WITH OBSERVATION",
+      "classification": "Negative Test",
+      "passed_assertions": [
+        "Status code is 200 or 400",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"error\": \"Withdrawal amount must be greater than zero.\"\n}"
+    },
+    {
+      "id": 41,
+      "name": "01 - Get Admin Dashboard Metrics",
+      "category": "Admin & Governance",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/?user_id=admin@freematch.ai",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 108,
+      "response_size_bytes": 10112,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains admin metrics"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"metrics\": {\n    \"platform_revenue\": \"\\u20b90\",\n    \"platform_revenue_num\": 0.0,\n    \"total_escrow_volume\": \"\\u20b945,000\",\n    \"total_escrow_volume_num\": 45000.0,\n    \"active_contracts_count\": 1,\n    \"total_projects_count\": 7,\n    \"suspended_accounts_count\": 2,\n    \"critical_vulnerabilities\": 0,\n    \"total_transactions_count\": 0\n  },\n  \"verifications\": [\n    {\n      \"id\": \"v_55\",\n      \"user_id\": \"abhilashkk123@gmail.com\",\n      \"name\": \"Abhilashkk123@gmail.com\",\n      \"role\": \"Freelancer\",\n      \"skills\": \"Full Stack Development\",\n      \"docs\": \"Freelancer_Verification_Doc.pdf\",\n      \"resume_name\": \"Freelancer_Verification_Doc.pdf\",\n      \"resume_url\": \"\",\n      \"resume_size\": \"PDF Document\",\n      \"date\": \"Sep 08, 2026\",\n      \"status\": \"Pending Verification\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"v_231\",\n      \"user_id\": \"haines\",\n      \"name\": \"Haines\",\n      \"role\": \"Freelancer\",\n      \"skills\": \"Full Stack Development\",\n      \"docs\": \"Freelancer_Verification_Doc.pdf\",\n      \"resume_name\": \"Freelancer_Verification_Doc.pdf\",\n      \"resume_url\": \"\",\n      \"resume_size\": \"PDF Document\",\n      \"date\": \"Sep 24, 2026\",\n      \"status\": \"Pending Verification\",\n      \"rejection_reason\": \"\"\n    }\n  ],\n  \"project_verifications\": [\n    {\n      \"id\": \"proj_131\",\n      \"project_id\": 131,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"proj_130\",\n      \"project_id\": 130,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"proj_129\",\n      \"project_id\": 129,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"proj_128\",\n      \"project_id\": 128,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"proj_127\",\n      \"project_id\": 127,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    },\n    {\n      \"id\": \"proj_126\",\n      \"project_id\": 126,\n      \"title\": \"Automated Postman Test Project\",\n      \"client\": \"Abhilashkk123@gmail.com\",\n      \"client_id\": \"abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"category\": \"Frontend\",\n      \"budget\": \"\\u20b925,000\",\n      \"duration\": \"3 Weeks\",\n      \"skills\": \"\",\n      \"postedDate\": \"Sep 25, 2026\",\n      \"deadline\": \"Oct 16, 2026\",\n      \"description\": \"API testing verification project created cleanly.\",\n      \"abstract\": \"\",\n      \"attached_file_name\": \"\",\n      \"attached_file_url\": \"\",\n      \"approval_status\": \"Pending Review\",\n      \"rejection_reason\": \"\"\n    }\n  ],\n  \"active_contracts\": [\n    {\n      \"id\": 18,\n      \"contract_id\": \"CTR-9938\",\n      \"project_title\": \"Ai powered document analysis system\",\n      \"client_name\": \"Abhilashkk123@gmail.com\",\n      \"client_email\": \"abhilashkk123@gmail.com\",\n      \"freelancer_name\": \"James123@gmail.com\",\n      \"freelancer_email\": \"james123@gmail.com\",\n      \"agreed_amount\": \"\\u20b945,000\",\n      \"escrow_balance\": \"\\u20b945,000\",\n      \"start_date\": \"Sep 8, 2026\",\n      \"end_date\": \"Oct 8, 2026\",\n      \"status\": \"Active\",\n      \"payment_type\": \"Fixed Price\",\n      \"progress_pct\": 15\n    }\n  ],\n  \"users\": [\n    {\n      \"id\": \"u_232\",\n      \"user_id\": \"testuser_check\",\n      \"name\": \"Test User\",\n      \"role\": \"Client\",\n      \"email\": \"testuser_check@freematch.ai\",\n      \"status\": \"Suspended\",\n      \"verified\": false,\n      \"joined\": \"Sep 25, 2026\"\n    },\n    {\n      \"id\": \"u_231\",\n      \"user_id\": \"haines\",\n      \"name\": \"Haines\",\n      \"role\": \"Freelancer\",\n      \"email\": \"haines@freematch.ai\",\n      \"status\": \"Active\",\n      \"verified\": false,\n      \"joined\": \"Sep 24, 2026\"\n    },\n    {\n      \"id\": \"u_229\",\n      \"user_id\": \"ram\",\n      \"name\": \"Ram Roy\",\n      \"role\": \"Freelancer\",\n      \"email\": \"ram123@gmail.com\",\n      \"status\": \"Active\",\n      \"verified\": false,\n      \"joined\": \"Sep 18, 2026\"\n    },\n    {\n      \"id\": \"u_228\",\n      \"user_id\": \"karthik\",\n      \"name\": \"karthik A V\",\n      \"role\": \"Client\",\n      \"email\": \"karthhik@gmail.com\",\n      \"status\": \"Suspended\",\n      \"verified\": false,\n      \"joined\": \"Sep 18, 2026\"\n    },\n    {\n      \"id\": \"u_56\",\n      \"user_id\": \"james123@gmail.com\",\n      \"name\": \"James123@gmail.com\",\n      \"role\": \"Freelancer\",\n      \"email\": \"james123@gmail.com\",\n      \"status\": \"Active\",\n      \"verified\": true,\n      \"joined\": \"Sep 08, 2026\"\n    },\n    {\n      \"id\": \"u_55\",\n      \"user_id\": \"abhilashkk123@gmail.com\",\n      \"name\": \"Abhilashkk123@gmail.com\",\n      \"role\": \"Client\",\n      \"email\": \"abhilashkk123@gmail.com\",\n      \"status\": \"Active\",\n      \"verified\": false,\n      \"joined\": \"Sep 08, 2026\"\n    },\n    {\n      \"id\": \"u_10\",\n      \"user_id\": \"admin\",\n      \"name\": \"Super Admin\",\n      \"role\": \"Admin\",\n      \"email\": \"admin@freematch.ai\",\n      \"status\": \"Active\",\n      \"verified\": false,\n      \"joined\": \"Jul 30, 2026\"\n    }\n  ],\n  \"categories\": [\n    {\n      \"id\": \"c_2\",\n      \"name\": \"UI/UX & Visual Design\",\n      \"activeSkills\": 2,\n      \"projects\": 0\n    },\n    {\n      \"id\": \"c_5\",\n      \"name\": \"Software Development\",\n      \"activeSkills\": 0,\n      \"projects\": 1\n    },\n    {\n      \"id\": \"c_6\",\n      \"name\": \"Data Science & AI\",\n      \"activeSkills\": 0,\n      \"projects\": 0\n    },\n    {\n      \"id\": \"c_15\",\n      \"name\": \"Cybersecurity\",\n      \"activeSkills\": 0,\n      \"projects\": 0\n    },\n    {\n      \"id\": \"c_22\",\n      \"name\": \"Frontend\",\n      \"activeSkills\": 1,\n      \"projects\": 6\n    },\n    {\n      \"id\": \"c_23\",\n      \"name\": \"Cloud Infrastructure & DevOps\",\n      \"activeSkills\": 0,\n      \"projects\": 0\n    }\n  ],\n  \"skills\": [\n    {\n      \"id\": \"s_4\",\n      \"name\": \"Figma Design\",\n      \"category\": \"UI/UX & Visual Design\",\n      \"demand\": \"High\"\n    },\n    {\n      \"id\": \"s_5\",\n      \"name\": \"Tailwind CSS\",\n      \"category\": \"UI/UX & Visual Design\",\n      \"demand\": \"High\"\n    },\n    {\n      \"id\": \"s_12\",\n      \"name\": \"TypeScript\",\n      \"category\": \"Frontend\",\n      \"demand\": \"High\"\n    }\n  ],\n  \"audit_logs\": [\n    {\n      \"id\": \"log_370\",\n      \"time\": \"01:51:16 PM\",\n      \"event\": \"Contract Activated\",\n      \"details\": \"Contract CNT-6985 with james123@gmail.com is now active.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_369\",\n      \"time\": \"01:51:16 PM\",\n      \"event\": \"Hired for Client Contract\",\n      \"details\": \"Congratulations! You have been hired by Abhilashkk123@gmail.com for contract CNT-6985.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_368\",\n      \"time\": \"01:51:15 PM\",\n      \"event\": \"New Project Awaiting Review\",\n      \"details\": \"Project 'Automated Postman Test Project' posted by Abhilashkk123@gmail.com requires verification.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_367\",\n      \"time\": \"01:36:49 PM\",\n      \"event\": \"Identity Verification Approved!\",\n      \"details\": \"Congratulations! Your identity and KYC verification has been approved by admin. Verified Freelancer Pro badge awarded.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_366\",\n      \"time\": \"01:36:45 PM\",\n      \"event\": \"Contract Activated\",\n      \"details\": \"Contract CNT-1181 with james123@gmail.com is now active.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_365\",\n      \"time\": \"01:36:45 PM\",\n      \"event\": \"Hired for Client Contract\",\n      \"details\": \"Congratulations! You have been hired by Abhilashkk123@gmail.com for contract CNT-1181.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_364\",\n      \"time\": \"01:36:44 PM\",\n      \"event\": \"New Project Awaiting Review\",\n      \"details\": \"Project 'Automated Postman Test Project' posted by Abhilashkk123@gmail.com requires verification.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_363\",\n      \"time\": \"01:25:11 PM\",\n      \"event\": \"Account Status Updated\",\n      \"details\": \"Your account has been reactivated by platform administration.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_362\",\n      \"time\": \"01:25:11 PM\",\n      \"event\": \"Identity Verification Approved!\",\n      \"details\": \"Congratulations! Your identity and KYC verification has been approved by admin. Verified Freelancer Pro badge awarded.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_361\",\n      \"time\": \"01:25:07 PM\",\n      \"event\": \"Contract Activated\",\n      \"details\": \"Contract CNT-3324 with james123@gmail.com is now active.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_360\",\n      \"time\": \"01:25:07 PM\",\n      \"event\": \"Hired for Client Contract\",\n      \"details\": \"Congratulations! You have been hired by Abhilashkk123@gmail.com for contract CNT-3324.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_359\",\n      \"time\": \"01:25:06 PM\",\n      \"event\": \"New Project Awaiting Review\",\n      \"details\": \"Project 'Automated Postman Test Project' posted by Abhilashkk123@gmail.com requires verification.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_358\",\n      \"time\": \"01:21:56 PM\",\n      \"event\": \"Account Suspended\",\n      \"details\": \"Your account has been suspended by platform administration.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_357\",\n      \"time\": \"01:21:55 PM\",\n      \"event\": \"Identity Verification Approved!\",\n      \"details\": \"Congratulations! Your identity and KYC verification has been approved by admin. Verified Freelancer Pro badge awarded.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_356\",\n      \"time\": \"01:21:53 PM\",\n      \"event\": \"New Message from Abhilashkk123@gmail.com\",\n      \"details\": \"Abhilashkk123@gmail.com: \\\"Hello, verifying messaging via Postman API testing suite.\\\"\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_355\",\n      \"time\": \"01:21:51 PM\",\n      \"event\": \"Contract Activated\",\n      \"details\": \"Contract CNT-3583 with james123@gmail.com is now active.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_354\",\n      \"time\": \"01:21:51 PM\",\n      \"event\": \"Hired for Client Contract\",\n      \"details\": \"Congratulations! You have been hired by Abhilashkk123@gmail.com for contract CNT-3583.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_353\",\n      \"time\": \"01:21:51 PM\",\n      \"event\": \"New Project Awaiting Review\",\n      \"details\": \"Project 'Automated Postman Test Project' posted by Abhilashkk123@gmail.com requires verification.\",\n      \"type\": \"alert\"\n    },\n    {\n      \"id\": \"log_352\",\n      \"time\": \"01:15:39 PM\",\n      \"event\": \"Account Status Updated\",\n      \"details\": \"Your account has been reactivated by platform administration.\",\n      \"type\": \"security\"\n    },\n    {\n      \"id\": \"log_351\",\n      \"time\": \"01:15:39 PM\",\n      \"event\": \"Identity Verification Approved!\",\n      \"details\": \"Congratulations! Your identity and KYC verification has been approved by admin. Verified Freelancer Pro badge awarded.\",\n      \"type\": \"security\"\n    }\n  ]\n}"
+    },
+    {
+      "id": 42,
+      "name": "02 - Admin Verify Identity Document",
+      "category": "Admin & Governance",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/verify/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 72,
+      "response_size_bytes": 191,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 400",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"User 'james123@gmail.com' identity verification status updated to Approved.\",\n  \"verified\": true,\n  \"verification_status\": \"Approved\",\n  \"rejection_reason\": \"\",\n  \"user_id\": \"james123@gmail.com\"\n}"
+    },
+    {
+      "id": 43,
+      "name": "03 - Admin Verify Project Publication",
+      "category": "Admin & Governance",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/verify-project/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 65,
+      "response_size_bytes": 112,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 400",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Project verification status updated to Approve.\",\n  \"approval_status\": \"Approved\",\n  \"rejection_reason\": \"\"\n}"
+    },
+    {
+      "id": 44,
+      "name": "04 - Admin Toggle User Status",
+      "category": "Admin & Governance",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/toggle-user/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 80,
+      "response_size_bytes": 103,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"User testuser_check status updated to Active\",\n  \"status\": \"Active\",\n  \"user_id\": \"testuser_check\"\n}"
+    },
+    {
+      "id": 45,
+      "name": "05 - Admin Add Skill Category",
+      "category": "Admin & Governance",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/category/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 62,
+      "response_size_bytes": 164,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Category 'Cloud Infrastructure & DevOps' already exists.\",\n  \"category\": {\n    \"id\": \"c_23\",\n    \"name\": \"Cloud Infrastructure & DevOps\",\n    \"activeSkills\": 0,\n    \"projects\": 0\n  }\n}"
+    },
+    {
+      "id": 46,
+      "name": "06 - Admin Add Skill",
+      "category": "Admin & Governance",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/admin-dashboard/skill/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 69,
+      "response_size_bytes": 128,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Skill 'TypeScript' already exists.\",\n  \"skill\": {\n    \"id\": \"s_12\",\n    \"name\": \"TypeScript\",\n    \"category\": \"Frontend\",\n    \"demand\": \"High\"\n  }\n}"
+    },
+    {
+      "id": 47,
+      "name": "01 - Get Categories",
+      "category": "Categories, Search & Deactivation",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/categories/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 76,
+      "response_size_bytes": 758,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response contains categories array"
+      ],
+      "failed_assertions": [],
+      "response_body": "[\n  {\n    \"id\": \"c_2\",\n    \"raw_id\": 2,\n    \"name\": \"UI/UX & Visual Design\",\n    \"description\": \"Product Design, Wireframes & UI Kits\",\n    \"activeSkills\": 2,\n    \"projects\": 0\n  },\n  {\n    \"id\": \"c_5\",\n    \"raw_id\": 5,\n    \"name\": \"Software Development\",\n    \"description\": \"\",\n    \"activeSkills\": 0,\n    \"projects\": 1\n  },\n  {\n    \"id\": \"c_6\",\n    \"raw_id\": 6,\n    \"name\": \"Data Science & AI\",\n    \"description\": \"Artificial Intelligence and Machine Learning\",\n    \"activeSkills\": 0,\n    \"projects\": 0\n  },\n  {\n    \"id\": \"c_15\",\n    \"raw_id\": 15,\n    \"name\": \"Cybersecurity\",\n    \"description\": \"Platform category for Cybersecurity\",\n    \"activeSkills\": 0,\n    \"projects\": 0\n  },\n  {\n    \"id\": \"c_22\",\n    \"raw_id\": 22,\n    \"name\": \"Frontend\",\n    \"description\": \"\",\n    \"activeSkills\": 1,\n    \"projects\": 6\n  },\n  {\n    \"id\": \"c_23\",\n    \"raw_id\": 23,\n    \"name\": \"Cloud Infrastructure & DevOps\",\n    \"description\": \"Category for Cloud Infrastructure & DevOps\",\n    \"activeSkills\": 0,\n    \"projects\": 0\n  }\n]"
+    },
+    {
+      "id": 48,
+      "name": "02 - Global Search API",
+      "category": "Categories, Search & Deactivation",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/search/?q=AI",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 4,
+      "response_size_bytes": 150,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"query\": \"AI\",\n  \"role\": \"client\",\n  \"results\": {\n    \"projects\": [],\n    \"applications\": [],\n    \"freelancers\": [],\n    \"contracts\": [],\n    \"payments\": [],\n    \"messages\": []\n  },\n  \"total_count\": 0\n}"
+    },
+    {
+      "id": 49,
+      "name": "03 - Submit Contact Inquiry",
+      "category": "Categories, Search & Deactivation",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/contact/submit/",
+      "http_status": "201 Created",
+      "status_code": 201,
+      "response_time_ms": 4108,
+      "response_size_bytes": 155,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 201",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"message\": \"Your message has been sent successfully to kkabhilash30@gmail.com and recorded in database!\",\n  \"id\": 7,\n  \"recipient_email\": \"kkabhilash30@gmail.com\"\n}"
+    },
+    {
+      "id": 50,
+      "name": "04 - Get Reviews",
+      "category": "Categories, Search & Deactivation",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/reviews/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 5,
+      "response_size_bytes": 2,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON array or object"
+      ],
+      "failed_assertions": [],
+      "response_body": "[]"
+    },
+    {
+      "id": 51,
+      "name": "05 - Check Deactivation Status",
+      "category": "Categories, Search & Deactivation",
+      "method": "GET",
+      "endpoint": "http://127.0.0.1:8000/api/deactivation-status/?user_id=abhilashkk123@gmail.com",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 77,
+      "response_size_bytes": 1029,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"eligible\": false,\n  \"reasons\": [\n    \"Active Project (In Progress): Ai powered document analysis system\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Project (Open): Automated Postman Test Project\",\n    \"Active Contract: Ai powered document analysis system\",\n    \"Active Contract: Client Contract\",\n    \"Active Contract: Contract Project\",\n    \"Active Contract: Client Contract\",\n    \"Active Contract: Client Contract\",\n    \"Active Contract: Client Contract\",\n    \"Active Contract: Client Contract\",\n    \"Active Contract: Client Contract\"\n  ],\n  \"is_deactivated\": false,\n  \"deactivation_period\": \"\",\n  \"deactivation_until\": null,\n  \"user_id\": \"abhilashkk123@gmail.com\",\n  \"role\": \"client\",\n  \"message\": \"Account deactivation is unavailable while you have active projects or pending work. Please complete your current projects before deactivating your account.\"\n}"
+    },
+    {
+      "id": 52,
+      "name": "06 - Reactivate Account Endpoint",
+      "category": "Categories, Search & Deactivation",
+      "method": "POST",
+      "endpoint": "http://127.0.0.1:8000/api/reactivate-account/",
+      "http_status": "200 OK",
+      "status_code": 200,
+      "response_time_ms": 79,
+      "response_size_bytes": 88,
+      "test_result": "PASS",
+      "classification": "Positive Test",
+      "passed_assertions": [
+        "Status code is 200 or 400 or 403",
+        "Response is JSON"
+      ],
+      "failed_assertions": [],
+      "response_body": "{\n  \"success\": true,\n  \"message\": \"Account 'abhilashkk123@gmail.com' reactivated successfully.\"\n}"
+    }
+  ],
+  "status_analysis": {
+    "200 OK": 35,
+    "401 Unauthorized": 1,
+    "400 Bad Request": 3,
+    "404 Not Found": 7,
+    "201 Created": 6
+  },
+  "coverage": {
+    "total_discovered": 52,
+    "total_tested": 52,
+    "untested": 0,
+    "coverage_percentage": 100.0
+  }
+}
