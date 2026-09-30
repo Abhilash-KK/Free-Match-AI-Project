@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 import NotificationCenter from '../NotificationCenter';
 import MessagingCenter from '../MessagingCenter';
 import FreelancerProfileView from '../FreelancerProfileView';
 import FreelancerSettingsView from '../FreelancerSettingsView';
+import FreelancerIdentityVerificationView from '../FreelancerIdentityVerificationView';
 import ClientReviewsView from '../ClientReviewsView';
 import FreelancerEarningsView from '../FreelancerEarningsView';
 import { calculateFreelancerFinancials } from '../../utils/freelancerFinancials';
 import { fetchNotifications } from '../../utils/notificationService';
-import { calculateProjectDeadline } from '../../utils/dateUtils';
+import { calculateProjectDeadline, formatISTTimestamp, formatISTDate } from '../../utils/dateUtils';
 import { openDocumentViewer } from '../../utils/documentViewer';
 import { formatCurrency } from '../../utils/currencyUtils';
 import { 
@@ -82,8 +83,77 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
   // Proposal Form State
   const [coverLetter, setCoverLetter] = useState('');
-  const [bidAmount, setBidAmount] = useState('4500');
+  const [bidAmount, setBidAmount] = useState('45000');
   const [deliveryTime, setDeliveryTime] = useState('2 Weeks');
+  const [bidMilestoneAllocations, setBidMilestoneAllocations] = useState([]);
+
+  // Initialize proposal milestone allocations when selectedJob changes or bid modal opens
+  useEffect(() => {
+    if (showBidModal && selectedJob) {
+      let rawM = selectedJob.milestones;
+      if ((!rawM || rawM.length === 0) && selectedJob.milestones_json) {
+        try {
+          rawM = typeof selectedJob.milestones_json === 'string' ? JSON.parse(selectedJob.milestones_json) : selectedJob.milestones_json;
+        } catch (e) {}
+      }
+      
+      const numBid = Number(String(bidAmount).replace(/[^0-9.]/g, '')) || 0;
+
+      if (Array.isArray(rawM) && rawM.length > 0) {
+        const splitVal = numBid > 0 ? Math.floor(numBid / rawM.length) : 0;
+        const remainder = numBid - (splitVal * rawM.length);
+        const allocs = rawM.map((m, idx) => {
+          let origVal = 0;
+          if (m.amount) {
+            origVal = Number(String(m.amount).replace(/[^0-9.]/g, '')) || 0;
+          }
+          const defaultAmt = (numBid === 0 && origVal > 0) ? origVal : (idx === rawM.length - 1 ? splitVal + remainder : splitVal);
+          return {
+            id: idx + 1,
+            title: m.title || `Phase ${idx + 1}: Deliverable`,
+            amount: String(defaultAmt)
+          };
+        });
+        setBidMilestoneAllocations(allocs);
+      } else {
+        setBidMilestoneAllocations([{
+          id: 1,
+          title: `Phase 1: ${selectedJob.title || 'Core'} Deliverables`,
+          amount: String(numBid)
+        }]);
+      }
+    }
+  }, [showBidModal, selectedJob]);
+
+  const handleBidAmountChange = (newVal) => {
+    setBidAmount(newVal);
+    const numVal = Number(String(newVal).replace(/[^0-9.]/g, '')) || 0;
+    if (bidMilestoneAllocations.length > 0 && numVal > 0) {
+      const splitVal = Math.floor(numVal / bidMilestoneAllocations.length);
+      const remainder = numVal - (splitVal * bidMilestoneAllocations.length);
+      setBidMilestoneAllocations(prev => prev.map((m, idx) => ({
+        ...m,
+        amount: String(idx === prev.length - 1 ? splitVal + remainder : splitVal)
+      })));
+    }
+  };
+
+  const handleMilestoneAllocationChange = (index, val) => {
+    setBidMilestoneAllocations(prev => prev.map((item, idx) => idx === index ? { ...item, amount: val } : item));
+  };
+
+  const totalAllocatedSum = useMemo(() => {
+    return bidMilestoneAllocations.reduce((acc, m) => acc + (Number(String(m.amount).replace(/[^0-9.]/g, '')) || 0), 0);
+  }, [bidMilestoneAllocations]);
+
+  const targetBidNum = useMemo(() => {
+    return Number(String(bidAmount).replace(/[^0-9.]/g, '')) || 0;
+  }, [bidAmount]);
+
+  const isMilestoneAllocationValid = useMemo(() => {
+    if (bidMilestoneAllocations.length === 0) return true;
+    return totalAllocatedSum === targetBidNum && targetBidNum > 0;
+  }, [bidMilestoneAllocations, totalAllocatedSum, targetBidNum]);
 
   // Submitted Proposals List (Synced with Client Inbox)
   const [proposals, setProposals] = useState(() => {
@@ -106,26 +176,41 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         if (Array.isArray(parsed)) {
           const activeProjects = parsed.filter(p => {
             const st = (p.status || '').toLowerCase().trim();
-            return st !== 'closed' && st !== 'cancelled' && st !== 'completed';
+            const appSt = (p.approval_status || p.approvalStatus || 'Approved').toLowerCase().trim();
+            const isApproved = appSt === 'approved';
+            const isClosedOrDone = st === 'closed' || st === 'cancelled' || st === 'completed' || st === 'in progress';
+            const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
+            return isApproved && !isClosedOrDone && !isAssigned;
           });
           if (activeProjects.length > 0) {
-            return activeProjects.map((p, idx) => ({
-              id: p.id || `job_${idx}`,
-              title: p.title || 'AI Project',
-              client: p.clientName || p.client || 'Enterprise Client',
-              clientId: p.clientId || p.client_id || p.client || 'client',
-              client_id: p.clientId || p.client_id || p.client || 'client',
-              budget: p.budget || '₹4,500',
-              duration: p.duration || '3 Weeks',
-              category: p.category || 'Software Development',
-              status: p.status || 'Open for Bids',
-              description: p.description || 'AI model fine-tuning and API integration.',
-              skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
-              posted: p.postedDate || p.posted || 'Just now',
-              attachedFile: p.attachedFile || null,
-              abstract: p.abstract || null,
-              milestones: p.milestones || p.milestoneItems || []
-            }));
+            const seen = new Set();
+            const uniqueJobs = [];
+            activeProjects.forEach((p, idx) => {
+              const normTitle = (p.title || '').trim().toLowerCase();
+              const key = p.id ? String(p.id) : normTitle;
+              if (!seen.has(key) && !seen.has(normTitle)) {
+                seen.add(key);
+                seen.add(normTitle);
+                uniqueJobs.push({
+                  id: p.id || `job_${idx}`,
+                  title: p.title || 'AI Project',
+                  client: p.clientName || p.client || 'Enterprise Client',
+                  clientId: p.clientId || p.client_id || p.client || 'client',
+                  client_id: p.clientId || p.client_id || p.client || 'client',
+                  budget: p.budget || '₹4,500',
+                  duration: p.duration || '3 Weeks',
+                  category: p.category || 'Software Development',
+                  status: p.status || 'Open for Bids',
+                  description: p.description || 'AI model fine-tuning and API integration.',
+                  skills: p.requiredSkills || p.skills || ['Python', 'PyTorch', 'Django'],
+                  posted: p.postedDate || p.posted || 'Just now',
+                  attachedFile: p.attachedFile || null,
+                  abstract: p.abstract || null,
+                  milestones: p.milestones || p.milestoneItems || []
+                });
+              }
+            });
+            return uniqueJobs;
           }
         }
       } catch (e) {}
@@ -292,6 +377,30 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       })
       .catch(() => {});
   }, [currentFlId]);
+
+  const handleSubmitMilestoneForReview = async (milestoneId) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/contracts/milestones/${milestoneId}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Submitted for Review',
+          user_id: currentFlId
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToast({ message: 'Milestone deliverable submitted to client for review!', type: 'success' });
+        loadFreelancerContracts();
+        loadFreelancerFinancials();
+        setSelectedContractDetail(null);
+      } else {
+        setToast({ message: data.error || 'Failed to submit milestone', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Network error submitting milestone.', type: 'error' });
+    }
+  };
 
   const loadFreelancerTasks = React.useCallback(() => {
     if (!currentFlId) {
@@ -590,32 +699,42 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               const isAssigned = Boolean(p.hiredFreelancer || p.freelancer || p.assigned_freelancer);
               return isApproved && !isClosedOrDone && !isAssigned;
             });
-            const mapped = activeOnly.map((p, idx) => ({
-              id: p.id || `job_${idx}`,
-              title: p.title || 'AI Project',
-              client: p.client || p.client_name || p.clientName || 'Enterprise Client',
-              clientId: p.client_id || p.clientId || p.client || 'client',
-              client_id: p.client_id || p.clientId || p.client || 'client',
-              budget: p.budget || '₹4,500',
-              duration: p.duration || '3 Weeks',
-              category: p.category || 'Software Development',
-              status: p.status || 'Open for Bids',
-              description: p.description || 'AI model fine-tuning and API integration.',
-              skills: Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',').map(s => s.trim()).filter(Boolean) : ['Python', 'Django']),
-              posted: p.postedDate || p.posted || 'Just now',
-              attachedFile: p.attachedFile || (p.attached_file_name || p.attached_file_url ? {
-                name: p.attached_file_name || 'Project Document.pdf',
-                url: p.attached_file_url || '',
-                size: 'PDF Document',
-                type: 'application/pdf',
-                isImage: Boolean(p.attached_file_name && /\.(jpg|jpeg|png|webp|gif)$/i.test(p.attached_file_name))
-              } : null),
-              abstract: p.abstract || null,
-              milestones: p.milestones || p.milestoneItems || []
-            }));
-            setJobs(mapped);
+            const seen = new Set();
+            const uniqueMapped = [];
+            activeOnly.forEach((p, idx) => {
+              const normTitle = (p.title || '').trim().toLowerCase();
+              const key = p.id ? String(p.id) : normTitle;
+              if (!seen.has(key) && !seen.has(normTitle)) {
+                seen.add(key);
+                seen.add(normTitle);
+                uniqueMapped.push({
+                  id: p.id || `job_${idx}`,
+                  title: p.title || 'AI Project',
+                  client: p.client || p.client_name || p.clientName || 'Enterprise Client',
+                  clientId: p.client_id || p.clientId || p.client || 'client',
+                  client_id: p.client_id || p.clientId || p.client || 'client',
+                  budget: p.budget || '₹4,500',
+                  duration: p.duration || '3 Weeks',
+                  category: p.category || 'Software Development',
+                  status: p.status || 'Open for Bids',
+                  description: p.description || 'AI model fine-tuning and API integration.',
+                  skills: Array.isArray(p.skills) ? p.skills : (typeof p.skills === 'string' ? p.skills.split(',').map(s => s.trim()).filter(Boolean) : ['Python', 'Django']),
+                  posted: p.postedDate || p.posted || 'Just now',
+                  attachedFile: p.attachedFile || (p.attached_file_name || p.attached_file_url ? {
+                    name: p.attached_file_name || 'Project Document.pdf',
+                    url: p.attached_file_url || '',
+                    size: 'PDF Document',
+                    type: 'application/pdf',
+                    isImage: Boolean(p.attached_file_name && /\.(jpg|jpeg|png|webp|gif)$/i.test(p.attached_file_name))
+                  } : null),
+                  abstract: p.abstract || null,
+                  milestones: p.milestones || p.milestoneItems || []
+                });
+              }
+            });
+            setJobs(uniqueMapped);
             try {
-              localStorage.setItem('freematch_shared_projects', JSON.stringify(mapped));
+              localStorage.setItem('freematch_shared_projects', JSON.stringify(uniqueMapped));
             } catch (e) {}
           }
         })
@@ -818,9 +937,19 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     e.preventDefault();
     if (!selectedJob) return;
 
+    if (!isMilestoneAllocationValid) {
+      setToast({ message: 'Milestone allocation must equal your total bid amount.', type: 'error' });
+      return;
+    }
+
     const currentFlId = (userSession?.user_id || userSession?.username || userSession?.email || '').toLowerCase().trim();
     const flName = userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer';
     const targetClientId = selectedJob.clientId || selectedJob.client_id || selectedJob.client || 'client';
+
+    const formattedMilestones = bidMilestoneAllocations.map(m => ({
+      title: m.title,
+      amount: m.amount ? (String(m.amount).startsWith('₹') ? m.amount : `₹${m.amount}`) : '₹0'
+    }));
 
     let proposalDbId = null;
     try {
@@ -834,13 +963,20 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           freelancer: flName,
           bid_amount: `₹${bidAmount}`,
           delivery_time: deliveryTime,
-          cover_letter: coverLetter
+          cover_letter: coverLetter,
+          milestones: formattedMilestones
         })
       });
       if (res.ok) {
         const data = await res.json();
         if (data && data.id) {
           proposalDbId = data.id;
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.error) {
+          setToast({ message: errData.error, type: 'error' });
+          return;
         }
       }
     } catch (e) {
@@ -866,6 +1002,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       deliveryTime: deliveryTime,
       delivery: deliveryTime,
       coverLetter: coverLetter,
+      milestones: formattedMilestones,
       status: 'Submitted / Under Review',
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
@@ -1046,6 +1183,14 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
               }`}>
                 <UserCircle className="w-4 h-4" />
                 <span>View Profile</span>
+              </button>
+              <button onClick={() => setActiveTab('kyc')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+                activeTab === 'kyc' 
+                  ? 'bg-blue-600 text-white shadow-xs' 
+                  : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}>
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>KYC / Identity Verification</span>
               </button>
               <button onClick={() => setActiveTab('reviews')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'reviews' 
@@ -1725,31 +1870,46 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
                           // Calculate real sprint task progress from database tasks
                           const pTasks = (freelancerDbTasks || []).filter(t => {
-                            const tProjId = String(t.project_id || t.project || '').toLowerCase().trim();
-                            const pId = String(proj.id || '').toLowerCase().trim();
+                            const tProjId = String(t.project_id || t.projectId || t.project || '').toLowerCase().replace('proj_', '').trim();
+                            const tProjTitle = String(t.project || t.projectName || t.projectTitle || t.project_title || '').toLowerCase().trim();
+                            const pId = String(proj.id || '').toLowerCase().replace('proj_', '').trim();
                             const pTitle = String(proj.title || '').toLowerCase().trim();
-                            return (tProjId && (tProjId === pId || tProjId.includes(pId))) || (t.project && String(t.project).toLowerCase().trim() === pTitle);
+
+                            return (
+                              (tProjId && (tProjId === pId || tProjId.includes(pId))) ||
+                              (tProjTitle && (tProjTitle === pTitle || pTitle.includes(tProjTitle))) ||
+                              (t.contractId && proj.contractId && String(t.contractId).toLowerCase() === String(proj.contractId).toLowerCase())
+                            );
                           });
 
                           let completedTasks = 0;
                           let inProgressTasks = 0;
                           let pendingTasks = 0;
+                          let sumPct = 0;
 
                           pTasks.forEach(t => {
-                            const st = (t.status || '').toLowerCase().trim();
+                            const st = (t.status || '').toLowerCase().replace('_', ' ').replace('-', ' ').trim();
                             if (st === 'done' || st === 'completed' || st === 'approved') {
                               completedTasks++;
-                            } else if (st === 'in progress' || st === 'doing' || st === 'under review' || st === 'in review') {
+                              sumPct += 100;
+                            } else if (st === 'under review' || st === 'in review' || st === 'review') {
                               inProgressTasks++;
+                              sumPct += 60;
+                            } else if (st === 'in progress' || st === 'doing') {
+                              inProgressTasks++;
+                              sumPct += 30;
                             } else {
                               pendingTasks++;
+                              sumPct += 0;
                             }
                           });
 
                           const totalTasks = pTasks.length;
                           let completionPct = 0;
                           if (totalTasks > 0) {
-                            completionPct = Math.round(((completedTasks * 100) + (inProgressTasks * 30)) / totalTasks);
+                            completionPct = Math.round(sumPct / totalTasks);
+                          } else if (typeof proj.progress === 'number' && proj.progress > 0) {
+                            completionPct = proj.progress;
                           } else {
                             completionPct = pStatus === 'completed' ? 100 : (pStatus === 'in progress' ? 15 : 0);
                           }
@@ -2172,7 +2332,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         )}
 
         {/* WORKSPACE OVERVIEW TAB */}
-        {(!['jobs', 'proposals', 'tasks', 'earnings', 'contracts', 'reviews', 'profile', 'messages', 'notifications', 'settings', 'my_projects'].includes(activeTab)) && (() => {
+        {(!['jobs', 'proposals', 'tasks', 'earnings', 'contracts', 'reviews', 'profile', 'messages', 'notifications', 'settings', 'my_projects', 'kyc', 'identity_verification', 'identity-verification'].includes(activeTab)) && (() => {
           const {
             assignedProjects,
             totalTasksCount,
@@ -3005,6 +3165,17 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           </div>
         )}
 
+        {/* TAB: FREELANCER KYC / IDENTITY VERIFICATION */}
+        {(activeTab === 'kyc' || activeTab === 'identity_verification' || activeTab === 'identity-verification') && (
+          <FreelancerIdentityVerificationView
+            userSession={userSession}
+            currentUserId={userSession?.username || userSession?.user_id || userSession?.email || ''}
+            isDark={isDark}
+            showToastMessage={(msg, type) => setToast({ message: msg, type })}
+            onNavigateHome={() => setActiveTab('workspace')}
+          />
+        )}
+
         {/* TAB: FREELANCER ACCOUNT & SYSTEM SETTINGS */}
         {activeTab === 'settings' && (
           <FreelancerSettingsView
@@ -3021,25 +3192,84 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* MODAL: SUBMIT BID */}
         {showBidModal && selectedJob && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className={`p-6 rounded-3xl max-w-lg w-full border ${isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
+            <div className={`p-6 rounded-3xl max-w-xl w-full border max-h-[90vh] overflow-y-auto ${isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
               <h3 className="text-xl font-bold mb-2">Submit Proposal for {selectedJob.title}</h3>
-              <p className="text-xs text-blue-500 font-bold mb-4">Client: {selectedJob.client} • Budget: {selectedJob.budget}</p>
+              <p className="text-xs text-blue-500 font-bold mb-4">Client: {selectedJob.client} • Posted Budget: {selectedJob.budget}</p>
               <form onSubmit={handleSubmitBid} className="space-y-4">
                 <div>
-                  <label className="text-xs font-bold block mb-1">Your Bid Amount (₹ INR)</label>
-                  <input type="number" required value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-transparent" />
+                  <label className="text-xs font-bold block mb-1">Your Total Bid Amount (₹ INR)</label>
+                  <input type="number" required value={bidAmount} onChange={(e) => handleBidAmountChange(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-transparent" />
                 </div>
                 <div>
                   <label className="text-xs font-bold block mb-1">Estimated Delivery Time</label>
                   <input type="text" required value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)} className="w-full p-3 border rounded-xl text-xs bg-transparent" />
                 </div>
+
+                {/* Milestone Budget Allocation Section */}
+                {bidMilestoneAllocations.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">Milestone Budget Allocation</h4>
+                      <span className="text-[11px] font-bold text-slate-500">
+                        Sum: ₹{totalAllocatedSum.toLocaleString()} / ₹{targetBidNum.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">Distribute your total bid amount across the project's milestones. Sum must equal total bid.</p>
+
+                    <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                      {bidMilestoneAllocations.map((m, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-slate-200 text-xs">
+                          <div className="flex-1 pr-3">
+                            <span className="font-extrabold text-slate-800 block text-xs truncate">{m.title}</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            <span className="text-xs font-bold text-slate-500">₹</span>
+                            <input
+                              type="number"
+                              required
+                              value={m.amount}
+                              onChange={(e) => handleMilestoneAllocationChange(idx, e.target.value)}
+                              className="w-28 p-1.5 border rounded-lg text-xs font-bold text-slate-900 text-right bg-slate-50 focus:bg-white"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Live Validation Indicator */}
+                    <div className={`p-2.5 rounded-xl border text-xs font-bold flex items-center space-x-2 ${
+                      isMilestoneAllocationValid
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-rose-50 border-rose-200 text-rose-700'
+                    }`}>
+                      {isMilestoneAllocationValid ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>✓ Milestone allocation matches total bid (₹{targetBidNum.toLocaleString()})</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>⚠ Milestone allocation (₹{totalAllocatedSum.toLocaleString()}) must equal your total bid amount (₹{targetBidNum.toLocaleString()}).</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-bold block mb-1">Cover Letter & Proposal</label>
                   <textarea rows="4" required value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Explain why your experience matches this project..." className="w-full p-3 border rounded-xl text-xs bg-transparent"></textarea>
                 </div>
                 <div className="flex justify-end space-x-3 pt-2">
                   <button type="button" onClick={() => setShowBidModal(false)} className="px-4 py-2 text-xs">Cancel</button>
-                  <button type="submit" className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold flex items-center space-x-1.5">
+                  <button
+                    type="submit"
+                    disabled={!isMilestoneAllocationValid}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center space-x-1.5 text-white ${
+                      isMilestoneAllocationValid ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-slate-300 cursor-not-allowed'
+                    }`}
+                  >
                     <Send className="w-3.5 h-3.5" />
                     <span>Submit Bid Now</span>
                   </button>
@@ -3265,30 +3495,44 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <h4 className="text-xs font-black uppercase text-slate-800 tracking-wider">Agreed Milestone Breakdown</h4>
                 <div className="space-y-2">
                   {(selectedContractDetail.milestones && selectedContractDetail.milestones.length > 0) ? (
-                    selectedContractDetail.milestones.map((m, idx) => (
-                      <div key={m.id || idx} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                        <div className="space-y-0.5">
-                          <h5 className="font-extrabold text-slate-900 text-sm">
-                            {m.title || `Phase ${idx + 1}: Milestone Task`}
-                          </h5>
-                          {m.description && (
-                            <p className="text-xs text-slate-700 font-medium">{m.description}</p>
-                          )}
+                    selectedContractDetail.milestones.map((m, idx) => {
+                      const mSt = (m.status || '').toLowerCase();
+                      const isPaid = mSt === 'paid' || mSt === 'completed' || mSt === 'approved';
+                      const isReview = mSt.includes('review') || mSt.includes('submitted');
+                      const canSubmit = !isPaid && !isReview && m.id;
+                      return (
+                        <div key={m.id || idx} className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
+                          <div className="space-y-0.5">
+                            <h5 className="font-extrabold text-slate-900 text-sm">
+                              {m.title || `Phase ${idx + 1}: Milestone Task`}
+                            </h5>
+                            {m.description && (
+                              <p className="text-xs text-slate-700 font-medium">{m.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                            <span className="font-black text-emerald-600 text-sm block">{m.amount || '₹750'}</span>
+                            <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : isReview
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {m.status || 'Pending'}
+                            </span>
+                            {canSubmit && (
+                              <button
+                                onClick={() => handleSubmitMilestoneForReview(m.id)}
+                                className="mt-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-lg shadow-2xs cursor-pointer"
+                              >
+                                Submit for Review
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-black text-emerald-600 text-sm block">{m.amount || '₹750'}</span>
-                          <span className={`text-[10px] font-extrabold uppercase ${
-                            (m.status || '').toLowerCase() === 'approved' || (m.status || '').toLowerCase() === 'completed'
-                              ? 'text-emerald-600'
-                              : (m.status || '').toLowerCase() === 'in progress'
-                              ? 'text-blue-600'
-                              : 'text-slate-600 font-bold'
-                          }`}>
-                            {m.status || 'Pending'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
                       <div className="space-y-0.5">

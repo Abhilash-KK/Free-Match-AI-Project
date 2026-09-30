@@ -93,5 +93,5 @@ export const formatRelativeTime = (isoString) => {
   if (diffSec < 3600) return `${Math.floor(diffSec / 60)} mins ago`;
   if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} hours ago`;
   if (diffSec < 172800) return 'Yesterday';
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', year: 'numeric' });
 };

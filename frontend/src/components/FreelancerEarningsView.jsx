@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { calculateFreelancerFinancials } from '../utils/freelancerFinancials';
+import { formatISTTimestamp, formatISTDate } from '../utils/dateUtils';
 
 /**
  * FreelancerEarningsView Component
@@ -513,6 +514,20 @@ export default function FreelancerEarningsView({
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hidden sm:inline-block">
                       {tx.status}
                     </span>
+                    <button
+                      onClick={() => {
+                        const rawId = tx.db_id || tx.id;
+                        if (rawId && String(rawId).match(/^\d+$/)) {
+                          window.open(`http://localhost:8000/api/payments/${rawId}/invoice/`, '_blank');
+                        } else {
+                          window.open(`http://localhost:8000/api/contracts/18/invoice/`, '_blank');
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-all cursor-pointer flex items-center space-x-1"
+                      title="Download PDF Invoice / Receipt"
+                    >
+                      <span>📄 PDF</span>
+                    </button>
                   </div>
                 </div>
               ))}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Toast from './Toast';
 import { calculateProjectDeadline, getValidTaskDeadline } from '../utils/dateUtils';
 import { 
@@ -90,14 +90,15 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         const isExistingNumeric = typeof existing.id === 'number' || (!isNaN(Number(existing.id)) && !String(existing.id).startsWith('t_'));
         const isCurrentNumeric = typeof t.id === 'number' || (!isNaN(Number(t.id)) && !String(t.id).startsWith('t_'));
 
-        if (!isExistingNumeric && isCurrentNumeric) {
+        if (isCurrentNumeric || !isExistingNumeric) {
           if (existing.id) seenById.delete(String(existing.id));
           const normalized = {
+            ...existing,
             ...t,
             project: proj,
             assignee: t.assignee || t.assignee_name || existing.assignee || 'Assigned Freelancer'
           };
-          seenById.set(idKey, normalized);
+          if (idKey) seenById.set(idKey, normalized);
           seenByTitleProj.set(titleProjKey, normalized);
         }
         return;
@@ -188,7 +189,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 });
 
                 if (!alreadyExists) {
-                  baseTasks.unshift(st);
+                  baseTasks.push(st);
                 }
               }
             });
@@ -408,7 +409,10 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const updateTaskStatus = async (taskId, newStatus, message) => {
     const targetIdStr = String(taskId).trim();
+    const prevTask = tasks.find(t => t.id === taskId || String(t.id).trim() === targetIdStr || (t.title && taskId && t.title.toLowerCase().trim() === targetIdStr.toLowerCase()));
+    const oldStatus = prevTask ? prevTask.status : 'To Do';
 
+    // Optimistically update React state
     setTasks(prevTasks => {
       const updated = prevTasks.map(t => {
         const isMatch = t.id === taskId || String(t.id).trim() === targetIdStr || (t.title && taskId && t.title.toLowerCase().trim() === targetIdStr.toLowerCase());
@@ -424,16 +428,48 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       return updated;
     });
 
-    setToast({ message: message || `Task moved to "${newStatus}"`, type: 'success' });
-
-    if (typeof taskId === 'number' || !isNaN(Number(taskId))) {
+    if (typeof taskId === 'number' || (!isNaN(Number(taskId)) && !targetIdStr.startsWith('t_'))) {
       try {
-        await fetch(`http://localhost:8000/api/sprint-tasks/${taskId}/`, {
+        const res = await fetch(`http://localhost:8000/api/sprint-tasks/${taskId}/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
+          body: JSON.stringify({
+            status: newStatus,
+            user_id: currentUserId || currentUserName
+          })
         });
-      } catch (err) {}
+        const resData = await res.json();
+        if (res.ok) {
+          setToast({ message: message || `Task status updated to "${newStatus}"`, type: 'success' });
+          loadBackendTasks();
+          window.dispatchEvent(new Event('freematch_shared_event'));
+          window.dispatchEvent(new Event('freematch_kanban_event'));
+        } else {
+          // Revert optimistic update on backend rejection (e.g. sequential phase lock)
+          setTasks(prevTasks => {
+            const reverted = prevTasks.map(t => {
+              const isMatch = t.id === taskId || String(t.id).trim() === targetIdStr;
+              return isMatch ? { ...t, status: oldStatus } : t;
+            });
+            localStorage.setItem(taskStorageKey, JSON.stringify(reverted));
+            return reverted;
+          });
+          setToast({ message: resData.error || 'Failed to update task status.', type: 'error' });
+        }
+      } catch (err) {
+        // Revert on network failure
+        setTasks(prevTasks => {
+          const reverted = prevTasks.map(t => {
+            const isMatch = t.id === taskId || String(t.id).trim() === targetIdStr;
+            return isMatch ? { ...t, status: oldStatus } : t;
+          });
+          localStorage.setItem(taskStorageKey, JSON.stringify(reverted));
+          return reverted;
+        });
+        setToast({ message: 'Network error updating task status.', type: 'error' });
+      }
+    } else {
+      setToast({ message: message || `Task moved to "${newStatus}"`, type: 'success' });
     }
   };
 
@@ -539,7 +575,23 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       const saved = localStorage.getItem(projectStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) parsed.forEach(p => { if (p.title) set.add(p.title); });
+        if (Array.isArray(parsed)) {
+          parsed.forEach(p => {
+            if (!p.title) return;
+            const hFl = p.hiredFreelancer || p.freelancer || p.assigned_freelancer;
+            const hasHiredFl = hFl && hFl !== 'Unassigned' && hFl !== 'None' && hFl !== '';
+            const isAssigned = hasHiredFl || p.hasContract || p.is_assigned || (p.proposals && p.proposals.some(pr => pr.status === 'Accepted'));
+
+            const hasTasks = tasks.some(t => {
+              const tProj = (t.project || t.projectTitle || t.project_name || '').toLowerCase().trim();
+              return tProj && tProj === p.title.toLowerCase().trim();
+            });
+
+            if (isAssigned || hasTasks) {
+              set.add(p.title);
+            }
+          });
+        }
       }
     } catch (e) {}
     if (isDemoUser) {
@@ -549,7 +601,41 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       });
     }
     return Array.from(set);
-  }, [tasks, role, currentUserName, currentUserId, projectStorageKey]);
+  }, [tasks, role, currentUserName, currentUserId, projectStorageKey, isDemoUser]);
+
+  // Filter eligible active projects for NEW task creation (excluding Completed/Closed/Cancelled projects)
+  const eligibleTaskProjects = React.useMemo(() => {
+    const completedTitles = new Set();
+
+    try {
+      const saved = localStorage.getItem(projectStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(p => {
+            const st = (p.status || '').toLowerCase().trim();
+            if (st === 'completed' || st === 'closed' || st === 'cancelled' || p.progress === 100) {
+              if (p.title) completedTitles.add(p.title.toLowerCase().trim());
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    tasks.forEach(t => {
+      const pTitle = (t.project || t.projectTitle || t.project_name || '').toLowerCase().trim();
+      const pStatus = (t.project_status || t.projectStatus || '').toLowerCase().trim();
+      if (pTitle && (pStatus === 'completed' || pStatus === 'closed' || pStatus === 'cancelled')) {
+        completedTitles.add(pTitle);
+      }
+    });
+
+    return availableProjects.filter(p => {
+      if (p === 'All' || p === 'All Assigned Projects') return false;
+      const cleanP = p.toLowerCase().trim();
+      return !completedTitles.has(cleanP);
+    });
+  }, [availableProjects, projectStorageKey, tasks]);
 
   // Group assigned projects for Freelancer Summary Cards
   const freelancerAssignedProjects = React.useMemo(() => {
@@ -638,11 +724,20 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const handleOpenAddTaskModal = () => {
     setNewTaskTitle('');
-    const firstRealProject = availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || '';
-    setNewTaskProject(firstRealProject);
+    const firstEligibleProject = eligibleTaskProjects[0] || '';
+    setNewTaskProject(firstEligibleProject);
     setNewTaskAssignee(availableFreelancers[0] || 'Haines Jose Paulson');
     setNewTaskBudget('₹1,500');
     setIsSubmittingTask(false);
+
+    if (eligibleTaskProjects.length === 0) {
+      setToast({
+        message: 'All projects are completed and read-only. Cannot create new sprint tasks.',
+        type: 'error'
+      });
+      return;
+    }
+
     setShowAddTaskModal(true);
   };
 
@@ -656,6 +751,18 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       return;
     }
 
+    const projectVal = newTaskProject && newTaskProject !== 'All' && newTaskProject !== 'All Assigned Projects'
+      ? newTaskProject
+      : (eligibleTaskProjects[0] || '');
+
+    if (!projectVal || !eligibleTaskProjects.includes(projectVal)) {
+      setToast({
+        message: `Cannot create task: Project '${projectVal || 'Selected'}' is completed and read-only.`,
+        type: 'error'
+      });
+      return;
+    }
+
     setIsSubmittingTask(true);
 
     try {
@@ -664,10 +771,6 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         const num = parseFloat(formattedBudget.replace(/[^0-9.]/g, ''));
         formattedBudget = isNaN(num) ? '₹1,500' : `₹${num.toLocaleString('en-IN')}`;
       }
-
-      const projectVal = newTaskProject && newTaskProject !== 'All' && newTaskProject !== 'All Assigned Projects'
-        ? newTaskProject
-        : (availableProjects.find(p => p !== 'All' && p !== 'All Assigned Projects') || '');
 
       const assignedPerson = newTaskAssignee || (role === 'freelancer' ? (currentUserName || currentUserId) : 'Assigned Freelancer');
 
@@ -1807,15 +1910,21 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
               <div>
                 <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Select Project</label>
-                <select
-                  value={newTaskProject}
-                  onChange={(e) => setNewTaskProject(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                >
-                  {availableProjects.filter(p => p !== 'All' && p !== 'All Assigned Projects').map((proj, idx) => (
-                    <option key={idx} value={proj}>{proj}</option>
-                  ))}
-                </select>
+                {eligibleTaskProjects.length > 0 ? (
+                  <select
+                    value={newTaskProject}
+                    onChange={(e) => setNewTaskProject(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                  >
+                    {eligibleTaskProjects.map((proj, idx) => (
+                      <option key={idx} value={proj}>{proj}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+                    ⚠️ No active projects available. Completed projects are read-only.
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1854,7 +1963,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingTask}
+                  disabled={isSubmittingTask || eligibleTaskProjects.length === 0}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
                 >
                   {isSubmittingTask ? 'Creating...' : 'Create Task'}

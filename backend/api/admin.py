@@ -21,6 +21,8 @@ from .models import (
     FreelancerEducation,
     FreelancerCertification,
     FreelancerWithdrawal,
+    FreelancerIdentityVerification,
+    ProjectDocumentVerification,
 )
 
 # Custom Admin Site Branding
@@ -217,3 +219,65 @@ class FreelancerWithdrawalAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('freelancer__username', 'bank_account')
     ordering = ('-created_at',)
+
+@admin.register(FreelancerIdentityVerification)
+class FreelancerIdentityVerificationAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'freelancer',
+        'document_type',
+        'masked_document_number',
+        'status',
+        'submitted_at',
+        'reviewed_at',
+        'reviewed_by',
+        'has_file',
+    )
+    list_filter = ('status', 'document_type', 'submitted_at', 'reviewed_at')
+    search_fields = (
+        'freelancer__username',
+        'freelancer__email',
+        'freelancer__first_name',
+        'freelancer__last_name',
+        'document_type',
+        'document_number',
+        'rejection_reason',
+    )
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-submitted_at',)
+
+    def masked_document_number(self, obj):
+        doc_num = obj.document_number or ''
+        if len(doc_num) >= 6:
+            return f"{doc_num[:2]}{'*' * (len(doc_num) - 6)}{doc_num[-4:]}"
+        return '*' * len(doc_num)
+    masked_document_number.short_description = "Doc Number"
+
+    def has_file(self, obj):
+        return bool(obj.document_file or obj.document_file_url)
+    has_file.boolean = True
+    has_file.short_description = "Has Document File"
+
+@admin.register(ProjectDocumentVerification)
+class ProjectDocumentVerificationAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'project',
+        'client',
+        'document_name',
+        'document_type',
+        'status',
+        'submitted_at',
+        'reviewed_at',
+        'reviewed_by',
+    )
+    list_filter = ('status', 'document_type', 'submitted_at')
+    search_fields = (
+        'project__title',
+        'client__username',
+        'client__email',
+        'document_name',
+        'rejection_reason',
+    )
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-submitted_at',)

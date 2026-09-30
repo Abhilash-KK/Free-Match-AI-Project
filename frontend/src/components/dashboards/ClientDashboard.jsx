@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Toast from '../Toast';
 import KanbanBoard from '../KanbanBoard';
 import NotificationCenter from '../NotificationCenter';
@@ -6,8 +6,9 @@ import MessagingCenter from '../MessagingCenter';
 import FreelancerProfileView from '../FreelancerProfileView';
 import ClientProfileView from '../ClientProfileView';
 import ClientSettingsView from '../ClientSettingsView';
+import WelcomeBanner from '../WelcomeBanner';
 import { fetchNotifications } from '../../utils/notificationService';
-import { calculateProjectDeadline } from '../../utils/dateUtils';
+import { calculateProjectDeadline, formatISTTimestamp, formatISTDate } from '../../utils/dateUtils';
 import { openDocumentViewer } from '../../utils/documentViewer';
 import {
   LayoutDashboard,
@@ -19,6 +20,8 @@ import {
   FileText,
   Kanban,
   ShieldCheck,
+  BadgeCheck,
+  AlertTriangle,
   MessageSquare,
   Bell,
   Sparkles,
@@ -91,6 +94,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showPostProjectModal, setShowPostProjectModal] = useState(false);
   const [toast, setToast] = useState(null); // { message, type }
+  const [confirmingPayMilestone, setConfirmingPayMilestone] = useState(null);
+  const [reviewingMilestone, setReviewingMilestone] = useState(null);
+  const [viewingTransaction, setViewingTransaction] = useState(null);
 
   // 1. PROJECT POSTING FORM STATE
   const [projectTitle, setProjectTitle] = useState('');
@@ -409,81 +415,104 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const [contractFilter, setContractFilter] = useState('All'); // 'All' | 'Active' | 'Pending' | 'Completed' | 'Cancelled'
   const [selectedContractDetail, setSelectedContractDetail] = useState(null);
 
-  // 3. DYNAMIC HIRED FREELANCERS ROSTER (Includes defaults + accepted proposals)
-  const defaultHired = isDemoUser ? [
-    { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '₹75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
-    { id: 'hf2', name: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist', project: 'FinTech Dashboard v2', rate: '₹85/hr', status: 'Active', hiredDate: 'Oct 23, 2023' },
-    { id: 'hf3', name: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', project: 'Cybersecurity Audit & Shield', rate: '₹90/hr', status: 'Completed', hiredDate: 'Oct 15, 2023' }
-  ] : [];
+  // 3. DYNAMIC HIRED FREELANCERS ROSTER (Grouped strictly by unique Freelancer account)
+  const hiredFreelancers = useMemo(() => {
+    const defaultHired = isDemoUser ? [
+      { id: 'hf1', name: 'Alex Mercer', avatar: 'AM', title: 'Senior PyTorch & React Architect', project: 'AI Pipeline Optimization', rate: '₹75/hr', status: 'Active', hiredDate: 'Oct 21, 2023' },
+      { id: 'hf2', name: 'Sarah Chen', avatar: 'SC', title: 'Senior Data Scientist', project: 'FinTech Dashboard v2', rate: '₹85/hr', status: 'Active', hiredDate: 'Oct 23, 2023' },
+      { id: 'hf3', name: 'Lana Kim', avatar: 'LK', title: 'Cybersecurity Audit Specialist', project: 'Cybersecurity Audit & Shield', rate: '₹90/hr', status: 'Completed', hiredDate: 'Oct 15, 2023' }
+    ] : [];
 
-  const acceptedProposalsList = proposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
-  const dynamicHiredFromProps = acceptedProposalsList.map((p, idx) => {
-    const name = p.freelancer || p.freelancerName || 'Freelancer';
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
-    const pTitle = (p.project || p.projectTitle || '').toLowerCase().trim();
+    const freelancerMap = new Map();
 
-    const matchedContract = (dbContracts || []).find(c => 
-      ((c.freelancerName || c.freelancer || '').toLowerCase().trim() === name.toLowerCase().trim()) &&
-      ((c.projectName || c.project || '').toLowerCase().trim() === pTitle)
-    );
+    // 1. Process Accepted Proposals
+    const acceptedProposalsList = proposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
+    acceptedProposalsList.forEach((p, idx) => {
+      const flName = (p.freelancer || p.freelancerName || 'Freelancer').trim();
+      const flKey = (p.freelancerId || p.freelancer_id || p.user_id || flName).toLowerCase().trim();
+      if (!flKey) return;
 
-    const matchedProject = clientProjects.find(proj => 
-      (proj.id && p.projectId && proj.id === p.projectId) || 
-      ((proj.title || '').toLowerCase().trim() === pTitle)
-    ) || (isDemoUser ? DEFAULT_PROJECTS.find(proj => (proj.title || '').toLowerCase().trim() === pTitle) : null);
+      const initials = flName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+      const pTitle = p.project || p.projectTitle || 'Marketplace Project';
 
-    const resolvedDate = p.hiredDate || 
-      p.acceptedDate || 
-      p.accepted_at || 
-      (matchedContract && (matchedContract.startDate || matchedContract.start_date || matchedContract.created_at)) || 
-      (p.date && p.date !== 'Just Now' ? p.date : null) || 
-      p.created_at || 
-      (matchedProject && (matchedProject.postedDate || matchedProject.created_at)) || 
-      'Sep 10, 2026';
+      const matchedContract = (dbContracts || []).find(c => 
+        (c.status || '').toLowerCase() !== 'cancelled' && (c.status || '').toLowerCase() !== 'archived' &&
+        (((c.freelancerName || c.freelancer || '').toLowerCase().trim() === flName.toLowerCase()) || ((c.freelancer_id_str || '').toLowerCase() === flKey))
+      );
 
-    return {
-      id: `hired_${p.id || idx}`,
-      name: name,
-      avatar: p.avatar || initials,
-      title: p.title || 'Senior Full Stack & AI Specialist',
-      project: p.project || p.projectTitle || 'Marketplace Project',
-      rate: p.bid || p.bidAmount || '₹75/hr',
-      status: 'Active',
-      hiredDate: resolvedDate
-    };
-  });
+      const resolvedDate = p.hiredDate || p.acceptedDate || p.accepted_at || (matchedContract && (matchedContract.startDate || matchedContract.start_date || matchedContract.created_at)) || 'Sep 8, 2026';
 
-  const rawHired = [...defaultHired];
-  dynamicHiredFromProps.forEach(dh => {
-    if (!rawHired.some(hf => hf.name.toLowerCase() === dh.name.toLowerCase() && hf.project.toLowerCase() === dh.project.toLowerCase())) {
-      rawHired.push(dh);
-    }
-  });
-  dbContracts.forEach(c => {
-    const cName = c.freelancerName || c.freelancer;
-    const cProj = c.projectName || c.project;
-    if (cName && !rawHired.some(hf => hf.name.toLowerCase() === cName.toLowerCase() && hf.project.toLowerCase() === (cProj || '').toLowerCase())) {
-      const initials = cName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
-      const cProjTitle = (cProj || '').toLowerCase().trim();
-      const matchedProject = clientProjects.find(proj => (proj.title || '').toLowerCase().trim() === cProjTitle) || 
-        (isDemoUser ? DEFAULT_PROJECTS.find(proj => (proj.title || '').toLowerCase().trim() === cProjTitle) : null);
-      
-      const resolvedContractDate = c.startDate || c.start_date || c.created_at || (matchedProject && matchedProject.postedDate) || 'Sep 10, 2026';
+      if (!freelancerMap.has(flKey)) {
+        freelancerMap.set(flKey, {
+          id: `hired_fl_${flKey}`,
+          freelancer_id: flKey,
+          name: flName,
+          avatar: p.avatar || initials,
+          title: p.title || 'Senior Full Stack & AI Specialist',
+          project: pTitle,
+          projectsList: [pTitle],
+          rate: p.bid || p.bidAmount || (matchedContract ? (matchedContract.agreedAmount || matchedContract.agreed_amount) : '₹45,000'),
+          status: 'Active',
+          hiredDate: resolvedDate,
+          contractsCount: 1
+        });
+      } else {
+        const existing = freelancerMap.get(flKey);
+        if (!existing.projectsList.includes(pTitle)) {
+          existing.projectsList.push(pTitle);
+          existing.contractsCount += 1;
+        }
+      }
+    });
 
-      rawHired.push({
-        id: `hired_ctr_${c.id || c.contractId}`,
-        freelancer_id: c.freelancerId || c.freelancer_id || cName,
-        name: cName,
-        avatar: initials,
-        title: 'Senior Software Specialist',
-        project: cProj || 'Marketplace Project',
-        rate: c.hourlyRate || c.agreedAmount || '₹75/hr',
-        status: c.status || 'Active',
-        hiredDate: resolvedContractDate
-      });
-    }
-  });
-  const hiredFreelancers = rawHired;
+    // 2. Process Active Database Contracts
+    const activeContracts = (dbContracts || []).filter(c => {
+      const st = (c.status || '').toLowerCase().trim();
+      return st !== 'cancelled' && st !== 'archived' && st !== 'terminated';
+    });
+
+    activeContracts.forEach((c) => {
+      const flName = (c.freelancerName || c.freelancer || 'Freelancer').trim();
+      const flKey = (c.freelancer_id_str || c.freelancerId || c.freelancer_id || flName).toLowerCase().trim();
+      if (!flKey) return;
+
+      const initials = flName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'FL';
+      const cProj = c.projectName || c.project || 'Marketplace Project';
+      const resolvedContractDate = c.startDate || c.start_date || c.created_at || 'Sep 8, 2026';
+
+      if (!freelancerMap.has(flKey)) {
+        freelancerMap.set(flKey, {
+          id: `hired_ctr_${c.id || c.contractId}`,
+          freelancer_id: flKey,
+          name: flName,
+          avatar: initials,
+          title: 'Senior Full Stack & AI Specialist',
+          project: cProj,
+          projectsList: [cProj],
+          rate: c.agreedAmount || c.agreed_amount || c.hourlyRate || '₹45,000',
+          status: c.status || 'Active',
+          hiredDate: resolvedContractDate,
+          contractsCount: 1
+        });
+      } else {
+        const existing = freelancerMap.get(flKey);
+        if (!existing.projectsList.includes(cProj)) {
+          existing.projectsList.push(cProj);
+          existing.contractsCount += 1;
+        }
+        if (c.status === 'Active') existing.status = 'Active';
+      }
+    });
+
+    const result = [...defaultHired];
+    freelancerMap.forEach(flObj => {
+      if (!result.some(existing => existing.name.toLowerCase() === flObj.name.toLowerCase() || (existing.freelancer_id && existing.freelancer_id === flObj.freelancer_id))) {
+        result.push(flObj);
+      }
+    });
+
+    return result;
+  }, [isDemoUser, proposals, dbContracts, clientProjects]);
 
   const [removedContractIds, setRemovedContractIds] = useState(() => {
     const saved = localStorage.getItem(`freematch_user_${currentUserId}_deleted_contracts`);
@@ -511,6 +540,34 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     window.addEventListener('freematch_shared_event', loadLiveContracts);
     return () => window.removeEventListener('freematch_shared_event', loadLiveContracts);
   }, [loadLiveContracts]);
+
+  const handleUpdateMilestoneStatus = async (milestoneId, newStatus) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/contracts/milestones/${milestoneId}/status/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus,
+          user_id: currentUserId
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToast({
+          message: newStatus === 'Paid' ? 'Milestone payment released successfully!' : `Milestone status updated to ${newStatus}`,
+          type: 'success'
+        });
+        loadLiveContracts();
+        loadClientFinancials();
+        setSelectedContractDetail(null);
+        window.dispatchEvent(new Event('freematch_shared_event'));
+      } else {
+        setToast({ message: data.error || 'Failed to update milestone status', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Network error updating milestone status.', type: 'error' });
+    }
+  };
 
   // SAVED FREELANCERS STATE & API SYNC (Strictly Client-scoped)
   const [savedFreelancers, setSavedFreelancers] = useState(() => {
@@ -639,6 +696,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   ] : [];
 
   const rawContracts = dbContracts.length > 0 ? [...dbContracts] : [...defaultContracts];
+  const acceptedProposalsList = proposals.filter(p => p.status === 'Accepted' || p.status === 'Hired');
   acceptedProposalsList.forEach((p, idx) => {
     const dcId = `CTR-${9050 + idx}`;
     const pTitle = (p.project || p.projectTitle || '').toLowerCase().trim();
@@ -1913,11 +1971,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
 
     setShowPostProjectModal(false);
-    setToast({ message: `Project "${cleanTitle}" posted successfully and submitted to Admin Verification Queue!`, type: 'success' });
+    setToast({ message: `Project "${cleanTitle}" posted successfully and submitted for admin review!`, type: 'success' });
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('freematch_shared_event'));
     window.dispatchEvent(new Event('freematch_notification_event'));
-    setToast({ message: `Project "${cleanTitle}" posted successfully and published to marketplace!`, type: 'success' });
     setProjectTitle('');
     setDescription('');
     setProjectAbstract('');
@@ -2839,34 +2896,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
               
               {/* WELCOME BANNER SECTION */}
-              <div className="bg-gradient-to-r from-blue-50/80 via-white to-blue-50/40 rounded-3xl p-7 border border-blue-100/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-                {/* Decorative background glow shape */}
-                <div className="absolute right-0 top-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
-
-                <div className="space-y-1 z-10">
-                  <p className="text-xs font-bold text-slate-500">Good evening,</p>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                    <span>{userSession?.email || `${currentUserId}@gmail.com`}</span>
-                    <span>👋</span>
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                    Here's an overview of your projects, hiring activity, and payments.
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 z-10">
-                  <p className="text-xs font-semibold text-slate-500 italic hidden lg:block max-w-[220px] text-right">
-                    “Turn your ideas into reality with the right talent.”
-                  </p>
-                  <button 
-                    onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
-                    className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
-                  >
-                    <span className="text-base font-normal">+</span>
-                    <span>Post New Project</span>
-                  </button>
-                </div>
-              </div>
+              <WelcomeBanner
+                userSession={userSession}
+                defaultUsername={currentUserId}
+                greeting="Good evening,"
+                subtitle="Here's an overview of your projects, hiring activity, and payments."
+                actionButton={
+                  <>
+                    <p className="text-xs font-semibold text-slate-500 italic hidden lg:block max-w-[220px] text-right">
+                      “Turn your ideas into reality with the right talent.”
+                    </p>
+                    <button 
+                      onClick={() => { setMilestoneItems([]); setShowPostProjectModal(true); }}
+                      className="bg-[#2563eb] hover:bg-blue-700 text-white font-extrabold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0"
+                    >
+                      <span className="text-base font-normal">+</span>
+                      <span>Post New Project</span>
+                    </button>
+                  </>
+                }
+              />
 
               {/* 4 KPI SUMMARY CARDS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -3286,7 +3335,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       })()}
 
         {/* TAB 2: MY PROJECTS TAB */}
-        {activeTab === 'projects' && (
+        {(activeTab === 'projects' || activeTab === 'my-projects' || activeTab === 'my_projects') && (
           <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
             
             {/* Header Title Section */}
@@ -3909,6 +3958,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                   Pending Review
                                 </span>
                               )}
+
+                              {/* Identity Verification Badge */}
+                              {(() => {
+                                const vSt = (pr.freelancer_verification_status || pr.verification_status || pr.verificationStatus || '').toUpperCase();
+                                const isVerified = pr.verified || vSt === 'APPROVED' || vSt === 'ACCEPTED';
+                                if (isVerified) {
+                                  return (
+                                    <span className="px-3 py-0.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1">
+                                      <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 mr-1" />
+                                      <span>✓ Identity Verified</span>
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
 
                             <p className="text-xs font-bold text-[#2563eb]">
@@ -4145,39 +4209,49 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 hiredFreelancers.map(hf => (
                   <div 
                     key={hf.id} 
-                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between space-y-5 transition-all hover:border-slate-300 hover:shadow-sm"
+                    className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between h-full space-y-5 transition-all hover:border-slate-300 hover:shadow-sm"
                   >
-                    <div className="space-y-4">
-                      {/* Header: Avatar + Info + Active Badge */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center space-x-3">
+                    <div className="space-y-4 flex-1 flex flex-col justify-between">
+                      {/* Header Section: Avatar, Info, Dedicated Badges */}
+                      <div className="space-y-3">
+                        <div className="flex items-start space-x-3.5">
                           <div className="w-12 h-12 rounded-2xl bg-[#2563eb] text-white font-extrabold text-base flex items-center justify-center shadow-xs shrink-0">
                             {hf.avatar}
                           </div>
-                          <div>
-                            <h3 className="font-extrabold text-base text-slate-900 tracking-tight leading-snug">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-extrabold text-base text-slate-900 tracking-tight leading-snug truncate" title={hf.name}>
                               {hf.name}
                             </h3>
-                            <p className="text-xs font-bold text-[#2563eb] mt-0.5">
+                            <p className="text-xs font-bold text-[#2563eb] mt-0.5 truncate" title={hf.title}>
                               {hf.title}
                             </p>
                             <div className="flex items-center space-x-1 mt-1">
                               <span className="text-amber-400 text-xs">★</span>
-                              <span className="text-xs font-extrabold text-slate-800">{hf.rating || '4.0'}</span>
+                              <span className="text-xs font-extrabold text-slate-800">{hf.rating || '4.9'}</span>
                             </div>
                           </div>
                         </div>
 
-                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-1 rounded-full text-[11px] font-extrabold flex items-center space-x-1 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                          <span>Active Contract</span>
-                        </span>
+                        {/* Dedicated Verification & Active Contract Badges Bar */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                          {Boolean(hf.verified || (hf.verification_status || '').toUpperCase() === 'APPROVED') && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center space-x-1 shrink-0">
+                              <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>✓ Identity Verified</span>
+                            </span>
+                          )}
+
+                          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold flex items-center space-x-1.5 shrink-0 ml-auto">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                            <span>Active Contract</span>
+                          </span>
+                        </div>
                       </div>
 
                       {/* Info Sub-Card: Active Project, Hourly Rate, Hired Date */}
-                      <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-2.5">
+                      <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-2.5 h-[115px] flex flex-col justify-between">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">
                             Active Project
                           </span>
                           <span className="text-xs font-extrabold text-slate-900 text-right truncate max-w-[170px]" title={hf.project}>
@@ -4186,7 +4260,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">
                             Hourly Rate
                           </span>
                           <span className="text-xs font-extrabold text-emerald-600">
@@ -4195,7 +4269,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         </div>
 
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider shrink-0">
                             Hired Date
                           </span>
                           <span className="text-xs font-bold text-slate-600">
@@ -4206,19 +4280,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     </div>
 
                     {/* Actions Buttons 2x2 Grid */}
-                    <div className="space-y-2 pt-1">
+                    <div className="space-y-2 pt-2 border-t border-slate-100/60 mt-auto">
                       <div className="grid grid-cols-2 gap-2">
                         <button 
                           onClick={() => setSelectedProfileFreelancer(hf)} 
-                          className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
+                          className="w-full h-10 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200/80 rounded-xl text-xs font-bold transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5 shadow-2xs"
                         >
                           <span>👤</span>
-                          <span>Profile & Reviews</span>
+                          <span className="truncate">Profile & Reviews</span>
                         </button>
 
                         <button
                           onClick={() => handleToggleSaveFreelancer(hf)}
-                          className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 border ${
+                          className={`w-full h-10 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center space-x-1.5 border ${
                             isFreelancerSaved(hf)
                               ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300 shadow-2xs'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -4242,14 +4316,14 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       <div className="grid grid-cols-2 gap-2">
                         <button 
                           onClick={() => { setSelectedChat(hf.name); setActiveTab('messages'); }} 
-                          className="w-full py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1.5"
+                          className="w-full h-10 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center shadow-xs flex items-center justify-center space-x-1.5"
                         >
                           <span>💬 Chat</span>
                         </button>
 
                         <button 
                           onClick={() => { setSelectedKanbanProject(hf.project || 'All'); setActiveTab('kanban'); }} 
-                          className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1.5"
+                          className="w-full h-10 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-extrabold transition-all cursor-pointer text-center border border-slate-200 flex items-center justify-center space-x-1.5"
                         >
                           <span>📌 Tasks</span>
                         </button>
@@ -4370,8 +4444,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <div className="w-7 h-7 rounded-full bg-[#2563eb] text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-xs">
                             {initials}
                           </div>
-                          <span className="text-xs font-semibold text-slate-500">
-                            Freelancer: <span className="font-extrabold text-[#2563eb]">{cFreelancer}</span>
+                          <span className="text-xs font-semibold text-slate-500 flex items-center space-x-2">
+                            <span>Freelancer: <span className="font-extrabold text-[#2563eb]">{cFreelancer}</span></span>
+                            {Boolean(c.freelancer_verified || (c.freelancer_verification_status || '').toUpperCase() === 'APPROVED') && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                ✓ Identity Verified
+                              </span>
+                            )}
                           </span>
                         </div>
 
@@ -4729,6 +4808,120 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </span>
               </div>
             </div>
+            {/* PAYMENT REQUIRED SECTION - Completed Milestones Awaiting Client Release */}
+            {(() => {
+              const pendingList = clientFinancials?.pending_milestone_payments || clientFinancials?.pending_milestones || [];
+              const combinedPayable = [...pendingList];
+              if (Array.isArray(dbContracts)) {
+                dbContracts.forEach(c => {
+                  if ((c.status || '').toLowerCase() !== 'cancelled' && (c.status || '').toLowerCase() !== 'completed' && c.milestones) {
+                    c.milestones.forEach(m => {
+                      const mSt = String(m.status || '').toLowerCase().trim();
+                      const isPaid = m.is_paid || mSt === 'paid' || mSt === 'approved';
+                      if (!isPaid && (mSt === 'completed' || mSt === 'done' || mSt === 'awaiting client payment')) {
+                        const mId = m.id || m.milestone_id;
+                        if (!combinedPayable.some(existing => String(existing.id || existing.milestone_id) === String(mId))) {
+                          const flName = c.freelancerName || c.freelancer || 'Assigned Freelancer';
+                          const pTitle = c.projectName || c.project || 'Project Deliverable';
+                          const rawAmt = m.amount ? String(m.amount).replace(/[^0-9]/g, '') : '0';
+                          const val = parseInt(rawAmt, 10) || 0;
+                          combinedPayable.push({
+                            id: mId,
+                            milestone_id: mId,
+                            contract_id: c.id || c.contractId,
+                            project: pTitle,
+                            milestone: m.title || `Phase ${m.number || 1}`,
+                            freelancer: flName,
+                            amount: val,
+                            amount_str: formatCurrency(val),
+                            work_status: "DONE / 100%",
+                            milestone_status: "Completed",
+                            payment_status: "Awaiting Client Payment",
+                            payable: true
+                          });
+                        }
+                      }
+                    });
+                  }
+                });
+              }
+
+              // Exclude any milestones that are already paid in backend database or transactions
+              const activePayable = combinedPayable.filter(m => {
+                const mSt = String(m.milestone_status || m.status || m.payment_status || '').toLowerCase().trim();
+                const mId = String(m.id || m.milestone_id);
+                const isPaidInTransactions = Array.isArray(clientFinancials?.transactions) && clientFinancials.transactions.some(tx => String(tx.db_id || tx.payment_id || tx.milestone_id) === mId || (tx.milestone && tx.milestone.toLowerCase() === (m.milestone || '').toLowerCase() && tx.status === 'Paid'));
+                return !m.is_paid && mSt !== 'paid' && mSt !== 'approved' && !isPaidInTransactions;
+              });
+
+              if (activePayable.length === 0) return null;
+
+              return (
+                <div className="p-6 rounded-3xl bg-amber-50/60 border border-amber-200/90 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/60">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-2 rounded-xl bg-amber-100 text-[#d97706]">
+                        <AlertCircle className="w-5 h-5 text-[#d97706]" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-base text-slate-900 tracking-tight">Payment Required</h3>
+                        <p className="text-xs text-slate-600 font-medium">Completed deliverables awaiting your review and payment release</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-300 shrink-0">
+                      {activePayable.length} {activePayable.length === 1 ? 'Action Required' : 'Actions Required'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {activePayable.map(m => (
+                      <div key={m.id || m.milestone_id} className="p-5 rounded-2xl bg-white border border-amber-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-black text-slate-900 text-sm sm:text-base">{m.project}</span>
+                            <span className="text-xs text-slate-400 font-semibold">•</span>
+                            <span className="text-xs font-extrabold text-slate-600">Freelancer: {m.freelancer}</span>
+                          </div>
+                          <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                            <span>Milestone:</span>
+                            <span className="text-blue-600 font-extrabold">{m.milestone}</span>
+                          </p>
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1">
+                              <span>✓</span> Completed (DONE / 100%)
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold border bg-amber-50 text-amber-700 border-amber-200">
+                              Awaiting Client Payment
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 border-slate-100 pt-3 md:pt-0 shrink-0">
+                          <div className="text-right">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Milestone Amount</span>
+                            <span className="text-xl font-black text-slate-900 tracking-tight">{formatCurrency(m.amount)}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setReviewingMilestone(m)}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold transition-all cursor-pointer"
+                            >
+                              Review
+                            </button>
+                            <button
+                              onClick={() => setConfirmingPayMilestone(m)}
+                              className="px-5 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-xl text-xs font-black shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center space-x-1.5"
+                            >
+                              <span>Pay {formatCurrency(m.amount)}</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* MILESTONE TRANSACTION HISTORY TABLE CARD */}
             <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
@@ -4802,12 +4995,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           </td>
                           <td className="py-3.5 px-2 font-mono text-xs text-blue-600 font-bold">{py.id || 'TXN-9938'}</td>
                           <td className="py-3.5 px-2">
-                            <button className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1">
-                              <span>📄 PDF</span>
+                            <button
+                              onClick={() => {
+                                const cId = py.contract_id || py.contractId || py.contract || '18';
+                                const pyId = py.db_id || py.id;
+                                if (pyId && String(pyId).match(/^\d+$/)) {
+                                  window.open(`http://localhost:8000/api/payments/${pyId}/invoice/`, '_blank');
+                                } else {
+                                  window.open(`http://localhost:8000/api/contracts/${cId}/invoice/`, '_blank');
+                                }
+                              }}
+                              className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
+                              title="Download Official Tax Invoice PDF"
+                            >
+                              <span>📄 PDF Invoice</span>
                             </button>
                           </td>
                           <td className="py-3.5 px-2 text-right">
-                            <button className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-extrabold transition-all cursor-pointer">
+                            <button
+                              onClick={() => setViewingTransaction(py)}
+                              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-extrabold transition-all cursor-pointer"
+                            >
                               Details
                             </button>
                           </td>
@@ -5160,7 +5368,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               clientProjects={clientProjects}
               hiredFreelancers={hiredFreelancers}
               contracts={contracts}
-              onNavigateTab={setActiveTab}
+              onNavigateTab={(tabName, projectObj) => {
+                const targetTab = (tabName === 'my-projects' || tabName === 'my_projects') ? 'projects' : tabName;
+                setActiveTab(targetTab);
+                if (projectObj) {
+                  setSelectedProjectDetailView(projectObj);
+                }
+              }}
+              onViewProjectDetail={(projectObj) => {
+                if (projectObj) {
+                  setSelectedProjectDetailView(projectObj);
+                }
+              }}
               showToastMessage={(msg, type) => setToast({ message: msg, type })}
             />
           </div>
@@ -5944,21 +6163,24 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
           // Fallback for custom/other freelancers
           return {
+            user_id: rawObj?.email || rawObj?.user_id || rawObj?.username || targetName,
+            username: rawObj?.email || rawObj?.user_id || rawObj?.username || targetName,
+            email: rawObj?.email || targetName,
             name: targetName,
-            avatar: rawObj.avatar || (targetName ? targetName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'FL'),
-            title: rawObj.title || 'Senior Software Engineer',
-            headline: rawObj.title || 'Senior Software Engineer & AI Specialist',
-            location: rawObj.location || 'San Francisco, CA',
-            hourlyRate: rawObj.rate || rawObj.hourly_rate || '₹75/hr',
+            avatar: rawObj?.avatar || (targetName ? targetName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'FL'),
+            title: rawObj?.title || 'Senior Software Engineer',
+            headline: rawObj?.title || 'Senior Software Engineer & AI Specialist',
+            location: rawObj?.location || 'San Francisco, CA',
+            hourlyRate: rawObj?.rate || rawObj?.hourly_rate || '₹75/hr',
             availabilityStatus: 'Available for Work',
             availableHours: '40 hrs/week',
-            yearsExperience: '5+',
-            projectsCompleted: rawObj.completedProjects || '12',
+            yearsExperience: rawObj?.years_experience || rawObj?.yearsExperience || '5+',
+            completed_projects_count: rawObj?.completed_projects_count ?? rawObj?.completedProjects,
             jobSuccessRate: '100%',
             onTimeDelivery: '98%',
-            lifetimeEarnings: rawObj.earnings || '₹25,000',
-            bio: rawObj.bio || `${targetName} is a verified professional freelancer on FreeMatch AI with expertise in modern web stack and cloud solutions.`,
-            skills: rawObj.skills ? (Array.isArray(rawObj.skills) ? rawObj.skills : String(rawObj.skills).split(',').map(s=>s.trim())) : ['React.js', 'Python', 'Django', 'PostgreSQL', 'REST API'],
+            lifetimeEarnings: rawObj?.earnings || rawObj?.total_earnings,
+            bio: rawObj?.bio || `${targetName} is a verified professional freelancer on FreeMatch AI with expertise in modern web stack and cloud solutions.`,
+            skills: rawObj?.skills ? (Array.isArray(rawObj.skills) ? rawObj.skills : String(rawObj.skills).split(',').map(s=>s.trim())) : ['React.js', 'Python', 'Django', 'PostgreSQL', 'REST API'],
             portfolioProjects: [],
             workExperience: [],
             education: [],
@@ -6065,18 +6287,42 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               <h4 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-2">Agreed Milestone Breakdown</h4>
               <div className="space-y-2">
                 {(selectedContractDetail.milestones && selectedContractDetail.milestones.length > 0) ? (
-                  selectedContractDetail.milestones.map(m => (
-                    <div key={m.id || m.number} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-extrabold text-slate-900">Phase {m.number}: {m.title}</p>
-                        <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">{m.description || 'Milestone deliverable'}</p>
+                  selectedContractDetail.milestones.map((m, idx) => {
+                    const mSt = (m.status || '').toLowerCase();
+                    const isPaid = mSt === 'paid' || mSt === 'approved';
+                    const isReview = mSt.includes('review') || mSt.includes('submitted') || mSt === 'completed';
+                    const displayStatus = isPaid ? 'Paid' : (mSt === 'completed' ? 'Completed — Payment Required' : m.status);
+                    return (
+                      <div key={m.id || m.number || idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs gap-2">
+                        <div>
+                          <p className="font-extrabold text-slate-900">Phase {m.number || m.milestone_number || idx + 1}: {m.title}</p>
+                          <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">{m.description || 'Milestone deliverable'}</p>
+                        </div>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <span className="font-extrabold text-emerald-600 text-sm block">{formatCurrency(m.amount)}</span>
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${isPaid ? 'bg-emerald-100 text-emerald-800' : isReview ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>
+                            {displayStatus}
+                          </span>
+                          {isReview && m.id && (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <button
+                                onClick={() => handleUpdateMilestoneStatus(m.id, 'Paid')}
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-lg text-xs cursor-pointer shadow-2xs"
+                              >
+                                Pay {formatCurrency(m.amount)}
+                              </button>
+                              <button
+                                onClick={() => handleUpdateMilestoneStatus(m.id, 'Changes Requested')}
+                                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-lg text-xs cursor-pointer shadow-2xs"
+                              >
+                                Request Changes
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="font-extrabold text-emerald-600 text-sm block">{formatCurrency(m.amount)}</span>
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block">{m.status}</span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
                     <div>
@@ -6250,14 +6496,43 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* PROJECT DETAILS MODAL */}
       {selectedProjectDetailView && (() => {
         const p = selectedProjectDetailView;
+        if (p.error || p.notFound) {
+          return (
+            <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 text-slate-900 shadow-2xl p-6 sm:p-8 space-y-4 text-center">
+                <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">✕</div>
+                <h3 className="text-lg font-extrabold text-slate-900">Project Notice</h3>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  {p.error || "The requested project could not be found or you do not have permission to view this project."}
+                </p>
+                <div className="pt-2">
+                  <button 
+                    onClick={() => setSelectedProjectDetailView(null)} 
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         const pAppCount = getProjectApplicantCount(p);
         const pProgPct = getProjectProgress(p);
         const acceptedProp = proposals.find(pr => (pr.projectId === p.id || (pr.projectTitle || pr.project) === p.title) && (pr.status === 'Accepted' || pr.status === 'Hired'));
         const linkedContract = contracts.find(c => (c.projectName || c.project || '').toLowerCase().trim() === (p.title || '').toLowerCase().trim() || c.project_id == p.id);
-        const hiredName = p.hiredFreelancer || p.freelancer || (acceptedProp ? (acceptedProp.freelancerName || acceptedProp.freelancer) : (linkedContract ? (linkedContract.freelancerName || linkedContract.freelancer) : null));
-        const contractCode = p.contractId || (linkedContract ? (linkedContract.contractId || linkedContract.id) : null);
+        const hiredName = p.hiredFreelancer || p.hired_freelancer || p.freelancer || (acceptedProp ? (acceptedProp.freelancerName || acceptedProp.freelancer) : (linkedContract ? (linkedContract.freelancerName || linkedContract.freelancer) : null));
+        const contractCode = p.contractId || p.contract_id || (linkedContract ? (linkedContract.contractId || linkedContract.id) : null);
         const isAssigned = Boolean(hiredName || linkedContract || p.status === 'In Progress' || p.status === 'Completed');
         const appStatus = p.approval_status || p.approvalStatus || 'Approved';
+
+        const clientDisplayName = p.client_name || p.client || currentUserName;
+        const clientDisplayEmail = p.client_email || (userSession?.email || `${currentUserId}@freematch.ai`);
+
+        const pMilestones = p.milestones && p.milestones.length > 0 
+          ? p.milestones 
+          : (linkedContract && linkedContract.milestones ? linkedContract.milestones : []);
 
         return (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -6318,25 +6593,90 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 </div>
               )}
 
-              {/* Grid 1: Project Overview */}
+              {/* Grid 1: Project Overview & Client Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
                   <p className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Project Overview</p>
                   <p className="text-slate-800 font-medium">Category: <span className="text-[#2563eb] font-bold">{p.category}</span></p>
                   <p className="text-slate-800 font-medium">Duration: <span className="font-bold">{p.duration || '3 Weeks'}</span></p>
                   <p className="text-slate-800 font-medium">Target Deadline: <span className="text-[#2563eb] font-extrabold">{p.deadline || calculateProjectDeadline(p.postedDate || p.created_at, p.duration)}</span></p>
+                  <p className="text-slate-800 font-medium">Original Budget: <span className="font-bold text-slate-700">{formatCurrency(p.original_budget || p.originalBudget || p.budget)}</span></p>
                   <p className="text-slate-800 font-medium">Agreed Budget: <span className="text-slate-900 font-extrabold">{formatCurrency(p.agreedBudget || p.agreed_budget || p.agreedAmount || p.agreed_amount || (linkedContract ? (linkedContract.agreedAmount || linkedContract.agreed_amount || linkedContract.amount) : p.budget))}</span></p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/80 space-y-1.5">
-                  <p className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">Hired Freelancer & Escrow</p>
-                  <p className="text-slate-900 font-extrabold text-sm">{hiredName || 'None yet'}</p>
+                  <p className="text-xs font-extrabold text-[#2563eb] uppercase tracking-wider">Client & Hired Freelancer</p>
+                  <p className="text-slate-800 font-medium">Client: <span className="font-extrabold text-slate-900">{clientDisplayName}</span> ({clientDisplayEmail})</p>
+                  <p className="text-slate-800 font-medium">Hired Freelancer: <span className="font-extrabold text-slate-900">{hiredName || 'None yet'}</span></p>
                   <p className="text-slate-600 font-medium">Contract ID: <span className="text-emerald-600 font-bold">{contractCode || 'N/A'}</span></p>
                   <p className="text-slate-600 font-medium">Escrow Status: <span className="text-emerald-600 font-extrabold">{linkedContract ? `${formatCurrency(linkedContract.escrow_balance || linkedContract.escrow || p.budget)} Locked` : 'Not Funded Yet'}</span></p>
                 </div>
               </div>
 
-              {/* Progress & Milestone Status (Only show sprint completion if project assigned) */}
+              {/* Required Skills */}
+              {p.skills && (
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Required Skills</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Array.isArray(p.skills) ? p.skills : String(p.skills).split(',')).map((sk, i) => (
+                      <span key={i} className="text-xs font-extrabold px-3 py-1 rounded-full bg-blue-50 text-[#2563eb] border border-blue-100">
+                        {typeof sk === 'string' ? sk.trim() : sk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Full Description & Abstract */}
+              {p.description && (
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Project Scope & Description</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    {p.description}
+                  </p>
+                </div>
+              )}
+
+              {p.abstract && (
+                <div className="space-y-1.5 text-xs">
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#2563eb]">Technical Abstract / Architecture Spec</h4>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium whitespace-pre-wrap p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    {p.abstract}
+                  </p>
+                </div>
+              )}
+
+              {/* Milestones Breakdown Section */}
+              {pMilestones && pMilestones.length > 0 && (
+                <div className="space-y-3 text-xs">
+                  <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
+                    Project Milestones & Deliverables ({pMilestones.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {pMilestones.map((m, idx) => (
+                      <div key={m.id || idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <span className="font-extrabold text-slate-900 block text-xs">
+                            Milestone {m.number || idx + 1}: {m.title || m.name || 'Phase Deliverable'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            Amount: <strong className="text-[#2563eb]">{formatCurrency(m.amount)}</strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                            m.status === 'Completed' || m.status === 'Paid' || m.is_paid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                          }`}>
+                            {m.status || (m.is_paid ? 'Paid & Released' : 'In Progress')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Progress & Milestone Status */}
               {isAssigned && (
                 <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                   <div className="flex justify-between text-xs font-bold text-slate-700">
@@ -6453,6 +6793,318 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-xs shadow-xs cursor-pointer transition-colors"
               >
                 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SIMULATED PAYMENT CONFIRMATION MODAL */}
+      {confirmingPayMilestone && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb]">
+                  <Wallet className="w-5 h-5 text-[#2563eb]" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900 tracking-tight">Confirm Payment Release</h3>
+                  <p className="text-xs text-slate-500 font-medium">Release escrow funds for completed deliverable</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmingPayMilestone(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Details Grid */}
+            <div className="space-y-3 bg-slate-50 p-4.5 rounded-2xl border border-slate-200/80 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="font-semibold text-slate-500">Project</span>
+                <span className="font-extrabold text-slate-900 text-right">{confirmingPayMilestone.project}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="font-semibold text-slate-500">Milestone</span>
+                <span className="font-extrabold text-blue-600 text-right">{confirmingPayMilestone.milestone}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="font-semibold text-slate-500">Freelancer</span>
+                <span className="font-extrabold text-slate-900 text-right">{confirmingPayMilestone.freelancer}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
+                <span className="font-semibold text-slate-500">Payment Method</span>
+                <span className="font-extrabold text-slate-800 text-right">Demo / Simulated Payment</span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="font-extrabold text-slate-700 text-sm">Total Amount</span>
+                <span className="font-black text-[#059669] text-xl">{formatCurrency(confirmingPayMilestone.amount)}</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 font-medium leading-relaxed bg-blue-50/60 p-3 rounded-xl border border-blue-100 text-center">
+              🔒 Clicking <strong>Confirm Payment</strong> will release {formatCurrency(confirmingPayMilestone.amount)} from contract escrow directly to {confirmingPayMilestone.freelancer} and generate an official tax invoice.
+            </p>
+
+            {/* Modal Action Buttons */}
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                onClick={() => setConfirmingPayMilestone(null)}
+                className="w-1/2 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs transition-all cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const mId = confirmingPayMilestone.id || confirmingPayMilestone.milestone_id;
+                  setConfirmingPayMilestone(null);
+                  await handleUpdateMilestoneStatus(mId, 'Paid');
+                }}
+                className="w-1/2 py-3 px-4 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black rounded-2xl text-xs shadow-md hover:shadow-lg transition-all cursor-pointer text-center"
+              >
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MILESTONE DELIVERABLE REVIEW MODAL */}
+      {reviewingMilestone && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb]">
+                  <FileText className="w-5.5 h-5.5 text-[#2563eb]" />
+                </div>
+                <div>
+                  <h3 className="font-black text-xl text-slate-900 tracking-tight">Milestone Deliverable Review</h3>
+                  <p className="text-xs text-slate-500 font-medium">Inspect completed deliverable and verify escrow release details</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReviewingMilestone(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Deliverable Details Summary Grid */}
+            <div className="space-y-4">
+              <div className="p-4.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">PROJECT</span>
+                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">{reviewingMilestone.contract_number || 'CTR-79'}</span>
+                </div>
+                <h4 className="font-extrabold text-base text-slate-900">{reviewingMilestone.project}</h4>
+                <div className="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-500 font-medium block">Completed Milestone:</span>
+                    <strong className="text-slate-900 font-extrabold text-sm">{reviewingMilestone.milestone}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-medium block">Assigned Freelancer:</span>
+                    <strong className="text-slate-900 font-extrabold text-sm">{reviewingMilestone.freelancer}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Work Progress Bar */}
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-extrabold text-emerald-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
+                    <span>Work Completion Status</span>
+                  </span>
+                  <span className="font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px]">DONE / 100%</span>
+                </div>
+                <div className="w-full bg-emerald-200/70 h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-600 h-full rounded-full w-full"></div>
+                </div>
+                <p className="text-[11px] text-emerald-800 font-semibold pt-1">
+                  Deliverable verified as completed by {reviewingMilestone.freelancer}. Milestone funds are ready for client release.
+                </p>
+              </div>
+
+              {/* Amount & Escrow Release Box */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/90 to-indigo-50/90 border border-blue-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Agreed Milestone Amount</span>
+                  <span className="text-2xl font-black text-slate-900 tracking-tight">{formatCurrency(reviewingMilestone.amount)}</span>
+                </div>
+                <span className="text-xs font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-300 shrink-0">
+                  Awaiting Payment
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                onClick={() => setReviewingMilestone(null)}
+                className="w-1/2 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs transition-all cursor-pointer text-center"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const m = reviewingMilestone;
+                  setReviewingMilestone(null);
+                  setConfirmingPayMilestone(m);
+                }}
+                className="w-1/2 py-3 px-4 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black rounded-2xl text-xs shadow-md hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center space-x-1.5"
+              >
+                <span>Pay {formatCurrency(reviewingMilestone.amount)}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. TRANSACTION DETAILS MODAL */}
+      {viewingTransaction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 relative max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100">
+                  <FileText className="w-5 h-5 text-[#2563eb]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Transaction Details</h3>
+                  <p className="text-xs text-slate-500 font-medium">Full database transaction audit record</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingTransaction(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Details Grid */}
+            <div className="space-y-4">
+              {/* Amount & Status Card */}
+              <div className="p-4.5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-between shadow-sm">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">TRANSACTION AMOUNT</span>
+                  <span className="text-2xl font-black tracking-tight text-white">
+                    {formatCurrency(viewingTransaction.amount_val || viewingTransaction.amount)}
+                  </span>
+                </div>
+                <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  {viewingTransaction.payment_status || viewingTransaction.status || 'Paid & Released'}
+                </span>
+              </div>
+
+              {/* Detail Items List */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3.5 text-xs">
+                {/* Project Name */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Project Name</span>
+                  <span className="font-extrabold text-slate-900 sm:text-right">{viewingTransaction.project_name || viewingTransaction.project || 'AI-Powered Resume Analyzer'}</span>
+                </div>
+
+                {/* Milestone Name */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Milestone Name</span>
+                  <span className="font-extrabold text-slate-900 sm:text-right">{viewingTransaction.milestone_name || viewingTransaction.milestone || 'UI and Backend Setup'}</span>
+                </div>
+
+                {/* Client Name / Email */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Client Details</span>
+                  <span className="font-extrabold text-slate-900 sm:text-right">{viewingTransaction.client_display || viewingTransaction.client_name || userSession?.email || '—'}</span>
+                </div>
+
+                {/* Freelancer Name / Email */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Freelancer Details</span>
+                  <span className="font-extrabold text-slate-900 sm:text-right">{viewingTransaction.freelancer_display || viewingTransaction.freelancer_name || '—'}</span>
+                </div>
+
+                {/* Contract ID */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Contract ID</span>
+                  <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">{viewingTransaction.contract_number || `CTR-${viewingTransaction.contract_id || 79}`}</span>
+                </div>
+
+                {/* Milestone ID */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Milestone ID</span>
+                  <span className="font-mono font-bold text-slate-800">{viewingTransaction.milestone_id || `MS-${viewingTransaction.db_id || 85}`}</span>
+                </div>
+
+                {/* Transaction ID */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Transaction ID</span>
+                  <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">{viewingTransaction.id || `TXN-${viewingTransaction.db_id || 28}`}</span>
+                </div>
+
+                {/* Transaction Type */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Transaction Type</span>
+                  <span className="font-extrabold text-slate-900 bg-slate-200/80 px-2.5 py-0.5 rounded-md text-[11px]">{viewingTransaction.type || viewingTransaction.payment_type || 'Milestone Release'}</span>
+                </div>
+
+                {/* Payment Date */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Payment Date</span>
+                  <span className="font-bold text-slate-800">{viewingTransaction.date || 'Sep 27, 2026'}</span>
+                </div>
+
+                {/* Payment Method */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200/60">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Payment Method</span>
+                  <span className="font-bold text-slate-800">{viewingTransaction.payment_method || 'FreeMatch Escrow Wallet'}</span>
+                </div>
+
+                {/* Invoice Information & Download Button */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200/60">
+                  <div>
+                    <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block">Invoice Information</span>
+                    <span className="font-bold text-slate-700">{viewingTransaction.invoice_info || `Invoice #INV-${viewingTransaction.db_id || 28}`}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const cId = viewingTransaction.contract_id || viewingTransaction.contractId || '79';
+                      const pyId = viewingTransaction.db_id || viewingTransaction.payment_id || viewingTransaction.id;
+                      if (pyId && String(pyId).match(/^\d+$/)) {
+                        window.open(`http://localhost:8000/api/payments/${pyId}/invoice/`, '_blank');
+                      } else {
+                        window.open(`http://localhost:8000/api/contracts/${cId}/invoice/`, '_blank');
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] rounded-xl text-xs font-extrabold border border-blue-200 transition-all cursor-pointer flex items-center space-x-1 shrink-0"
+                  >
+                    <span>📄 Download PDF Invoice</span>
+                  </button>
+                </div>
+
+                {/* Payment / Release Status */}
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Release Status</span>
+                  <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[11px]">
+                    {viewingTransaction.release_status || 'Completed & Released from Escrow'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="pt-2">
+              <button
+                onClick={() => setViewingTransaction(null)}
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-2xl text-xs transition-all cursor-pointer text-center shadow-md hover:shadow-lg"
+              >
+                Close
               </button>
             </div>
           </div>

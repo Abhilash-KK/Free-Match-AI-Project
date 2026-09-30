@@ -21,6 +21,61 @@ export function formatFormattedDate(dateObj) {
 }
 
 /**
+ * Formats a Date object, ISO string, or timestamp into Indian Standard Time (IST, UTC+05:30 / Asia/Kolkata).
+ * Format: "Sep 27, 2026, 06:46 PM" or "Sep 27, 2026"
+ *
+ * @param {Date|string|number} dateInput 
+ * @param {boolean} includeTime 
+ * @returns {string}
+ */
+export function formatISTTimestamp(dateInput, includeTime = true) {
+  if (!dateInput) return '';
+  if (typeof dateInput === 'string') {
+    const trimmed = dateInput.trim();
+    if (trimmed.toLowerCase() === 'just now' || trimmed.toLowerCase() === 'today' || trimmed.toLowerCase() === 'recent' || trimmed.toLowerCase() === 'completed' || trimmed.toLowerCase() === 'active') {
+      return trimmed;
+    }
+  }
+
+  let d;
+  if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date(dateInput);
+  }
+
+  if (!d || isNaN(d.getTime())) {
+    return String(dateInput);
+  }
+
+  try {
+    const dateStr = d.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    if (!includeTime) return dateStr;
+
+    const timeStr = d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    return `${dateStr}, ${timeStr}`;
+  } catch (err) {
+    return formatFormattedDate(d);
+  }
+}
+
+export function formatISTDate(dateInput) {
+  return formatISTTimestamp(dateInput, false);
+}
+
+/**
  * Calculates a project or contract deadline based on its start/posted date and duration.
  *
  * @param {string|Date} startDateInput - Posted date or start date (e.g., "Sep 8, 2026", "2026-09-08", ISO string, or Date)

@@ -137,7 +137,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
       sender_name: currentUserName,
       receiver: selectedCounterpart,
       text: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
       date: 'Today',
       is_mine: true,
       is_read: false

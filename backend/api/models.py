@@ -15,7 +15,7 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, default='')
     avatar_url = models.TextField(blank=True, default='')
     verified = models.BooleanField(default=False)
-    verification_status = models.CharField(max_length=30, default='Pending Verification')
+    verification_status = models.CharField(max_length=30, default='Not Submitted')
     verification_rejection_reason = models.TextField(blank=True, default='')
     is_deactivated = models.BooleanField(default=False)
     deactivated_at = models.DateTimeField(null=True, blank=True)
@@ -38,7 +38,7 @@ class FreelancerProfile(models.Model):
     rating = models.FloatField(default=0.0, validators=[MinValueValidator(0.0), MaxValueValidator(5.0)])
     total_earnings = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, validators=[MinValueValidator(0.0)])
     verified = models.BooleanField(default=False)
-    verification_status = models.CharField(max_length=30, default='Pending Verification')
+    verification_status = models.CharField(max_length=30, default='Not Submitted')
     verification_rejection_reason = models.TextField(blank=True, default='')
     skills_list = models.TextField(blank=True, default='')
     avatar_url = models.TextField(blank=True, default='')
@@ -96,10 +96,34 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def get_progress_percentage(self):
+        if self.status == 'Completed':
+            return 100
+        contract = self.contract_set.filter(status__in=['Active', 'Completed']).first()
+        if not contract:
+            from .models import Contract
+            contract = Contract.objects.filter(project_name__iexact=self.title).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).first()
+        
+        if contract and contract.milestones.exists():
+            cms = list(contract.milestones.all())
+            if cms:
+                paid_count = sum(1 for cm in cms if (cm.status or '').strip().lower() in ('paid', 'approved', 'completed'))
+                if paid_count == len(cms):
+                    return 100
+                import re
+                total_amt = 0.0
+                paid_amt = 0.0
+                for cm in cms:
+                    digits = re.sub(r'[^0-9.]', '', str(cm.amount or '0'))
+                    val = float(digits) if digits else 0.0
+                    total_amt += val
+                    if (cm.status or '').strip().lower() in ('paid', 'approved', 'completed'):
+                        paid_amt += val
+                if total_amt > 0:
+                    return int(round((paid_amt / total_amt) * 100))
+                return int(round((paid_count / len(cms)) * 100))
+
         tasks = self.sprint_tasks.all()
         if not tasks.exists():
-            if self.status == 'Completed':
-                return 100
             return 0
         statuses = [t.status for t in tasks]
         total = len(statuses)
@@ -133,6 +157,9 @@ class SprintTask(models.Model):
     assignee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_sprint_tasks', null=True, blank=True)
     status = models.CharField(max_length=30, choices=STAGE_CHOICES, default='To Do')
     budget = models.CharField(max_length=50, default='₹2,500')
+    milestone = models.ForeignKey('ContractMilestone', on_delete=models.SET_NULL, null=True, blank=True, related_name='sprint_tasks')
+    milestone_number = models.IntegerField(default=1)
+    is_locked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -157,6 +184,7 @@ class Proposal(models.Model):
     delivery_time = models.CharField(max_length=50, default='2 Weeks')
     cover_letter = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    milestones_json = models.TextField(blank=True, default='[]')
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -374,6 +402,78 @@ class FreelancerWithdrawal(models.Model):
 
     def __str__(self):
         return f"Withdrawal ₹{self.amount} ({self.status}) by {self.freelancer.username}"
+
+class FreelancerIdentityVerification(models.Model):
+    DOCUMENT_TYPES = (
+        ('Aadhaar Card', 'Aadhaar Card'),
+        ('PAN Card', 'PAN Card'),
+        ('Passport', 'Passport'),
+        ('Driving Licence', 'Driving Licence'),
+        ('Voter ID', 'Voter ID'),
+    )
+    STATUS_CHOICES = (
+        ('NOT_SUBMITTED', 'Not Submitted'),
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    )
+
+    freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='identity_verifications')
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
+    document_number = models.CharField(max_length=100)
+    document_file = models.FileField(upload_to='kyc_documents/', blank=True, null=True)
+    document_file_url = models.TextField(blank=True, default='')
+    document_file_name = models.CharField(max_length=255, blank=True, default='')
+    document_file_size = models.CharField(max_length=50, blank=True, default='')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='PENDING')
+    rejection_reason = models.TextField(blank=True, default='')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_kyc_verifications')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"KYC Submission ({self.document_type}) - {self.freelancer.username} [{self.status}]"
+
+
+class ProjectDocumentVerification(models.Model):
+    DOCUMENT_TYPES = (
+        ('Project Requirement Spec', 'Project Requirement Spec'),
+        ('Technical Architecture Abstract', 'Technical Architecture Abstract'),
+        ('Design Specs & Wireframes', 'Design Specs & Wireframes'),
+        ('Project Scope Document', 'Project Scope Document'),
+    )
+    STATUS_CHOICES = (
+        ('PENDING', 'Pending'),
+        ('APPROVED', 'Approved'),
+        ('REJECTED', 'Rejected'),
+    )
+
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='document_verifications')
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='project_document_verifications')
+    document_name = models.CharField(max_length=255)
+    document_file = models.FileField(upload_to='project_documents/', blank=True, null=True)
+    document_file_url = models.TextField(blank=True, default='')
+    document_file_size = models.CharField(max_length=50, blank=True, default='')
+    document_type = models.CharField(max_length=100, choices=DOCUMENT_TYPES, default='Project Requirement Spec')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='PENDING')
+    rejection_reason = models.TextField(blank=True, default='')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_project_documents')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"Project Doc ({self.document_name}) - {self.project.title} [{self.status}]"
+
 
 
 

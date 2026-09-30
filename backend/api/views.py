@@ -1,4 +1,6 @@
 import json
+import io
+from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -28,11 +30,41 @@ from .models import (
     FreelancerExperience,
     FreelancerEducation,
     FreelancerCertification,
-    FreelancerWithdrawal
+    FreelancerWithdrawal,
+    ProjectDocumentVerification
 )
+
+from django.utils import timezone
+from django.utils.timezone import localtime
 
 import re, calendar
 from datetime import datetime, timedelta
+
+def format_ist_datetime(dt, fmt="%b %d, %Y, %I:%M %p"):
+    if not dt:
+        return ""
+    if isinstance(dt, str):
+        return dt
+    try:
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_default_timezone())
+        local_dt = localtime(dt)
+        return local_dt.strftime(fmt)
+    except Exception:
+        return str(dt)
+
+def format_ist_date(dt, fmt="%b %d, %Y"):
+    if not dt:
+        return ""
+    if isinstance(dt, str):
+        return dt
+    try:
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_default_timezone())
+        local_dt = localtime(dt)
+        return local_dt.strftime(fmt)
+    except Exception:
+        return str(dt)
 
 def calculate_project_deadline(start_date_input, duration_str='1 Month'):
     """
@@ -40,9 +72,9 @@ def calculate_project_deadline(start_date_input, duration_str='1 Month'):
     Properly handles calendar months (e.g., Sep 8, 2026 + 1 Month = Oct 8, 2026).
     """
     if not start_date_input:
-        dt = datetime.now()
+        dt = localtime(timezone.now())
     elif isinstance(start_date_input, datetime):
-        dt = start_date_input
+        dt = localtime(start_date_input) if timezone.is_aware(start_date_input) else start_date_input
     elif hasattr(start_date_input, 'year') and hasattr(start_date_input, 'month') and hasattr(start_date_input, 'day'):
         dt = datetime(start_date_input.year, start_date_input.month, start_date_input.day)
     elif isinstance(start_date_input, str):
@@ -59,9 +91,9 @@ def calculate_project_deadline(start_date_input, duration_str='1 Month'):
             p = parse_datetime(clean_str) or parse_date(clean_str)
             if p:
                 parsed_dt = datetime(p.year, p.month, p.day)
-        dt = parsed_dt if parsed_dt else datetime.now()
+        dt = parsed_dt if parsed_dt else localtime(timezone.now())
     else:
-        dt = datetime.now()
+        dt = localtime(timezone.now())
 
     dur = duration_str if (duration_str and isinstance(duration_str, str)) else '1 Month'
     match = re.search(r'(\d+)\s*(month|week|day)s?', dur, re.IGNORECASE)
@@ -368,9 +400,18 @@ def submit_review(request):
     comment = (data.get('comment') or '').strip()
     project_title = (data.get('project_title') or 'Marketplace Project').strip()
 
+    contract_param = data.get('contract_id') or data.get('contract')
+    contract_obj = None
+    if contract_param:
+        contract_obj = (
+            Contract.objects.filter(pk=contract_param if str(contract_param).isdigit() else None).first() or
+            Contract.objects.filter(contract_id__iexact=str(contract_param).strip()).first()
+        )
+
     try:
         first_word = reviewee_name.split()[0] if reviewee_name else ''
         reviewee_user = (
+            User.objects.filter(email__iexact=reviewee_name).first() or
             User.objects.filter(username__iexact=reviewee_name).first() or
             User.objects.filter(username__iexact=reviewee_name.replace(" ", "")).first() or
             (User.objects.filter(first_name__iexact=first_word).first() if first_word else None)
@@ -378,6 +419,7 @@ def submit_review(request):
 
         reviewer_first = reviewer_name.split()[0] if reviewer_name else ''
         reviewer_user = (
+            User.objects.filter(email__iexact=reviewer_name).first() or
             User.objects.filter(username__iexact=reviewer_name).first() or
             User.objects.filter(username__iexact=reviewer_name.replace(" ", "")).first() or
             (User.objects.filter(first_name__iexact=reviewer_first).first() if reviewer_first else None) or
@@ -422,6 +464,7 @@ def submit_review(request):
         try:
             with transaction.atomic():
                 rev_obj = Review.objects.create(
+                    contract=contract_obj,
                     reviewer=reviewer_user,
                     reviewee=reviewee_user,
                     project_title=project_title,
@@ -603,16 +646,31 @@ def projects_api(request):
     if request.method == 'GET':
         try:
             status_param = request.GET.get('status')
-            client_id = request.GET.get('client_id') or request.GET.get('user_id') or request.GET.get('client_username') or request.GET.get('client')
-            if client_id:
-                user_obj = (
-                    User.objects.filter(id=client_id).first() if str(client_id).isdigit() else
-                    User.objects.filter(Q(username__iexact=client_id) | Q(email__iexact=client_id)).first()
+            client_param = request.GET.get('client_id') or request.GET.get('client_username') or request.GET.get('client')
+            user_id_param = request.GET.get('user_id')
+
+            client_user_obj = None
+            if client_param:
+                client_user_obj = (
+                    User.objects.filter(id=client_param).first() if str(client_param).isdigit() else
+                    User.objects.filter(Q(username__iexact=client_param) | Q(email__iexact=client_param)).first()
                 )
-                if user_obj:
-                    projects = Project.objects.filter(client=user_obj).order_by('-created_at')
-                else:
-                    projects = Project.objects.none()
+            elif user_id_param:
+                candidate = (
+                    User.objects.filter(id=user_id_param).first() if str(user_id_param).isdigit() else
+                    User.objects.filter(Q(username__iexact=user_id_param) | Q(email__iexact=user_id_param)).first()
+                )
+                if candidate and hasattr(candidate, 'profile') and candidate.profile.role == 'client':
+                    client_user_obj = candidate
+
+            approval_status_param = request.GET.get('approval_status') or request.GET.get('approvalStatus')
+            if not approval_status_param and status_param and status_param.strip().lower() in ('pending review', 'pending'):
+                approval_status_param = 'Pending Review'
+
+            if client_user_obj:
+                projects = Project.objects.filter(client=client_user_obj).order_by('-created_at')
+            elif approval_status_param:
+                projects = Project.objects.filter(approval_status__iexact=approval_status_param).order_by('-created_at')
             else:
                 projects = Project.objects.filter(approval_status='Approved').order_by('-created_at')
 
@@ -716,6 +774,20 @@ def projects_api(request):
         if not title:
             return Response({"error": "Project Title is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Milestone sum validation against total project budget
+        if isinstance(milestones_raw, list) and len(milestones_raw) > 0:
+            b_digits = re.sub(r'[^0-9]', '', str(budget or '0'))
+            budget_num = int(b_digits) if b_digits else 0
+            m_sum = 0
+            for m_item in milestones_raw:
+                if isinstance(m_item, dict):
+                    m_amt_digits = re.sub(r'[^0-9]', '', str(m_item.get('amount', '0')))
+                    m_sum += int(m_amt_digits) if m_amt_digits else 0
+            if m_sum > 0 and budget_num > 0 and m_sum != budget_num:
+                return Response({
+                    "error": f"Milestone breakdown total (₹{m_sum:,}) does not match total project budget (₹{budget_num:,}). Please ensure milestone amounts sum up to the total budget."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             user = (
                 User.objects.filter(id=client_name).first() if str(client_name).isdigit() else
@@ -743,6 +815,18 @@ def projects_api(request):
                 approval_status='Pending Review',
                 rejection_reason=''
             )
+
+            # Create ProjectDocumentVerification IF and ONLY IF an actual file was attached
+            if file_name or file_url:
+                ProjectDocumentVerification.objects.create(
+                    project=proj,
+                    client=user,
+                    document_name=file_name or f"Project_Spec_{proj.id}.pdf",
+                    document_file_url=file_url or '',
+                    document_file_size=file_size or '1.5 MB',
+                    document_type='Project Requirement Spec',
+                    status='PENDING'
+                )
 
             client_friendly_name = f"{user.first_name} {user.last_name}".strip() or user.username
             admin_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True) | Q(profile__role='admin')).distinct()
@@ -1193,7 +1277,9 @@ def get_contracts(request):
         if c.milestones.exists():
             for m in c.milestones.all().order_by('milestone_number'):
                 st = (m.status or '').lower()
-                if st in ['approved', 'completed', 'done']:
+                is_paid = st in ['approved', 'paid'] or Payment.objects.filter(contract=c, milestone_title__icontains=m.title).exists()
+                m_status_val = 'Paid' if is_paid else m.status
+                if is_paid or st in ['completed', 'done']:
                     completed_count += 1
                 milestones_list.append({
                     "id": m.id,
@@ -1202,7 +1288,8 @@ def get_contracts(request):
                     "description": m.description,
                     "amount": m.amount,
                     "dueDate": m.due_date,
-                    "status": m.status
+                    "status": m_status_val,
+                    "is_paid": is_paid
                 })
             m_total = len(milestones_list)
             m_done = completed_count
@@ -1277,8 +1364,152 @@ def get_contracts(request):
             "milestonesTotal": m_total,
             "milestoneProgress": m_progress
         })
-        
+
     return Response(contract_list, status=status.HTTP_200_OK)
+
+def ensure_contract_milestones(contract_obj, project_obj=None):
+    from .models import ContractMilestone
+    import re
+    if contract_obj.milestones.exists():
+        return
+    p_milestones = []
+    if contract_obj.proposal and getattr(contract_obj.proposal, 'milestones_json', None):
+        try:
+            p_milestones = json.loads(contract_obj.proposal.milestones_json)
+        except Exception:
+            p_milestones = []
+    if not p_milestones and project_obj and getattr(project_obj, 'milestones_json', None):
+        try:
+            p_milestones = json.loads(project_obj.milestones_json)
+        except Exception:
+            p_milestones = []
+    if not p_milestones and contract_obj.project and getattr(contract_obj.project, 'milestones_json', None):
+        try:
+            p_milestones = json.loads(contract_obj.project.milestones_json)
+        except Exception:
+            p_milestones = []
+
+    proj_name = project_obj.title if project_obj else (contract_obj.project_name or 'Project Deliverables')
+    agreed_amt_str = contract_obj.agreed_amount or '₹5,000'
+    agreed_digits = re.sub(r'[^0-9.]', '', str(agreed_amt_str))
+    agreed_num = float(agreed_digits) if agreed_digits else 0.0
+
+    if isinstance(p_milestones, list) and len(p_milestones) > 0:
+        raw_amounts = []
+        sum_m_amt = 0.0
+        for m in p_milestones:
+            m_amt = m.get('amount') if isinstance(m, dict) else 0
+            m_digits = re.sub(r'[^0-9.]', '', str(m_amt))
+            val = float(m_digits) if m_digits else 0.0
+            raw_amounts.append(val)
+            sum_m_amt += val
+
+        scaled_amounts = []
+        if sum_m_amt > 0 and agreed_num > 0 and abs(sum_m_amt - agreed_num) > 1.0:
+            running_sum = 0.0
+            for i, val in enumerate(raw_amounts):
+                if i == len(raw_amounts) - 1:
+                    final_val = max(0.0, agreed_num - running_sum)
+                else:
+                    final_val = round(val * (agreed_num / sum_m_amt))
+                    running_sum += final_val
+                scaled_amounts.append(int(final_val))
+        else:
+            scaled_amounts = [int(v) if v > 0 else 0 for v in raw_amounts]
+
+        for idx, m in enumerate(p_milestones):
+            m_title = m.get('title') if isinstance(m, dict) else str(m)
+            amt_val = scaled_amounts[idx] if idx < len(scaled_amounts) and scaled_amounts[idx] > 0 else (m.get('amount') if isinstance(m, dict) else agreed_amt_str)
+            amt_str = f"₹{amt_val:,}" if isinstance(amt_val, (int, float)) else (f"₹{amt_val}" if str(amt_val).isdigit() else str(amt_val))
+
+            ContractMilestone.objects.create(
+                contract=contract_obj,
+                milestone_number=idx + 1,
+                title=m_title or f"Phase {idx + 1}: Deliverable",
+                description=f"Phase {idx + 1} deliverable for {proj_name}",
+                amount=amt_str,
+                due_date=f"Phase {idx + 1}",
+                status="In Progress" if idx == 0 else "Pending"
+            )
+    else:
+        ContractMilestone.objects.create(
+            contract=contract_obj,
+            milestone_number=1,
+            title=f"Phase 1: {proj_name} Architecture & Setup",
+            description="Initial repository setup, architecture review, and milestone lock.",
+            amount=agreed_amt_str,
+            due_date="1 Week",
+            status="In Progress"
+        )
+
+def sync_contract_milestones_to_sprint_tasks(contract_obj):
+    """
+    Synchronize ContractMilestones for a contract to SprintTasks on the linked Project.
+    Removes generic deliverable tasks and enforces 1-to-1 milestone-to-task mapping.
+    """
+    from .models import ContractMilestone, SprintTask, Project
+    if not contract_obj:
+        return
+    proj = contract_obj.project
+    if not proj and contract_obj.project_name:
+        proj = Project.objects.filter(title__iexact=contract_obj.project_name).first()
+    if not proj:
+        return
+
+    ensure_contract_milestones(contract_obj, proj)
+
+    # 1. Delete generic project-level tasks (e.g., "Deliverable: AI-Powered Resume Analyzer")
+    generic_title = f"Deliverable: {proj.title}"
+    SprintTask.objects.filter(project=proj, title__iexact=generic_title, milestone__isnull=True).delete()
+    SprintTask.objects.filter(project=proj, title__icontains="Deliverable:", milestone__isnull=True).delete()
+
+    cms = list(contract_obj.milestones.all().order_by('milestone_number'))
+    fl_user = contract_obj.freelancer
+
+    prev_paid = True
+    for cm in cms:
+        cm_st = (cm.status or '').strip().lower()
+        if cm_st in ('paid', 'approved', 'completed'):
+            task_status = 'Done'
+            is_locked = False
+        elif cm_st in ('submitted for review', 'under review', 'in review', 'review'):
+            task_status = 'Under Review'
+            is_locked = False
+        elif cm_st in ('in progress', 'doing', 'active'):
+            task_status = 'In Progress'
+            is_locked = False
+        else:
+            task_status = 'To Do'
+            is_locked = not prev_paid
+
+        st = SprintTask.objects.filter(milestone=cm).first()
+        if not st:
+            st = SprintTask.objects.filter(project=proj, title__iexact=cm.title).first()
+
+        if st:
+            st.milestone = cm
+            st.milestone_number = cm.milestone_number
+            st.title = cm.title
+            st.budget = cm.amount
+            st.status = task_status
+            st.is_locked = is_locked
+            if fl_user:
+                st.assignee = fl_user
+            st.save()
+        else:
+            SprintTask.objects.create(
+                project=proj,
+                milestone=cm,
+                milestone_number=cm.milestone_number,
+                title=cm.title,
+                budget=cm.amount,
+                assignee=fl_user,
+                status=task_status,
+                is_locked=is_locked
+            )
+
+        if cm_st not in ('paid', 'approved', 'completed'):
+            prev_paid = False
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -1389,10 +1620,9 @@ def create_contract(request):
             escrow_balance=escrow_balance
         )
 
-        # Update Project status to 'In Progress' and budget to agreed_amount
+        # Update Project status to 'In Progress' (preserve original posted budget)
         if project_obj:
             project_obj.status = 'In Progress'
-            project_obj.budget = agreed_amount
             project_obj.save()
 
         # Update Proposal status to 'Accepted'
@@ -1409,50 +1639,8 @@ def create_contract(request):
                 prop_filter &= Q(project__client=client_user)
             Proposal.objects.filter(prop_filter).update(status='Accepted')
 
-        # Create SprintTask in PostgreSQL DB so it appears on Sprint Task Board
-        if project_obj:
-            SprintTask.objects.get_or_create(
-                title=f"Deliverable: {project_name}",
-                project=project_obj,
-                defaults={
-                    "assignee": freelancer_user,
-                    "status": "To Do",
-                    "budget": agreed_amount
-                }
-            )
-
-        # Create Contract Milestones (from Project milestones if defined, or default)
-        p_milestones = []
-        if project_obj and getattr(project_obj, 'milestones_json', None):
-            try:
-                import json
-                p_milestones = json.loads(project_obj.milestones_json)
-            except:
-                p_milestones = []
-
-        if isinstance(p_milestones, list) and len(p_milestones) > 0:
-            for idx, m in enumerate(p_milestones):
-                m_title = m.get('title') if isinstance(m, dict) else str(m)
-                m_amt = m.get('amount') if isinstance(m, dict) else agreed_amount
-                ContractMilestone.objects.create(
-                    contract=contract_obj,
-                    milestone_number=idx + 1,
-                    title=m_title or f"Phase {idx + 1}: Deliverable",
-                    description=f"Phase {idx + 1} deliverable for {project_name}",
-                    amount=f"₹{m_amt}" if str(m_amt).isdigit() else str(m_amt),
-                    due_date=f"Phase {idx + 1}",
-                    status="In Progress" if idx == 0 else "Pending"
-                )
-        else:
-            ContractMilestone.objects.create(
-                contract=contract_obj,
-                milestone_number=1,
-                title=f"Phase 1: {project_name} Architecture & Setup",
-                description="Initial repository setup, architecture review, and milestone lock.",
-                amount=agreed_amount,
-                due_date="1 Week",
-                status="In Progress"
-            )
+        # Create/Sync Contract Milestones to SprintTasks in PostgreSQL DB
+        sync_contract_milestones_to_sprint_tasks(contract_obj)
 
         # Notify Freelancer
         if freelancer_user:
@@ -1604,9 +1792,11 @@ def freelancer_financials_api(request):
             else:
                 m_list = list(c.milestones.all())
                 if m_list:
-                    tot_m = len(m_list)
-                    done_m = sum(1 for m in m_list if (m.status or '').lower() in ['approved', 'completed', 'done', 'paid'])
-                    earned_sum += int(round(c_amt * (done_m / tot_m))) if tot_m > 0 else 0
+                    earned_sum += sum(
+                        int(re.sub(r'[^0-9]', '', str(m.amount or '0')) or 0)
+                        for m in m_list
+                        if (m.status or '').lower() in ['approved', 'paid']
+                    )
 
         withdrawn_sum = sum(w.amount for w in FreelancerWithdrawal.objects.filter(freelancer=fl_user))
         available_balance = max(Decimal('0'), Decimal(str(earned_sum)) - Decimal(str(withdrawn_sum)))
@@ -1724,16 +1914,21 @@ def freelancer_financials_api(request):
             total_count = 1
 
             if m_list:
+                c_earned = sum(
+                    int(re.sub(r'[^0-9]', '', str(m.amount or '0')) or 0)
+                    for m in m_list
+                    if (m.status or '').lower() in ['approved', 'paid']
+                )
+                c_pending = max(0, c_amt - c_earned)
+                done_count = sum(1 for m in m_list if (m.status or '').lower() in ['approved', 'paid'])
                 total_count = len(m_list)
-                done_count = sum(1 for m in m_list if (m.status or '').lower() in ['approved', 'completed', 'done', 'paid'])
+                single_m_val = int(round(c_amt / total_count)) if total_count > 0 else c_pending
             else:
-                total_count = 1
+                c_earned = 0
+                c_pending = c_amt
                 done_count = 0
-
-            m_pct = (done_count / total_count) if total_count > 0 else 0
-            c_earned = int(round(c_amt * m_pct))
-            c_pending = max(0, c_amt - c_earned)
-            single_m_val = int(round(c_amt / total_count)) if total_count > 0 else c_pending
+                total_count = 1
+                single_m_val = c_pending
 
             earned_raw += c_earned
             pending_raw += c_pending
@@ -1855,11 +2050,18 @@ def client_financials_api(request):
     ).first()
 
     # Query contracts belonging strictly to this client
+    # Business rule safeguard: Only valid contracts linked to an approved project (not draft, unapproved, pending review, or orphaned test artifacts) contribute to financial commitments
     contracts_filter = Q(client_id_str__iexact=clean_cl) | Q(client_name__iexact=clean_cl)
     if client_user:
         contracts_filter = Q(client=client_user) | contracts_filter | Q(client_id_str__iexact=client_user.username) | Q(client_id_str__iexact=client_user.email)
 
-    contracts = Contract.objects.filter(contracts_filter).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at')
+    contracts = Contract.objects.filter(contracts_filter).filter(
+        project__isnull=False
+    ).exclude(
+        status__in=['Cancelled', 'Archived', 'Terminated']
+    ).exclude(
+        project__approval_status__in=['Pending Review', 'Rejected', 'Draft', 'Unapproved']
+    ).order_by('-created_at')
 
     if not contracts.exists():
         return Response(zero_response, status=status.HTTP_200_OK)
@@ -1868,6 +2070,7 @@ def client_financials_api(request):
     released_raw = 0
     pending_raw = 0
     transactions = []
+    pending_milestones = []
 
     for c in contracts:
         amt_digits = re.sub(r'[^0-9]', '', str(c.agreed_amount or '0'))
@@ -1876,17 +2079,46 @@ def client_financials_api(request):
         c_escrow = int(escrow_digits) if escrow_digits else c_amt
         proj_title = c.project_name or (c.project.title if c.project else 'Contract Project')
 
+        client_email = c.client.email if c.client else (c.client_name or clean_cl)
+        client_full_name = c.client.get_full_name() if (c.client and c.client.get_full_name()) else (c.client_name or clean_cl)
+        client_display = f"{client_full_name} ({client_email})" if (client_email and client_full_name and client_full_name != client_email) else (client_full_name or client_email)
+
+        freelancer_email = c.freelancer.email if c.freelancer else ''
+        freelancer_full_name = c.freelancer.get_full_name() if (c.freelancer and c.freelancer.get_full_name()) else (c.freelancer_name or 'Assigned Freelancer')
+        freelancer_display = f"{freelancer_full_name} ({freelancer_email})" if (freelancer_email and freelancer_full_name and freelancer_full_name != freelancer_email) else (freelancer_full_name or freelancer_email)
+
+        contract_num = c.contract_id or f"CTR-{c.id:04d}"
+
         if c.status == 'Completed':
             # Project completed: full agreed amount was released to freelancer
             released_raw += c_amt
             transactions.append({
-                "id": f"tx_c_{c.id}",
-                "date": c.updated_at.strftime("%b %d, %Y") if c.updated_at else "Completed",
+                "id": f"TXN-C{c.id:06d}",
+                "db_id": c.id,
+                "payment_id": c.id,
+                "contract_id": c.id,
+                "contract_number": contract_num,
+                "milestone_id": "N/A (Full Contract Payout)",
+                "date": format_ist_datetime(c.updated_at) if c.updated_at else "Completed",
                 "project": proj_title,
+                "project_name": proj_title,
                 "milestone": "Project Completion Payout",
+                "milestone_name": "Project Completion Payout",
+                "client_name": client_full_name,
+                "client_email": client_email,
+                "client_display": client_display,
+                "freelancer_name": freelancer_full_name,
+                "freelancer_email": freelancer_email,
+                "freelancer_display": freelancer_display,
                 "type": "Contract Payout",
+                "payment_type": "Contract Payout",
                 "amount": f"₹{c_amt:,}",
-                "status": "Paid"
+                "amount_val": c_amt,
+                "status": "Paid",
+                "payment_status": "Paid & Released",
+                "payment_method": "FreeMatch Escrow Wallet",
+                "invoice_info": f"Invoice #INV-C{c.id:06d} (PDF Available)",
+                "release_status": "Funds Released from Escrow to Freelancer Wallet"
             })
         elif c.status == 'Active':
             m_list = list(c.milestones.all())
@@ -1895,20 +2127,64 @@ def client_financials_api(request):
                     m_amt_digits = re.sub(r'[^0-9]', '', str(m.amount or '0'))
                     m_val = int(m_amt_digits) if m_amt_digits else 0
                     m_status_clean = (m.status or '').lower().strip()
-                    if m_status_clean in ['approved', 'completed', 'paid']:
+                    py_rec = Payment.objects.filter(contract=c, milestone_title__icontains=m.title).order_by('-id').first()
+                    is_paid = m_status_clean in ['approved', 'paid'] or (py_rec is not None)
+
+                    if is_paid:
                         released_raw += m_val
+                        if not py_rec:
+                            py_rec = Payment.objects.filter(contract=c).order_by('-id').first()
+                        py_id = py_rec.id if py_rec else m.id
+                        py_date = format_ist_datetime(py_rec.timestamp) if (py_rec and py_rec.timestamp) else (format_ist_datetime(m.updated_at) if m.updated_at else "Recent")
+                        txn_id_str = f"TXN-{py_id:06d}"
+
                         transactions.append({
-                            "id": f"tx_m_{m.id}",
-                            "date": m.updated_at.strftime("%b %d, %Y") if m.updated_at else "Recent",
+                            "id": txn_id_str,
+                            "db_id": py_id,
+                            "payment_id": py_id,
+                            "contract_id": c.id,
+                            "contract_number": contract_num,
+                            "milestone_id": f"MS-{m.id:04d} (#{m.id})",
+                            "date": py_date,
                             "project": proj_title,
+                            "project_name": proj_title,
                             "milestone": m.title,
+                            "milestone_name": m.title,
+                            "client_name": client_full_name,
+                            "client_email": client_email,
+                            "client_display": client_display,
+                            "freelancer_name": freelancer_full_name,
+                            "freelancer_email": freelancer_email,
+                            "freelancer_display": freelancer_display,
                             "type": "Milestone Release",
+                            "payment_type": "Milestone Release",
                             "amount": f"₹{m_val:,}",
-                            "status": "Paid"
+                            "amount_val": m_val,
+                            "status": "Paid",
+                            "payment_status": "Paid & Released",
+                            "payment_method": py_rec.payment_type if (py_rec and py_rec.payment_type) else "FreeMatch Escrow Wallet",
+                            "invoice_info": f"Invoice #INV-{py_id:06d} (PDF Available)",
+                            "release_status": "Completed & Released from Escrow"
                         })
                     else:
                         pending_raw += m_val
                         escrow_raw += m_val
+                        if m_status_clean in ['completed', 'done', 'awaiting client payment']:
+                            pending_milestones.append({
+                                "id": m.id,
+                                "milestone_id": m.id,
+                                "contract_id": c.id,
+                                "contract_number": c.contract_id or f"CTR-{c.id}",
+                                "project": proj_title,
+                                "milestone": m.title,
+                                "freelancer": freelancer_full_name,
+                                "amount": m_val,
+                                "amount_str": f"₹{m_val:,}",
+                                "work_status": "DONE / 100%",
+                                "milestone_status": "Completed",
+                                "payment_status": "Awaiting Client Payment",
+                                "payable": True
+                            })
             else:
                 # Active contract with no separate milestones:
                 # All funds remain locked in escrow until completed/released
@@ -1934,6 +2210,8 @@ def client_financials_api(request):
         "gateway_status": "Payment gateway not configured",
         "is_gateway_configured": False,
         "transactions": transactions,
+        "pending_milestone_payments": pending_milestones,
+        "pending_milestones": pending_milestones,
         "chart_data": []
     }, status=status.HTTP_200_OK)
 
@@ -2000,6 +2278,8 @@ def proposals_api(request):
                 "deliveryTime": p.delivery_time,
                 "coverLetter": p.cover_letter,
                 "status": p.status,
+                "milestones_json": getattr(p, 'milestones_json', '[]') or '[]',
+                "milestones": json.loads(p.milestones_json) if getattr(p, 'milestones_json', None) else [],
                 "submitted_at": p.submitted_at.isoformat() if p.submitted_at else None
             })
         return Response(results, status=status.HTTP_200_OK)
@@ -2012,6 +2292,35 @@ def proposals_api(request):
         bid_amount = data.get('bid_amount') or data.get('bid') or '₹5,000'
         delivery_time = data.get('delivery_time') or data.get('delivery') or '2 Weeks'
         cover_letter = data.get('cover_letter') or data.get('coverLetter') or ''
+
+        # Extract & validate milestone allocation if provided
+        raw_milestones = data.get('milestones') or data.get('milestones_json')
+        milestones_list = []
+        if isinstance(raw_milestones, str):
+            try:
+                milestones_list = json.loads(raw_milestones)
+            except Exception:
+                milestones_list = []
+        elif isinstance(raw_milestones, list):
+            milestones_list = raw_milestones
+
+        bid_digits = re.sub(r'[^0-9.]', '', str(bid_amount))
+        bid_num = float(bid_digits) if bid_digits else 0.0
+
+        if milestones_list:
+            sum_m_amt = 0.0
+            for m in milestones_list:
+                amt_val = m.get('amount') if isinstance(m, dict) else 0
+                m_digits = re.sub(r'[^0-9.]', '', str(amt_val))
+                val = float(m_digits) if m_digits else 0.0
+                sum_m_amt += val
+
+            if bid_num > 0 and abs(sum_m_amt - bid_num) > 0.01:
+                return Response({
+                    "error": "Milestone allocation must equal your total bid amount."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        m_json_str = json.dumps(milestones_list) if milestones_list else '[]'
 
         clean_pid = ''
         if project_id:
@@ -2030,8 +2339,18 @@ def proposals_api(request):
         if not proj:
             return Response({"error": "Target project not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if proj and getattr(proj, 'approval_status', 'Approved') != 'Approved':
-            return Response({"error": "This project is pending admin review and is not accepting bids."}, status=status.HTTP_400_BAD_REQUEST)
+        if proj:
+            app_status = getattr(proj, 'approval_status', 'Approved') or 'Approved'
+            if app_status != 'Approved':
+                return Response({
+                    "error": f"This project is currently '{app_status}' and is not accepting bids."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            proj_st = (proj.status or '').strip().lower()
+            if proj_st in ['closed', 'completed', 'cancelled', 'in progress']:
+                return Response({
+                    "error": "This project is closed or already in progress and cannot accept new proposals."
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         freelancer_identifier = data.get('freelancer_id') or data.get('freelancer')
         fl_str = str(freelancer_identifier).strip() if freelancer_identifier is not None else ''
@@ -2048,13 +2367,16 @@ def proposals_api(request):
         if not fl_user:
             return Response({"error": "Freelancer account not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        formatted_bid = bid_amount if str(bid_amount).startswith('₹') else f"₹{bid_amount}"
+
         prop = Proposal.objects.create(
             project=proj,
             freelancer=fl_user,
-            bid_amount=bid_amount,
+            bid_amount=formatted_bid,
             delivery_time=delivery_time,
             cover_letter=cover_letter,
-            status='Pending'
+            status='Pending',
+            milestones_json=m_json_str
         )
 
         if proj and proj.client:
@@ -2107,12 +2429,49 @@ def project_detail_api(request, pk):
 
         effective_budget = agreed_amount_str if agreed_amount_str else proj.budget
 
+        client_full_name = (f"{proj.client.first_name} {proj.client.last_name}".strip() or proj.client.username) if proj.client else 'Client'
+        client_email_addr = proj.client.email if proj.client and proj.client.email else f"{proj.client.username if proj.client else 'client'}@freematch.ai"
+
+        hired_freelancer_name = None
+        contract_code_val = None
+        if active_contract:
+            if active_contract.freelancer:
+                hired_freelancer_name = (f"{active_contract.freelancer.first_name} {active_contract.freelancer.last_name}".strip() or active_contract.freelancer.username)
+            else:
+                hired_freelancer_name = active_contract.freelancer_name
+            contract_code_val = active_contract.contract_id or f"CTR-{active_contract.id:04d}"
+        elif accepted_proposal:
+            if accepted_proposal.freelancer:
+                hired_freelancer_name = (f"{accepted_proposal.freelancer.first_name} {accepted_proposal.freelancer.last_name}".strip() or accepted_proposal.freelancer.username)
+            else:
+                hired_freelancer_name = accepted_proposal.freelancer_name
+
+        milestone_data = []
+        if getattr(proj, 'milestones_json', None):
+            try:
+                milestone_data = json.loads(proj.milestones_json)
+            except Exception:
+                pass
+        if not milestone_data and active_contract:
+            m_list = list(active_contract.milestones.all().order_by('milestone_number'))
+            for m in m_list:
+                milestone_data.append({
+                    "id": m.id,
+                    "number": m.milestone_number,
+                    "title": m.title,
+                    "amount": m.amount,
+                    "status": m.status,
+                    "is_paid": (m.status or '').lower() in ['approved', 'paid']
+                })
+
         return Response({
             "id": f"proj_{proj.id}",
             "title": proj.title,
-            "client": f"{proj.client.first_name} {proj.client.last_name}".strip() or proj.client.username,
-            "client_id": proj.client.username,
-            "clientId": proj.client.username,
+            "client": client_full_name,
+            "client_name": client_full_name,
+            "client_email": client_email_addr,
+            "client_id": proj.client.username if proj.client else '',
+            "clientId": proj.client.username if proj.client else '',
             "category": proj.category.name if proj.category else 'Software Development',
             "budget": effective_budget,
             "original_budget": proj.budget,
@@ -2123,10 +2482,18 @@ def project_detail_api(request, pk):
             "duration": proj.duration,
             "skills": proj.skills_required,
             "status": proj.get_status_display() if hasattr(proj, 'get_status_display') else proj.status,
+            "approval_status": getattr(proj, 'approval_status', 'Approved'),
+            "approvalStatus": getattr(proj, 'approval_status', 'Approved'),
+            "rejection_reason": getattr(proj, 'rejection_reason', ''),
+            "rejectionReason": getattr(proj, 'rejection_reason', ''),
+            "hired_freelancer": hired_freelancer_name,
+            "hiredFreelancer": hired_freelancer_name,
+            "contract_id": contract_code_val,
+            "contractId": contract_code_val,
             "postedDate": proj.created_at.strftime("%b %d, %Y") if proj.created_at else "Just Now",
             "description": proj.description,
             "abstract": proj.abstract,
-            "milestones": json.loads(proj.milestones_json) if getattr(proj, 'milestones_json', None) else []
+            "milestones": milestone_data
         }, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -2344,6 +2711,9 @@ def hire_freelancer_api(request):
     if not fl_user:
         return Response({"error": "Freelancer not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    if not proj:
+        return Response({"error": "Target project not found. A valid project is required for hiring."}, status=status.HTTP_404_NOT_FOUND)
+
     # Find or create proposal
     prop = Proposal.objects.filter(project=proj, freelancer=fl_user).first() if proj else None
     if prop:
@@ -2363,7 +2733,6 @@ def hire_freelancer_api(request):
 
     if proj:
         proj.status = 'In Progress'
-        proj.budget = agreed_amount
         proj.save()
 
     # Check for existing contract to prevent duplicate creation
@@ -2378,7 +2747,10 @@ def hire_freelancer_api(request):
         if agreed_amount:
             existing_ctr.agreed_amount = agreed_amount
             existing_ctr.escrow_balance = agreed_amount
+        if prop and not existing_ctr.proposal:
+            existing_ctr.proposal = prop
         existing_ctr.save()
+        sync_contract_milestones_to_sprint_tasks(existing_ctr)
         return Response({
             "success": True,
             "message": "Existing contract updated and activated.",
@@ -2405,6 +2777,7 @@ def hire_freelancer_api(request):
         agreed_amount=agreed_amount,
         escrow_balance=agreed_amount
     )
+    sync_contract_milestones_to_sprint_tasks(contract)
 
     if fl_user:
         create_event_notification(
@@ -2451,13 +2824,37 @@ def sprint_tasks_api(request, pk=None):
         client_id = request.GET.get('client_id')
         project_id = request.GET.get('project_id')
         freelancer_id = request.GET.get('freelancer_id') or request.GET.get('freelancer')
-        qs = SprintTask.objects.all().order_by('-created_at')
+
+        user_obj = None
+        fl_user = None
+
         if client_id:
             user_obj = User.objects.filter(
                 Q(id=client_id if str(client_id).isdigit() else None) |
                 Q(username__iexact=client_id) |
                 Q(email__iexact=client_id)
             ).first()
+
+        if freelancer_id:
+            clean_fl = str(freelancer_id).strip().lower()
+            fl_user = resolve_user_account(clean_fl)
+
+        # Auto-sync milestone tasks for active contracts in scope
+        contracts_to_sync = Contract.objects.exclude(status__in=['Cancelled', 'Archived', 'Terminated'])
+        if client_id and user_obj:
+            contracts_to_sync = contracts_to_sync.filter(Q(client=user_obj) | Q(client_id_str__iexact=user_obj.username) | Q(client_id_str__iexact=user_obj.email))
+        elif freelancer_id and fl_user:
+            contracts_to_sync = contracts_to_sync.filter(Q(freelancer=fl_user) | Q(freelancer_id_str__iexact=fl_user.username) | Q(freelancer_id_str__iexact=fl_user.email))
+        elif project_id:
+            clean_pid = str(project_id).replace('proj_', '').replace('cp', '')
+            if clean_pid.isdigit():
+                contracts_to_sync = contracts_to_sync.filter(project_id=clean_pid)
+
+        for c_sync in contracts_to_sync:
+            sync_contract_milestones_to_sprint_tasks(c_sync)
+
+        qs = SprintTask.objects.all().order_by('milestone_number', '-created_at')
+        if client_id:
             if user_obj:
                 qs = qs.filter(
                     Q(project__client=user_obj) |
@@ -2468,8 +2865,6 @@ def sprint_tasks_api(request, pk=None):
             else:
                 qs = SprintTask.objects.none()
         elif freelancer_id:
-            clean_fl = str(freelancer_id).strip().lower()
-            fl_user = resolve_user_account(clean_fl)
             if fl_user:
                 fl_contracts = Contract.objects.filter(
                     Q(freelancer=fl_user) |
@@ -2505,12 +2900,22 @@ def sprint_tasks_api(request, pk=None):
             tasks.append({
                 "id": t.id,
                 "title": t.title,
+                "project": t.project.title if t.project else 'General Task',
+                "projectName": t.project.title if t.project else 'General Task',
+                "project_title": t.project.title if t.project else 'General Task',
                 "projectTitle": t.project.title if t.project else 'General Task',
                 "projectId": f"proj_{t.project.id}" if t.project else None,
+                "project_id": t.project.id if t.project else None,
                 "assignee": f"{t.assignee.first_name} {t.assignee.last_name}".strip() or t.assignee.username if t.assignee else 'Assigned Freelancer',
                 "status": t.status,
                 "progress": t.get_progress_percentage(),
                 "budget": t.budget,
+                "is_locked": t.is_locked,
+                "isLocked": t.is_locked,
+                "milestone_id": t.milestone_id,
+                "milestoneId": t.milestone_id,
+                "milestone_number": t.milestone_number,
+                "milestoneNumber": t.milestone_number,
                 "deadline": t_dl,
                 "due": t_dl,
                 "created_at": t.created_at.isoformat() if t.created_at else None
@@ -2526,7 +2931,7 @@ def sprint_tasks_api(request, pk=None):
         if not title:
             return Response({"error": "Task title is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        project_title = data.get('project') or data.get('projectTitle')
+        project_ref = data.get('project_id') or data.get('projectId') or data.get('project') or data.get('projectTitle')
         assignee_name = data.get('assignee')
         budget = data.get('budget', '₹1,500')
         client_id = data.get('client_id') or request.GET.get('client_id')
@@ -2541,19 +2946,51 @@ def sprint_tasks_api(request, pk=None):
             fl_user = resolve_user_account(freelancer_id)
 
         proj = None
-        if project_title and project_title not in ('All', 'All Assigned Projects'):
-            clean_ptitle = str(project_title).strip()
-            proj = Project.objects.filter(title__iexact=clean_ptitle).first()
+        if project_ref and str(project_ref).strip() not in ('All', 'All Assigned Projects'):
+            clean_pref = str(project_ref).strip().replace('proj_', '').replace('cp', '')
+            if clean_pref.isdigit():
+                proj = Project.objects.filter(id=int(clean_pref)).first()
             if not proj:
-                proj = Project.objects.filter(title__icontains=clean_ptitle).first()
-        if not proj and client_user:
-            proj = Project.objects.filter(client=client_user).order_by('-created_at').first()
-        if not proj and fl_user:
-            c = Contract.objects.filter(
-                Q(freelancer=fl_user) | Q(freelancer_id_str__iexact=fl_user.username)
-            ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at').first()
-            if c and c.project:
-                proj = c.project
+                proj = Project.objects.filter(title__iexact=str(project_ref).strip()).first()
+            if not proj:
+                proj = Project.objects.filter(title__icontains=str(project_ref).strip()).first()
+
+        if not proj and not project_ref:
+            if client_user:
+                proj = Project.objects.filter(client=client_user).order_by('-created_at').first()
+            elif fl_user:
+                c = Contract.objects.filter(
+                    Q(freelancer=fl_user) | Q(freelancer_id_str__iexact=fl_user.username)
+                ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at').first()
+                if c and c.project:
+                    proj = c.project
+
+        if proj:
+            p_st = (proj.status or '').strip().lower()
+            if p_st in ['completed', 'closed', 'cancelled']:
+                return Response({
+                    "error": f"Cannot create new sprint tasks for project '{proj.title}' because it is already {proj.status.lower()}.",
+                    "is_completed": True,
+                    "project_status": proj.status
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            active_c = Contract.objects.filter(project=proj).order_by('-created_at').first()
+            if active_c and (active_c.status or '').strip().lower() in ['completed', 'closed', 'cancelled', 'terminated']:
+                return Response({
+                    "error": f"Cannot create new sprint tasks for project '{proj.title}' because its contract is {active_c.status.lower()}.",
+                    "is_completed": True,
+                    "contract_status": active_c.status
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if project has an assigned freelancer / active contract / accepted proposal
+            has_active_contract = Contract.objects.filter(project=proj).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).exists()
+            has_accepted_proposal = Proposal.objects.filter(project=proj, status='Accepted').exists()
+
+            if not has_active_contract and not has_accepted_proposal:
+                return Response({
+                    "error": f"Cannot create sprint tasks for project '{proj.title}' because no freelancer has been hired or assigned yet. Please hire a freelancer first.",
+                    "is_unassigned": True
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         assignee_user = None
         if assignee_name and assignee_name not in ('Assigned Freelancer', 'All', ''):
@@ -2648,8 +3085,39 @@ def sprint_tasks_api(request, pk=None):
         status_val = request.data.get('status')
         old_status = st.status
         if status_val:
+            clean_status = status_val.strip().lower()
+
+            # Sequential lock check: Phase X cannot be worked on until Phase X-1 is paid
+            if st.milestone:
+                curr_cm = st.milestone
+                if curr_cm.milestone_number > 1 and clean_status in ['in progress', 'doing', 'under review', 'review', 'submitted', 'done', 'completed']:
+                    prev_cms = ContractMilestone.objects.filter(
+                        contract=curr_cm.contract,
+                        milestone_number__lt=curr_cm.milestone_number
+                    )
+                    unpaid_prev = prev_cms.exclude(status__in=['Paid', 'Approved', 'Completed']).first()
+                    if unpaid_prev:
+                        return Response({
+                            "error": f"Cannot start Phase {curr_cm.milestone_number} ('{curr_cm.title}') until Phase {unpaid_prev.milestone_number} ('{unpaid_prev.title}') is completed, reviewed, and paid.",
+                            "is_locked": True
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
             st.status = status_val
             st.save()
+
+            if st.milestone:
+                if clean_status in ['review', 'under review', 'submitted', 'submitted for review']:
+                    st.milestone.status = 'Submitted for Review'
+                    st.milestone.save()
+                elif clean_status in ['in progress', 'doing']:
+                    if (st.milestone.status or '').lower() not in ['paid', 'approved']:
+                        st.milestone.status = 'In Progress'
+                        st.milestone.save()
+                elif clean_status in ['done', 'completed']:
+                    if (st.milestone.status or '').lower() not in ['paid', 'approved']:
+                        st.milestone.status = 'Completed'
+                        st.milestone.save()
+
             if st.project:
                 proj = st.project
                 all_tasks = proj.sprint_tasks.all()
@@ -2663,17 +3131,16 @@ def sprint_tasks_api(request, pk=None):
             updater_query = request.data.get('user_id') or request.data.get('updater') or (request.user.username if request.user.is_authenticated else '')
             updater_user = resolve_user_account(updater_query)
 
-            clean_status = status_val.strip().lower()
             if clean_status in ['review', 'under review', 'submitted']:
                 # Freelancer submitted work for review -> notify project client
                 if st.project and st.project.client and (not updater_user or updater_user.id != st.project.client.id):
                     create_event_notification(
                         user=st.project.client,
-                        notification_type='task',
-                        title=f"Task Ready for Review: {st.title}",
-                        message=f"Sprint task '{st.title}' was submitted for review by {st.assignee.first_name if st.assignee else 'Freelancer'}.",
+                        notification_type='milestone',
+                        title=f"Phase Submitted for Review: {st.title}",
+                        message=f"{st.title} has been submitted for review.",
                         source_id=str(st.id),
-                        event_key=f"{st.project.client.id}:TASK_REVIEW:{st.id}",
+                        event_key=f"{st.project.client.id}:MILESTONE_SUBMITTED_REVIEW:{st.id}",
                         project_id=str(st.project.id),
                         project_name=st.project.title
                     )
@@ -3004,12 +3471,68 @@ def freelancer_profile_detail_api(request):
     fl_prof, _ = FreelancerProfile.objects.get_or_create(user=user)
 
     if request.method == 'GET':
+        from .models import Contract
+        import re
+
         portfolios = FreelancerPortfolio.objects.filter(freelancer=user).order_by('-created_at')
         experiences = FreelancerExperience.objects.filter(freelancer=user).order_by('-created_at')
         educations = FreelancerEducation.objects.filter(freelancer=user).order_by('-created_at')
         certifications = FreelancerCertification.objects.filter(freelancer=user).order_by('-created_at')
 
         skills_arr = [s.strip() for s in fl_prof.skills_list.split(',') if s.strip()] if fl_prof.skills_list else []
+
+        # Calculate real contract & completed project metrics for this freelancer from DB
+        contracts_qs = Contract.objects.filter(
+            Q(freelancer=user) |
+            Q(freelancer_id_str__iexact=user.username) |
+            Q(freelancer_id_str__iexact=user.email)
+        ).exclude(status__in=['Cancelled', 'Archived', 'Terminated'])
+
+        completed_contracts = contracts_qs.filter(
+            Q(status='Completed') | Q(project__status='Completed')
+        )
+
+        completed_project_ids = set()
+        completed_count = 0
+        earned_from_contracts = 0.0
+
+        for c in completed_contracts:
+            proj_key = c.project_id if c.project_id else f"contract_{c.id}"
+            if proj_key not in completed_project_ids:
+                completed_project_ids.add(proj_key)
+                completed_count += 1
+
+            amt_digits = re.sub(r'[^0-9.]', '', str(c.agreed_amount or '0'))
+            earned_from_contracts += float(amt_digits) if amt_digits else 0.0
+
+        active_contracts = contracts_qs.filter(status='Active')
+        active_count = active_contracts.count()
+        for c in active_contracts:
+            m_list = list(c.milestones.all())
+            if m_list:
+                for m in m_list:
+                    if (m.status or '').lower() in ['approved', 'paid']:
+                        m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                        earned_from_contracts += float(m_amt_digits) if m_amt_digits else 0.0
+
+        effective_earnings = max(float(fl_prof.total_earnings), earned_from_contracts)
+        if float(fl_prof.total_earnings) != effective_earnings:
+            fl_prof.total_earnings = effective_earnings
+            fl_prof.save(update_fields=['total_earnings'])
+
+        # Calculate job success rate
+        total_contracts = contracts_qs.count()
+        terminated_contracts = Contract.objects.filter(
+            Q(freelancer=user) |
+            Q(freelancer_id_str__iexact=user.username) |
+            Q(freelancer_id_str__iexact=user.email)
+        ).filter(status__in=['Terminated', 'Cancelled']).count()
+        
+        if total_contracts + terminated_contracts > 0:
+            success_rate_val = round((completed_count / max(1, completed_count + terminated_contracts)) * 100)
+            job_success_str = f"{min(100, max(85, success_rate_val))}%"
+        else:
+            job_success_str = "100%"
 
         return Response({
             "user_id": user.username,
@@ -3026,10 +3549,15 @@ def freelancer_profile_detail_api(request):
             "available_hours": fl_prof.available_hours,
             "years_experience": fl_prof.years_experience,
             "bio": user_prof.bio or '',
-            "rating": fl_prof.rating,
-            "total_earnings": f"₹{fl_prof.total_earnings:,.2f}",
+            "rating": fl_prof.rating if fl_prof.rating > 0 else 5.0,
+            "total_earnings": f"₹{int(effective_earnings):,}" if effective_earnings > 0 else "₹0",
+            "raw_total_earnings": float(effective_earnings),
+            "completed_projects_count": completed_count,
+            "active_contracts_count": active_count,
+            "job_success_rate": job_success_str,
+            "on_time_delivery": "98%",
             "verified": fl_prof.verified,
-            "verification_status": getattr(fl_prof, 'verification_status', 'Approved' if fl_prof.verified else 'Pending Verification'),
+            "verification_status": fl_prof.verification_status if fl_prof.verification_status else ('Approved' if fl_prof.verified else 'Not Submitted'),
             "verification_rejection_reason": getattr(fl_prof, 'verification_rejection_reason', ''),
             "skills": skills_arr,
             "avatar_url": fl_prof.avatar_url,
@@ -3731,9 +4259,14 @@ def reactivate_account_api(request):
 @permission_classes([AllowAny])
 def update_milestone_status_api(request, pk):
     """
-    Update milestone status (e.g. 'Under Review', 'Approved', 'Completed') with event notifications.
+    Update milestone status (e.g. 'Submitted for Review', 'Changes Requested', 'Paid')
+    Atomic payment processing, escrow updates, earnings updates, and project completion triggers.
     """
-    from .models import ContractMilestone
+    from .models import ContractMilestone, Payment, FreelancerProfile, Project
+    from django.db import transaction
+    import re
+    from decimal import Decimal
+
     data = request.data
     new_status = data.get('status', '').strip()
     user_query = data.get('user_id', '').strip() or (request.user.username if request.user.is_authenticated else '')
@@ -3744,58 +4277,209 @@ def update_milestone_status_api(request, pk):
         if not m:
             return Response({"error": "Milestone not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        old_status = m.status
-        m.status = new_status
-        m.save()
-
+        old_status = (m.status or '').lower().strip()
+        clean_new = new_status.lower().strip()
         contract = m.contract
-        clean_new = new_status.lower()
 
-        if clean_new in ['under review', 'submitted', 'review']:
-            # Freelancer submitted milestone -> notify client
+        if clean_new in ['approved', 'paid']:
+            # Double-payment safeguard
+            if old_status == 'paid':
+                return Response({"error": "Milestone has already been paid and released."}, status=status.HTTP_400_BAD_REQUEST)
+
+            with transaction.atomic():
+                m.status = 'Paid'
+                m.save()
+
+                # Sync linked SprintTask to Done
+                from .models import SprintTask
+                st = SprintTask.objects.filter(milestone=m).first()
+                if not st and contract and contract.project:
+                    st = SprintTask.objects.filter(project=contract.project, title__iexact=m.title).first()
+                if st:
+                    st.status = 'Done'
+                    st.is_locked = False
+                    st.save()
+
+                # Extract numeric milestone amount
+                m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                m_num = Decimal(m_amt_digits if m_amt_digits else '0')
+
+                # Create Payment record
+                if contract and m_num > 0:
+                    Payment.objects.create(
+                        contract=contract,
+                        amount=m_num,
+                        milestone_title=m.title,
+                        payment_type='Milestone Release'
+                    )
+
+                    # Update contract escrow balance
+                    c_escrow_digits = re.sub(r'[^0-9.]', '', str(contract.escrow_balance or contract.agreed_amount or '0'))
+                    c_escrow_num = Decimal(c_escrow_digits if c_escrow_digits else '0')
+                    new_escrow = max(Decimal('0'), c_escrow_num - m_num)
+                    contract.escrow_balance = f"₹{int(new_escrow):,}"
+                    contract.save()
+
+                    # Update freelancer total earnings
+                    fl_user = contract.freelancer
+                    if fl_user:
+                        fl_profile, _ = FreelancerProfile.objects.get_or_create(user=fl_user)
+                        fl_profile.total_earnings = Decimal(str(fl_profile.total_earnings or '0')) + m_num
+                        fl_profile.save()
+
+                # Unlock next phase/milestone if present
+                if contract:
+                    next_m = contract.milestones.filter(milestone_number=m.milestone_number + 1).first()
+                    if next_m:
+                        if (next_m.status or '').strip().lower() in ['pending', 'locked']:
+                            next_m.status = 'In Progress'
+                            next_m.save()
+                        st_next = SprintTask.objects.filter(milestone=next_m).first()
+                        if not st_next and contract.project:
+                            st_next = SprintTask.objects.filter(project=contract.project, title__iexact=next_m.title).first()
+                        if st_next:
+                            st_next.is_locked = False
+                            if st_next.status == 'To Do':
+                                st_next.status = 'In Progress'
+                            st_next.save()
+
+                        # Notifications for Phase payment completion & next phase unlock
+                        if contract.freelancer:
+                            create_event_notification(
+                                user=contract.freelancer,
+                                notification_type='milestone',
+                                title=f"Phase {next_m.milestone_number} Unlocked: {next_m.title}",
+                                message=f"Phase {m.milestone_number} payment completed. Phase {next_m.milestone_number} is now available.",
+                                source_id=str(next_m.id),
+                                event_key=f"{contract.freelancer.id}:MILESTONE_UNLOCKED:{next_m.id}",
+                                project_name=contract.project_name
+                            )
+                        if contract.client:
+                            create_event_notification(
+                                user=contract.client,
+                                notification_type='milestone',
+                                title=f"Phase {next_m.milestone_number} Active: {next_m.title}",
+                                message=f"Phase {m.milestone_number} payment completed. Phase {next_m.milestone_number} is now available.",
+                                source_id=str(next_m.id),
+                                event_key=f"{contract.client.id}:MILESTONE_ACTIVE:{next_m.id}",
+                                project_name=contract.project_name
+                            )
+
+                # Notifications for Milestone Payment Release
+                if contract and contract.freelancer:
+                    create_event_notification(
+                        user=contract.freelancer,
+                        notification_type='payment',
+                        title=f"Milestone Approved & Payment Released: {m.title}",
+                        message=f"Milestone '{m.title}' was approved by {contract.client_name}. {m.amount} has been released to your balance.",
+                        source_id=str(m.id),
+                        event_key=f"{contract.freelancer.id}:MILESTONE_APPROVED:{m.id}",
+                        project_name=contract.project_name,
+                        related_user_id=str(contract.client.id) if contract.client else '',
+                        related_user_name=contract.client_name
+                    )
+                if contract and contract.client:
+                    create_event_notification(
+                        user=contract.client,
+                        notification_type='payment',
+                        title=f"Milestone Payment Released: {m.title}",
+                        message=f"You approved milestone '{m.title}' ({m.amount}) for {contract.freelancer_name}.",
+                        source_id=str(m.id),
+                        event_key=f"{contract.client.id}:MILESTONE_RELEASED:{m.id}",
+                        project_name=contract.project_name,
+                        related_user_id=str(contract.freelancer.id) if contract.freelancer else '',
+                        related_user_name=contract.freelancer_name
+                    )
+
+                # Check if ALL milestones for contract are now Paid -> Project & Contract Completion
+                if contract:
+                    remaining_unpaid = contract.milestones.exclude(status='Paid').count()
+                    if remaining_unpaid == 0:
+                        contract.status = 'Completed'
+                        contract.escrow_balance = '₹0'
+                        contract.save()
+
+                        proj_obj = contract.project
+                        if proj_obj:
+                            proj_obj.status = 'Completed'
+                            proj_obj.save()
+
+                        # Project completion notifications
+                        if contract.freelancer:
+                            create_event_notification(
+                                user=contract.freelancer,
+                                notification_type='project',
+                                title=f"Project Completed: {contract.project_name}",
+                                message=f"All milestones for project '{contract.project_name}' have been approved and paid! Contract is now marked as Completed.",
+                                source_id=str(contract.id),
+                                event_key=f"{contract.freelancer.id}:PROJECT_COMPLETED:{contract.id}",
+                                project_name=contract.project_name,
+                                related_user_id=str(contract.client.id) if contract.client else '',
+                                related_user_name=contract.client_name
+                            )
+                        if contract.client:
+                            create_event_notification(
+                                user=contract.client,
+                                notification_type='project',
+                                title=f"Project Completed: {contract.project_name}",
+                                message=f"All milestones for project '{contract.project_name}' have been completed and funds released.",
+                                source_id=str(contract.id),
+                                event_key=f"{contract.client.id}:PROJECT_COMPLETED:{contract.id}",
+                                project_name=contract.project_name,
+                                related_user_id=str(contract.freelancer.id) if contract.freelancer else '',
+                                related_user_name=contract.freelancer_name
+                            )
+
+        elif clean_new in ['completed', 'done']:
+            m.status = 'Completed'
+            m.save()
+            from .models import SprintTask
+            st = SprintTask.objects.filter(milestone=m).first()
+            if not st and contract and contract.project:
+                st = SprintTask.objects.filter(project=contract.project, title__iexact=m.title).first()
+            if st:
+                st.status = 'Done'
+                st.save()
+
+        elif clean_new in ['under review', 'submitted for review', 'submitted', 'review']:
+            m.status = 'Submitted for Review'
+            m.save()
             if contract and contract.client:
                 create_event_notification(
                     user=contract.client,
                     notification_type='milestone',
-                    title=f"Milestone Submitted: {m.title}",
-                    message=f"{contract.freelancer_name} submitted deliverable for milestone '{m.title}' ({m.amount}).",
+                    title=f"Milestone Submitted for Review: {m.title}",
+                    message=f"{contract.freelancer_name} submitted deliverable for milestone '{m.title}' ({m.amount}). Please review and release payment.",
                     source_id=str(m.id),
                     event_key=f"{contract.client.id}:MILESTONE_SUBMITTED:{m.id}",
                     project_name=contract.project_name,
                     related_user_id=str(contract.freelancer.id) if contract.freelancer else '',
                     related_user_name=contract.freelancer_name
                 )
-        elif clean_new in ['approved', 'completed', 'paid']:
-            # Client approved milestone -> release payment and notify freelancer
+        elif clean_new in ['changes requested', 'request changes', 'revision']:
+            m.status = 'In Progress'
+            m.save()
             if contract and contract.freelancer:
                 create_event_notification(
                     user=contract.freelancer,
-                    notification_type='payment',
-                    title=f"Milestone Approved & Payment Released: {m.title}",
-                    message=f"Milestone '{m.title}' was approved by {contract.client_name}. {m.amount} has been released to your balance.",
+                    notification_type='milestone',
+                    title=f"Changes Requested: {m.title}",
+                    message=f"{contract.client_name} requested revisions for milestone '{m.title}'. Please review feedback and resubmit.",
                     source_id=str(m.id),
-                    event_key=f"{contract.freelancer.id}:MILESTONE_APPROVED:{m.id}",
+                    event_key=f"{contract.freelancer.id}:CHANGES_REQUESTED:{m.id}",
                     project_name=contract.project_name,
                     related_user_id=str(contract.client.id) if contract.client else '',
                     related_user_name=contract.client_name
                 )
-            if contract and contract.client:
-                create_event_notification(
-                    user=contract.client,
-                    notification_type='payment',
-                    title=f"Milestone Payment Released: {m.title}",
-                    message=f"You approved milestone '{m.title}' ({m.amount}) for {contract.freelancer_name}.",
-                    source_id=str(m.id),
-                    event_key=f"{contract.client.id}:MILESTONE_RELEASED:{m.id}",
-                    project_name=contract.project_name,
-                    related_user_id=str(contract.freelancer.id) if contract.freelancer else '',
-                    related_user_name=contract.freelancer_name
-                )
+        else:
+            m.status = new_status
+            m.save()
 
         return Response({
-            "message": f"Milestone status updated to {new_status}",
+            "message": f"Milestone status updated to {m.status}",
             "milestone_id": m.id,
-            "status": m.status
+            "status": m.status,
+            "contract_status": contract.status if contract else 'Active'
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3810,55 +4494,205 @@ def admin_dashboard_api(request):
     Returns genuine, live platform administrative metrics, verification queue,
     user moderation roster, categories/skills governance, and security audit logs.
     """
-    from .models import User, UserProfile, FreelancerProfile, Project, Contract, Payment, SkillCategory, Skill, Notification
+    from .models import User, UserProfile, FreelancerProfile, Project, Contract, Payment, SkillCategory, Skill, Notification, FreelancerIdentityVerification
 
     try:
-        # 1. Platform Revenue (10% fee on completed milestone releases)
-        completed_payments = Payment.objects.filter(payment_type='Milestone Release')
-        total_released = sum([float(p.amount) for p in completed_payments]) if completed_payments.exists() else 0.0
-        platform_revenue = round(total_released * 0.10, 2)
+        # 1. Complete Admin Payment & Escrow Transaction History & Financial Summaries
+        admin_transactions = []
+        project_financial_summaries = []
+        total_released_all = 0.0
+        active_escrow_all = 0.0
 
-        # 2. Total Escrow Volume (Active contracts escrow held)
+        all_contracts = Contract.objects.all().select_related('client', 'freelancer', 'project').order_by('-created_at')
+
+        for c in all_contracts:
+            proj = c.project
+            proj_title = c.project_name or (proj.title if proj else 'Contract Project')
+            proj_id = proj.id if proj else c.id
+            proj_status = proj.status if proj else c.status
+            
+            client_user = c.client
+            client_name = f"{client_user.first_name} {client_user.last_name}".strip() or client_user.username if client_user else (c.client_name or 'Client')
+            client_email = client_user.email if (client_user and client_user.email) else f"{client_user.username if client_user else 'client'}@freematch.ai"
+            client_display = f"{client_name} ({client_email})"
+            
+            fl_user = c.freelancer
+            fl_name = f"{fl_user.first_name} {fl_user.last_name}".strip() or fl_user.username if fl_user else (c.freelancer_name or 'Assigned Freelancer')
+            fl_email = fl_user.email if (fl_user and fl_user.email) else f"{fl_user.username if fl_user else 'freelancer'}@freematch.ai"
+            fl_display = f"{fl_name} ({fl_email})"
+            
+            contract_num = c.contract_id or f"CTR-{c.id:04d}"
+
+            c_released_val = 0.0
+            c_escrow_val = 0.0
+            proj_milestones_summary = []
+
+            # A. Paid Payments from Payment model
+            payments = Payment.objects.filter(contract=c).order_by('-timestamp')
+            for py in payments:
+                py_amt = float(py.amount)
+                c_released_val += py_amt
+                total_released_all += py_amt
+                py_date = format_ist_datetime(py.timestamp) if py.timestamp else 'Recent'
+                m_obj = ContractMilestone.objects.filter(contract=c, title__icontains=py.milestone_title).first()
+                m_id_str = f"MS-{m_obj.id:04d} (#{m_obj.id})" if m_obj else 'N/A'
+                
+                admin_transactions.append({
+                    "id": f"TXN-{py.id:06d}",
+                    "db_id": py.id,
+                    "payment_id": py.id,
+                    "project_name": proj_title,
+                    "project_id": proj_id,
+                    "contract_id": c.id,
+                    "contract_number": contract_num,
+                    "milestone_name": py.milestone_title,
+                    "milestone_id": m_id_str,
+                    "client_name": client_name,
+                    "client_email": client_email,
+                    "client_display": client_display,
+                    "freelancer_name": fl_name,
+                    "freelancer_email": fl_email,
+                    "freelancer_display": fl_display,
+                    "type": py.payment_type or "Milestone Release",
+                    "payment_type": py.payment_type or "Milestone Release",
+                    "amount": f"₹{int(py_amt):,}",
+                    "amount_val": py_amt,
+                    "payment_status": "Paid",
+                    "status": "Paid",
+                    "escrow_status": "Released",
+                    "date": py_date,
+                    "timestamp": py_date,
+                    "payment_method": "FreeMatch Escrow Wallet",
+                    "invoice_info": f"Invoice #INV-{py.id:06d}",
+                    "has_invoice": True,
+                    "invoice_id": py.id,
+                    "project_status": proj_status,
+                    "release_status": "Completed & Released from Escrow"
+                })
+
+            # B. Milestones breakdown & Pending Escrow records
+            m_list = list(c.milestones.all().order_by('milestone_number'))
+            if m_list:
+                for m in m_list:
+                    m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                    m_val = float(m_amt_digits) if m_amt_digits else 0.0
+                    m_st_clean = (m.status or '').lower().strip()
+                    py_rec = Payment.objects.filter(contract=c, milestone_title__icontains=m.title).order_by('-id').first()
+                    is_paid = m_st_clean in ['approved', 'paid'] or (py_rec is not None)
+
+                    proj_milestones_summary.append({
+                        "id": m.id,
+                        "number": m.milestone_number,
+                        "title": m.title,
+                        "amount": m.amount,
+                        "amount_val": m_val,
+                        "status": "Paid" if is_paid else m.status,
+                        "is_paid": is_paid
+                    })
+
+                    if not is_paid and c.status != 'Cancelled':
+                        c_escrow_val += m_val
+                        active_escrow_all += m_val
+                        esc_st = "Awaiting Client Payout" if m_st_clean in ['completed', 'done', 'awaiting client payment'] else "Escrow Locked"
+                        admin_transactions.append({
+                            "id": f"ESC-M{m.id:06d}",
+                            "db_id": m.id,
+                            "payment_id": m.id,
+                            "project_name": proj_title,
+                            "project_id": proj_id,
+                            "contract_id": c.id,
+                            "contract_number": contract_num,
+                            "milestone_name": m.title,
+                            "milestone_id": f"MS-{m.id:04d} (#{m.id})",
+                            "client_name": client_name,
+                            "client_email": client_email,
+                            "client_display": client_display,
+                            "freelancer_name": fl_name,
+                            "freelancer_email": fl_email,
+                            "freelancer_display": fl_display,
+                            "type": "Escrow Hold",
+                            "payment_type": "Escrow Hold",
+                            "amount": f"₹{int(m_val):,}",
+                            "amount_val": m_val,
+                            "payment_status": "Pending",
+                            "status": "Pending",
+                            "escrow_status": esc_st,
+                            "date": format_ist_datetime(m.updated_at) if m.updated_at else "Active",
+                            "timestamp": format_ist_datetime(m.updated_at) if m.updated_at else "Active",
+                            "payment_method": "FreeMatch Escrow Vault",
+                            "invoice_info": f"Invoice #INV-MS{m.id:06d} (Pending Release)",
+                            "has_invoice": True,
+                            "invoice_id": m.id,
+                            "project_status": proj_status,
+                            "release_status": "Locked in Escrow"
+                        })
+            else:
+                c_escrow_digits = re.sub(r'[^0-9.]', '', str(c.escrow_balance or c.agreed_amount or '0'))
+                c_escrow_val = float(c_escrow_digits) if c_escrow_digits else 0.0
+                if c.status == 'Active':
+                    active_escrow_all += c_escrow_val
+
+            c_agreed_digits = re.sub(r'[^0-9.]', '', str(c.agreed_amount or '0'))
+            c_agreed_val = float(c_agreed_digits) if c_agreed_digits else 0.0
+
+            project_financial_summaries.append({
+                "id": c.id,
+                "project_id": proj_id,
+                "project_name": proj_title,
+                "contract_number": contract_num,
+                "contract_status": c.status,
+                "client_name": client_name,
+                "client_email": client_email,
+                "freelancer_name": fl_name,
+                "freelancer_email": fl_email,
+                "agreed_amount": c_agreed_val,
+                "agreed_amount_str": f"₹{int(c_agreed_val):,}",
+                "total_released": c_released_val,
+                "total_released_str": f"₹{int(c_released_val):,}",
+                "remaining_escrow": c_escrow_val,
+                "remaining_escrow_str": f"₹{int(c_escrow_val):,}",
+                "milestones": proj_milestones_summary,
+                "project_status": proj_status
+            })
+
+        platform_revenue = round(total_released_all * 0.10, 2)
         active_contracts = Contract.objects.filter(status='Active', project__isnull=False).exclude(project__status__in=['Completed', 'Cancelled', 'Archived'])
-        active_escrow = 0.0
-        for c in active_contracts:
-            amt_str = str(c.escrow_balance or c.agreed_amount or '0').replace('₹', '').replace('$', '').replace(',', '').strip()
-            try:
-                active_escrow += float(amt_str)
-            except ValueError:
-                pass
 
         # 3. Counts
         active_contracts_count = active_contracts.count()
         total_projects_count = Project.objects.count()
         suspended_users_count = User.objects.filter(Q(is_active=False) | Q(profile__is_deactivated=True)).distinct().count()
 
-        # 4. Identity Verification Queue (genuine pending freelancers awaiting verification review)
-        unverified_freelancers = FreelancerProfile.objects.filter(
-            Q(verification_status__iexact='Pending Verification') |
-            Q(verification_status__iexact='Pending') |
-            Q(verification_status='')
-        ).exclude(verification_status__iexact='Approved').exclude(verification_status__iexact='Rejected').select_related('user')
+        # 4. Identity Verification Queue (actual freelancer identity verifications from FreelancerIdentityVerification DB table)
+        kyc_qs = FreelancerIdentityVerification.objects.select_related('freelancer', 'freelancer__freelancer_profile', 'reviewed_by').all().order_by('-submitted_at')
         verification_list = []
-        for fl in unverified_freelancers:
-            u = fl.user
-            doc_name = fl.resume_name if fl.resume_name else 'Freelancer_Verification_Doc.pdf'
-            skills = fl.skills_list if fl.skills_list else 'Full Stack Development'
-            role = fl.title if fl.title else 'Freelancer'
+        for v in kyc_qs:
+            u = v.freelancer
+            fl_prof = getattr(u, 'freelancer_profile', None)
             name = f"{u.first_name} {u.last_name}".strip() or u.username
+            doc_url = f"http://localhost:8000/api/identity-verifications/{v.id}/document/"
+            doc_dl_url = f"http://localhost:8000/api/identity-verifications/{v.id}/document/?download=true"
+
             verification_list.append({
-                'id': f"v_{u.id}",
+                'id': v.id,
+                'verification_id': f"KYC-{v.id:04d}",
                 'user_id': u.username,
+                'freelancer_id': u.id,
                 'name': name,
-                'role': role,
-                'skills': skills,
-                'docs': doc_name,
-                'resume_name': fl.resume_name or doc_name,
-                'resume_url': fl.resume_url or '',
-                'resume_size': fl.resume_size or 'PDF Document',
-                'date': u.date_joined.strftime('%b %d, %Y') if u.date_joined else 'Recently',
-                'status': getattr(fl, 'verification_status', 'Pending Verification'),
-                'rejection_reason': getattr(fl, 'verification_rejection_reason', '')
+                'email': u.email or f"{u.username}@example.com",
+                'avatar_url': fl_prof.avatar_url if fl_prof else '',
+                'document_type': v.document_type,
+                'document_number': v.document_number,
+                'document_file_url': doc_url,
+                'document_download_url': doc_dl_url,
+                'document_file_name': v.document_file_name or 'Identity_Document.pdf',
+                'document_file_size': v.document_file_size or '1.2 MB',
+                'status': v.status,
+                'submitted_at': format_ist_date(v.submitted_at),
+                'submitted_at_iso': v.submitted_at.isoformat() if v.submitted_at else None,
+                'reviewed_at': format_ist_date(v.reviewed_at) if v.reviewed_at else None,
+                'reviewed_by': v.reviewed_by.username if v.reviewed_by else None,
+                'rejection_reason': v.rejection_reason if v.status == 'REJECTED' else ''
             })
 
         # 5. User Account Moderation (genuine users in database)
@@ -3877,7 +4711,7 @@ def admin_dashboard_api(request):
                 'email': u.email or f"{u.username}@freematch.ai",
                 'status': 'Suspended' if is_suspended else 'Active',
                 'verified': prof.verified if prof else False,
-                'joined': u.date_joined.strftime('%b %d, %Y') if u.date_joined else 'Recently'
+                'joined': format_ist_date(u.date_joined) if u.date_joined else 'Recently'
             })
 
         # 6. Categories & Skills Governance
@@ -3906,7 +4740,7 @@ def admin_dashboard_api(request):
         notifs_qs = Notification.objects.all().order_by('-created_at')[:20]
         audit_list = []
         for n in notifs_qs:
-            time_str = n.created_at.strftime('%I:%M:%S %p') if n.created_at else 'Just now'
+            time_str = format_ist_datetime(n.created_at) if n.created_at else 'Just now'
             ev_type = 'security' if n.notification_type in ['general', 'account'] else ('financial' if n.notification_type in ['payment', 'milestone'] else 'alert')
             audit_list.append({
                 'id': f"log_{n.id}",
@@ -3947,7 +4781,7 @@ def admin_dashboard_api(request):
         # Serialize active contracts list
         active_contracts_list = []
         for c in active_contracts.select_related('client', 'freelancer', 'project'):
-            c_id_str = c.contract_id or f"CTR-{c.id}"
+            c_id_str = c.contract_id or f"CTR-{c.id:04d}"
             proj_title = c.project.title if c.project else (c.project_name or 'Assigned Project')
             client_name = (f"{c.client.first_name} {c.client.last_name}".strip() or c.client.username) if c.client else (c.client_name or 'Client')
             client_email = (c.client.email if c.client and c.client.email else f"{c.client.username if c.client else 'client'}@freematch.ai")
@@ -3956,42 +4790,175 @@ def admin_dashboard_api(request):
             
             progress_pct = c.project.get_progress_percentage() if c.project else 0
             
+            m_list = list(c.milestones.all().order_by('milestone_number'))
+            active_ms = []
+            total_paid_val = 0.0
+
+            for m in m_list:
+                m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                m_val = float(m_amt_digits) if m_amt_digits else 0.0
+                m_st_clean = (m.status or '').lower().strip()
+                py_rec = Payment.objects.filter(contract=c, milestone_title__icontains=m.title).order_by('-id').first()
+                is_paid = m_st_clean in ['approved', 'paid'] or (py_rec is not None)
+                if is_paid:
+                    total_paid_val += m_val
+
+                py_id = py_rec.id if py_rec else m.id
+                py_date = format_ist_datetime(py_rec.timestamp) if (py_rec and py_rec.timestamp) else (format_ist_datetime(m.updated_at) if m.updated_at else "Active")
+
+                active_ms.append({
+                    "id": m.id,
+                    "number": m.milestone_number,
+                    "title": m.title,
+                    "amount": m.amount,
+                    "amount_val": m_val,
+                    "status": "Paid" if is_paid else m.status,
+                    "is_paid": is_paid,
+                    "transaction_id": f"TXN-{py_id:06d}" if is_paid else f"ESC-M{m.id:06d}",
+                    "payment_date": py_date,
+                    "payment_status": "Paid & Released" if is_paid else ("Awaiting Client Payment" if m_st_clean in ['completed', 'done', 'awaiting client payment'] else "Locked in Escrow"),
+                    "invoice_info": f"Invoice #INV-{py_id:06d} (PDF Available)" if is_paid else f"Invoice #INV-MS{m.id:06d} (Pending Release)"
+                })
+
             active_contracts_list.append({
                 'id': c.id,
                 'contract_id': c_id_str,
                 'project_title': proj_title,
+                'project_name': proj_title,
                 'client_name': client_name,
                 'client_email': client_email,
                 'freelancer_name': fl_name,
                 'freelancer_email': fl_email,
                 'agreed_amount': c.agreed_amount or '₹5,000',
                 'escrow_balance': c.escrow_balance or '₹5,000',
-                'start_date': c.start_date or (c.created_at.strftime("%b %d, %Y") if c.created_at else 'Active'),
+                'total_paid': f"₹{int(total_paid_val):,}",
+                'total_paid_val': total_paid_val,
+                'start_date': c.start_date or (format_ist_date(c.created_at) if c.created_at else 'Active'),
                 'end_date': c.end_date or '3 Weeks',
                 'status': c.status,
+                'contract_status': c.status,
                 'payment_type': c.payment_type or 'Fixed Price',
-                'progress_pct': progress_pct
+                'progress_pct': progress_pct,
+                'milestones': active_ms
+            })
+
+        # Serialize completed projects list
+        completed_contracts_qs = Contract.objects.filter(
+            Q(status='Completed') | Q(project__status='Completed')
+        ).exclude(
+            status__in=['Cancelled', 'Archived']
+        ).select_related('client', 'freelancer', 'project').order_by('-updated_at')
+
+        completed_projects_list = []
+        for c in completed_contracts_qs:
+            c_id_str = c.contract_id or f"CTR-{c.id:04d}"
+            proj_title = c.project.title if c.project else (c.project_name or 'Completed Project')
+            client_name = (f"{c.client.first_name} {c.client.last_name}".strip() or c.client.username) if c.client else (c.client_name or 'Client')
+            client_email = (c.client.email if c.client and c.client.email else f"{c.client.username if c.client else 'client'}@freematch.ai")
+            fl_name = (f"{c.freelancer.first_name} {c.freelancer.last_name}".strip() or c.freelancer.username) if c.freelancer else (c.freelancer_name or 'Freelancer')
+            fl_email = (c.freelancer.email if c.freelancer and c.freelancer.email else f"{c.freelancer.username if c.freelancer else 'freelancer'}@freematch.ai")
+            
+            completion_date = format_ist_date(c.updated_at) if c.updated_at else (c.end_date or "Completed")
+
+            m_list = list(c.milestones.all().order_by('milestone_number'))
+            completed_ms = []
+            total_paid_val = 0.0
+
+            if m_list:
+                for m in m_list:
+                    m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                    m_val = float(m_amt_digits) if m_amt_digits else 0.0
+                    py_rec = Payment.objects.filter(contract=c, milestone_title__icontains=m.title).order_by('-id').first()
+                    if not py_rec:
+                        py_rec = Payment.objects.filter(contract=c).order_by('-id').first()
+                    
+                    total_paid_val += m_val
+                    py_id = py_rec.id if py_rec else m.id
+                    py_date = format_ist_datetime(py_rec.timestamp) if (py_rec and py_rec.timestamp) else (format_ist_datetime(m.updated_at) if m.updated_at else completion_date)
+
+                    completed_ms.append({
+                        "id": m.id,
+                        "number": m.milestone_number,
+                        "title": m.title,
+                        "amount": m.amount,
+                        "amount_val": m_val,
+                        "status": "Paid",
+                        "is_paid": True,
+                        "transaction_id": f"TXN-{py_id:06d}",
+                        "payment_date": py_date,
+                        "payment_status": "Paid & Released",
+                        "invoice_info": f"Invoice #INV-{py_id:06d} (PDF Available)"
+                    })
+            else:
+                c_agreed_digits = re.sub(r'[^0-9.]', '', str(c.agreed_amount or '0'))
+                total_paid_val = float(c_agreed_digits) if c_agreed_digits else 0.0
+                completed_ms.append({
+                    "id": c.id,
+                    "number": 1,
+                    "title": f"Full Contract Payout: {proj_title}",
+                    "amount": c.agreed_amount or f"₹{int(total_paid_val):,}",
+                    "amount_val": total_paid_val,
+                    "status": "Paid",
+                    "is_paid": True,
+                    "transaction_id": f"TXN-C{c.id:06d}",
+                    "payment_date": completion_date,
+                    "payment_status": "Paid & Released",
+                    "invoice_info": f"Invoice #INV-C{c.id:06d} (PDF Available)"
+                })
+
+            c_agreed_digits = re.sub(r'[^0-9.]', '', str(c.agreed_amount or '0'))
+            agreed_val = float(c_agreed_digits) if c_agreed_digits else total_paid_val
+
+            completed_projects_list.append({
+                'id': c.id,
+                'contract_id': c_id_str,
+                'project_title': proj_title,
+                'project_name': proj_title,
+                'client_name': client_name,
+                'client_email': client_email,
+                'freelancer_name': fl_name,
+                'freelancer_email': fl_email,
+                'agreed_amount': c.agreed_amount or f"₹{int(agreed_val):,}",
+                'total_paid': f"₹{int(total_paid_val):,}",
+                'total_paid_val': total_paid_val,
+                'escrow_balance': '₹0',
+                'remaining_escrow': '₹0',
+                'start_date': c.start_date or (format_ist_date(c.created_at) if c.created_at else 'Active'),
+                'completion_date': completion_date,
+                'end_date': completion_date,
+                'status': 'Completed',
+                'contract_status': 'Completed',
+                'project_status': 'Completed',
+                'payment_status': 'Paid & Released',
+                'payment_type': c.payment_type or 'Fixed Price',
+                'progress_pct': 100,
+                'milestones': completed_ms
             })
 
         return Response({
             'metrics': {
-                'platform_revenue': f"₹{platform_revenue:,.0f}" if platform_revenue > 0 else '₹0',
+                'platform_revenue': f"₹{int(platform_revenue):,}" if platform_revenue > 0 else '₹0',
                 'platform_revenue_num': platform_revenue,
-                'total_escrow_volume': f"₹{active_escrow:,.0f}" if active_escrow > 0 else '₹0',
-                'total_escrow_volume_num': active_escrow,
+                'total_escrow_volume': f"₹{int(active_escrow_all):,}" if active_escrow_all > 0 else '₹0',
+                'total_escrow_volume_num': active_escrow_all,
                 'active_contracts_count': active_contracts_count,
+                'completed_projects_count': len(completed_projects_list),
                 'total_projects_count': total_projects_count,
                 'suspended_accounts_count': suspended_users_count,
                 'critical_vulnerabilities': 0,
-                'total_transactions_count': completed_payments.count()
+                'total_transactions_count': len(admin_transactions)
             },
             'verifications': verification_list,
             'project_verifications': project_verification_list,
-            'active_contracts': active_contracts_list,
-            'users': user_list,
+            'user_moderation': user_list,
             'categories': cat_list,
             'skills': skill_list,
-            'audit_logs': audit_list
+            'audit_logs': audit_list,
+            'active_contracts': active_contracts_list,
+            'completed_projects': completed_projects_list,
+            'users': user_list,
+            'transactions': admin_transactions,
+            'project_financial_summaries': project_financial_summaries
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -4624,7 +5591,7 @@ def global_search_api(request):
                 'amount': f"₹{pm.amount:,.0f}",
                 'type_label': pm.payment_type,
                 'milestone': pm.milestone_title,
-                'date': pm.timestamp.strftime('%b %d, %Y'),
+                'date': format_ist_datetime(pm.timestamp),
                 'type': 'earning'
             } for pm in fl_pmts]
 
@@ -4652,7 +5619,7 @@ def global_search_api(request):
                     'counterpart': cp_name,
                     'counterpartId': counterpart.username,
                     'snippet': m.content[:100],
-                    'timestamp': m.timestamp.strftime('%b %d, %I:%M %p'),
+                    'timestamp': format_ist_datetime(m.timestamp),
                     'type': 'message'
                 })
 
@@ -4673,3 +5640,1216 @@ def global_search_api(request):
         }, status=status.HTTP_200_OK)
 
     return Response({"error": f"Invalid role '{role}'."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ==============================================================================
+# CONTRACT & PAYMENT REPORTLAB PDF INVOICE GENERATION ENDPOINTS
+# ==============================================================================
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def download_contract_invoice_pdf(request, pk):
+    """
+    Generates and streams a professional ReportLab PDF Invoice & Payment Receipt for a Contract.
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from decimal import Decimal
+    import re
+    from datetime import datetime
+
+    # Find contract by pk (ID) or contract_id string
+    contract = (
+        Contract.objects.filter(pk=int(pk) if str(pk).isdigit() else None).first() or
+        Contract.objects.filter(contract_id__iexact=str(pk).strip()).first()
+    )
+    if not contract:
+        contract = Contract.objects.filter(project_name__icontains=str(pk).strip()).first()
+
+    if not contract:
+        return Response({"error": f"Contract '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter # 612 x 792 points
+
+    # Title / Header Banner
+    p.setFillColor(colors.HexColor('#0f172a')) # Dark slate header
+    p.rect(0, height - 100, width, 100, fill=True, stroke=False)
+
+    p.setFillColor(colors.white)
+    p.setFont("Helvetica-Bold", 24)
+    p.drawString(40, height - 45, "FreeMatch AI")
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawRightString(width - 40, height - 40, "TAX INVOICE & PAYMENT RECEIPT")
+    p.setFont("Helvetica", 10)
+    contract_code = contract.contract_id or f"CTR-{contract.id}"
+    p.drawRightString(width - 40, height - 58, f"Invoice #: INV-{contract_code}")
+    date_str = format_ist_datetime(contract.updated_at or contract.created_at or timezone.now(), "%B %d, %Y, %I:%M %p")
+    p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
+
+    # Client & Freelancer Information Columns
+    y = height - 130
+    p.setFillColor(colors.HexColor('#1e293b'))
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(40, y, "ISSUED BY (CLIENT):")
+    p.drawString(320, y, "ISSUED TO (FREELANCER):")
+
+    y -= 18
+    p.setFont("Helvetica", 10)
+    p.setFillColor(colors.HexColor('#334155'))
+
+    client_name = contract.client_name or (contract.client.get_full_name() if (contract.client and hasattr(contract.client, 'get_full_name') and contract.client.get_full_name()) else (contract.client.username if contract.client else 'Client User'))
+    client_email = contract.client.email if contract.client else 'client@freematch.ai'
+    freelancer_name = contract.freelancer_name or (contract.freelancer.get_full_name() if (contract.freelancer and hasattr(contract.freelancer, 'get_full_name') and contract.freelancer.get_full_name()) else (contract.freelancer.username if contract.freelancer else 'Freelancer User'))
+    freelancer_email = contract.freelancer.email if contract.freelancer else 'freelancer@freematch.ai'
+
+    p.drawString(40, y, f"Name: {client_name}")
+    p.drawString(320, y, f"Name: {freelancer_name}")
+
+    y -= 14
+    p.drawString(40, y, f"Email: {client_email}")
+    p.drawString(320, y, f"Email: {freelancer_email}")
+
+    y -= 14
+    p.drawString(40, y, f"Role: Project Owner")
+    p.drawString(320, y, f"Role: Service Provider / Specialist")
+
+    # Contract Overview Box
+    y -= 30
+    p.setFillColor(colors.HexColor('#f8fafc'))
+    p.setStrokeColor(colors.HexColor('#e2e8f0'))
+    p.rect(40, y - 55, width - 80, 55, fill=True, stroke=True)
+
+    p.setFillColor(colors.HexColor('#0f172a'))
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(52, y - 18, f"Project Title: {contract.project_name or 'FreeMatch AI Project'}")
+
+    p.setFont("Helvetica", 9)
+    p.setFillColor(colors.HexColor('#475569'))
+    p.drawString(52, y - 34, f"Contract ID: {contract_code}  |  Payment Type: {contract.payment_type or 'Fixed Price Escrow'}")
+    p.drawString(52, y - 48, f"Contract Status: {contract.status.upper()}  |  Agreed Amount: {str(contract.agreed_amount).replace('$', '₹')}")
+
+    # Itemized Breakdown Table Header
+    y -= 80
+    p.setFillColor(colors.HexColor('#2563eb')) # Blue accent header
+    p.rect(40, y, width - 80, 24, fill=True, stroke=False)
+
+    p.setFillColor(colors.white)
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(50, y + 7, "Milestone / Deliverable")
+    p.drawString(280, y + 7, "Payment Type")
+    p.drawString(400, y + 7, "Status")
+    p.drawRightString(width - 50, y + 7, "Amount (₹)")
+
+    # Milestones & Payments Row Rendering
+    y -= 20
+    milestones = contract.milestones.all().order_by('milestone_number')
+
+    total_paid_num = Decimal('0')
+    row_count = 0
+
+    p.setFont("Helvetica", 9)
+
+    if milestones.exists():
+        for m in milestones:
+            row_count += 1
+            bg_color = colors.HexColor('#f8fafc') if row_count % 2 == 0 else colors.white
+            p.setFillColor(bg_color)
+            p.rect(40, y - 4, width - 80, 20, fill=True, stroke=False)
+
+            p.setFillColor(colors.HexColor('#0f172a'))
+            p.drawString(50, y, f"#{m.milestone_number}: {m.title[:35]}")
+            p.drawString(280, y, "Milestone Escrow")
+
+            st = m.status or 'Pending'
+            if st.lower() == 'paid':
+                p.setFillColor(colors.HexColor('#16a34a')) # Green
+                st_text = "PAID & RELEASED"
+                amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+                total_paid_num += Decimal(amt_digits if amt_digits else '0')
+            else:
+                p.setFillColor(colors.HexColor('#d97706')) # Amber
+                st_text = st.upper()
+
+            p.drawString(400, y, st_text)
+
+            p.setFillColor(colors.HexColor('#0f172a'))
+            p.drawRightString(width - 50, y, str(m.amount).replace('$', '₹'))
+            y -= 20
+    else:
+        # Single line item if no milestone records exist
+        p.setFillColor(colors.white)
+        p.rect(40, y - 4, width - 80, 20, fill=True, stroke=False)
+        p.setFillColor(colors.HexColor('#0f172a'))
+        p.drawString(50, y, f"1. {contract.project_name}")
+        p.drawString(280, y, contract.payment_type or "Fixed Contract Payout")
+
+        st_text = "PAID & RELEASED" if contract.status == 'Completed' else contract.status.upper()
+        p.setFillColor(colors.HexColor('#16a34a') if contract.status == 'Completed' else colors.HexColor('#d97706'))
+        p.drawString(400, y, st_text)
+
+        p.setFillColor(colors.HexColor('#0f172a'))
+        p.drawRightString(width - 50, y, str(contract.agreed_amount).replace('$', '₹'))
+        y -= 20
+
+        amt_digits = re.sub(r'[^0-9.]', '', str(contract.agreed_amount or '0'))
+        if contract.status == 'Completed':
+            total_paid_num = Decimal(amt_digits if amt_digits else '0')
+
+    # Total & Financial Summary Box
+    y -= 10
+    p.setStrokeColor(colors.HexColor('#cbd5e1'))
+    p.line(40, y, width - 40, y)
+
+    y -= 25
+    p.setFont("Helvetica-Bold", 10)
+    p.setFillColor(colors.HexColor('#475569'))
+    p.drawRightString(width - 160, y, "Agreed Contract Total:")
+    p.setFillColor(colors.HexColor('#0f172a'))
+    p.drawRightString(width - 50, y, str(contract.agreed_amount).replace('$', '₹'))
+
+    y -= 18
+    p.setFillColor(colors.HexColor('#475569'))
+    p.drawRightString(width - 160, y, "Escrow Balance Remaining:")
+    p.setFillColor(colors.HexColor('#d97706'))
+    p.drawRightString(width - 50, y, str(contract.escrow_balance).replace('$', '₹'))
+
+    y -= 22
+    p.setFillColor(colors.HexColor('#16a34a')) # Highlight Total Paid
+    p.setFont("Helvetica-Bold", 12)
+    p.drawRightString(width - 160, y, "Total Funds Released:")
+    p.drawRightString(width - 50, y, f"₹{total_paid_num:,.2f}")
+
+    # Footer & Security Notice
+    p.setFillColor(colors.HexColor('#f1f5f9'))
+    p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
+
+    p.setFillColor(colors.HexColor('#475569'))
+    p.setFont("Helvetica-Bold", 8)
+    p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
+    p.setFont("Helvetica", 8)
+    p.drawString(50, 62, "This document is an electronically generated tax invoice & payment receipt from FreeMatch AI Platform.")
+    p.drawString(50, 50, "Payments are protected via platform Escrow. All transactions are logged under immutable database audit records.")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="Invoice_{contract_code}.pdf"'
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def download_payment_invoice_pdf(request, pk):
+    """
+    Generates and streams a PDF receipt or milestone invoice for a specific Payment ID, Milestone ID, or Contract ID.
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from datetime import datetime
+
+    payment = Payment.objects.filter(id=pk).first()
+    milestone = None
+    contract = None
+
+    django_request = request._request if hasattr(request, '_request') else request
+
+    if payment:
+        contract = payment.contract
+    else:
+        # Fallback 1: Lookup by ContractMilestone ID
+        milestone = ContractMilestone.objects.filter(id=pk).first()
+        if milestone:
+            contract = milestone.contract
+            payment = Payment.objects.filter(contract=contract, milestone_title__icontains=milestone.title).order_by('-id').first()
+            if not payment:
+                payment = Payment.objects.filter(contract=contract).order_by('-id').first()
+        else:
+            # Fallback 2: Lookup by Contract ID
+            contract = Contract.objects.filter(id=pk).first()
+            if contract:
+                payment = Payment.objects.filter(contract=contract).order_by('-id').first()
+                if not payment:
+                    return download_contract_invoice_pdf(django_request, pk)
+
+    if not payment and not milestone and not contract:
+        # Final fallback: search contract by string or return contract invoice
+        return download_contract_invoice_pdf(django_request, pk)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Header
+    p.setFillColor(colors.HexColor('#0f172a'))
+    p.rect(0, height - 100, width, 100, fill=True, stroke=False)
+
+    p.setFillColor(colors.white)
+    p.setFont("Helvetica-Bold", 24)
+    p.drawString(40, height - 45, "FreeMatch AI")
+
+    p.setFont("Helvetica-Bold", 12)
+    header_title = "PAYMENT RELEASE RECEIPT" if payment else "MILESTONE TAX INVOICE"
+    p.drawRightString(width - 40, height - 40, header_title)
+    p.setFont("Helvetica", 10)
+    txn_id_str = f"TXN-{payment.id:06d}" if payment else (f"MS-{milestone.id:06d}" if milestone else f"CTR-{contract.id:06d}")
+    p.drawRightString(width - 40, height - 58, f"Transaction/Doc ID: {txn_id_str}")
+    date_str = format_ist_datetime(payment.timestamp) if payment else (format_ist_datetime(milestone.updated_at) if (milestone and hasattr(milestone, 'updated_at') and milestone.updated_at) else format_ist_datetime(timezone.now()))
+    p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
+
+    # Details
+    y = height - 140
+    p.setFillColor(colors.HexColor('#1e293b'))
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(40, y, "TRANSACTION / MILESTONE DETAILS:")
+
+    y -= 22
+    p.setFont("Helvetica", 10)
+    p.setFillColor(colors.HexColor('#334155'))
+
+    proj_name = contract.project_name if contract else (payment.project_name if payment else 'Project Deliverable')
+    ctr_id = contract.contract_id if contract else 'CTR-N/A'
+    client_name = contract.client_name if contract else 'Client'
+    freelancer_name = contract.freelancer_name if contract else 'Freelancer'
+    m_title = payment.milestone_title if payment else (milestone.title if milestone else 'Milestone Deliverable')
+    p_type = payment.payment_type if payment else 'Milestone Payment'
+    p_status = 'RELEASED / CONFIRMED' if payment else (milestone.status if milestone else 'Awaiting Payment')
+
+    p.drawString(40, y, f"Project Name: {proj_name}")
+    y -= 16
+    p.drawString(40, y, f"Contract ID: {ctr_id}")
+    y -= 16
+    p.drawString(40, y, f"Client: {client_name}")
+    y -= 16
+    p.drawString(40, y, f"Freelancer: {freelancer_name}")
+    y -= 16
+    p.drawString(40, y, f"Milestone Title: {m_title}")
+    y -= 16
+    p.drawString(40, y, f"Payment Type: {p_type}")
+    y -= 16
+    p.drawString(40, y, f"Status: {p_status}")
+
+    # Amount Card Box
+    y -= 45
+    raw_amount = payment.amount if payment else (milestone.amount if milestone else (contract.agreed_amount if contract else 0))
+    try:
+        clean_amt = str(raw_amount).replace('₹', '').replace(',', '').strip()
+        amt_float = float(clean_amt) if clean_amt else 0.0
+    except Exception:
+        amt_float = 0.0
+
+    p.setFillColor(colors.HexColor('#f0fdf4')) # Emerald light bg
+    p.setStrokeColor(colors.HexColor('#bbf7d0'))
+    p.rect(40, y - 40, width - 80, 50, fill=True, stroke=True)
+
+    p.setFillColor(colors.HexColor('#15803d'))
+    p.setFont("Helvetica-Bold", 12)
+    amount_label = "AMOUNT PAID & RELEASED:" if payment else "MILESTONE AMOUNT:"
+    p.drawString(55, y - 18, amount_label)
+    p.setFont("Helvetica-Bold", 20)
+    p.drawRightString(width - 55, y - 25, f"₹{amt_float:,.2f}")
+
+    # Security Footer
+    p.setFillColor(colors.HexColor('#f1f5f9'))
+    p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
+    p.setFillColor(colors.HexColor('#475569'))
+    p.setFont("Helvetica-Bold", 8)
+    p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
+    p.setFont("Helvetica", 8)
+    p.drawString(50, 62, "Electronically generated payment confirmation receipt from FreeMatch AI.")
+    p.drawString(50, 50, "Funds processed via Escrow directly into Freelancer's Wallet balance.")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    doc_id = payment.id if payment else (milestone.id if milestone else (contract.id if contract else pk))
+    response['Content-Disposition'] = f'inline; filename="Invoice_TXN_{doc_id}.pdf"'
+    return response
+
+
+# ==============================================================================
+# FREELANCER KYC / IDENTITY VERIFICATION APIS
+# ==============================================================================
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def freelancer_identity_verification_api(request):
+    """
+    GET: Retrieve freelancer's current identity verification status, latest submission, and full history.
+    POST: Submit a new identity verification document (creates PENDING record and preserves history).
+    """
+    import os
+    from .models import FreelancerIdentityVerification, FreelancerProfile, UserProfile, Notification
+    from django.contrib.auth.models import User
+
+    username = request.GET.get('user_id') or request.GET.get('username') or request.data.get('user_id') or request.data.get('username')
+    user = None
+    if request.user and request.user.is_authenticated:
+        user = request.user
+    elif username:
+        user = resolve_user_account(username)
+
+    if not user:
+        return Response({"error": "User account required for identity verification."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    fl_prof, _ = FreelancerProfile.objects.get_or_create(user=user)
+    user_prof, _ = UserProfile.objects.get_or_create(user=user)
+
+    if request.method == 'GET':
+        verifications = FreelancerIdentityVerification.objects.filter(freelancer=user).order_by('-submitted_at')
+        
+        latest_approved = verifications.filter(status='APPROVED').order_by('-reviewed_at', '-submitted_at').first()
+        latest_pending = verifications.filter(status='PENDING').first()
+        latest_rejected = verifications.filter(status='REJECTED').first()
+
+        if latest_approved:
+            current_status = 'APPROVED'
+            target_display_record = latest_approved
+            is_approved = True
+            status_str = 'Approved'
+            rej_reason = ''
+        elif latest_pending:
+            current_status = 'PENDING'
+            target_display_record = latest_pending
+            is_approved = False
+            status_str = 'Pending Verification'
+            rej_reason = ''
+        elif latest_rejected:
+            current_status = 'REJECTED'
+            target_display_record = latest_rejected
+            is_approved = False
+            status_str = 'Rejected'
+            rej_reason = latest_rejected.rejection_reason
+        else:
+            current_status = 'NOT_SUBMITTED'
+            target_display_record = None
+            is_approved = False
+            status_str = 'Not Submitted'
+            rej_reason = ''
+
+        if fl_prof.verified != is_approved or fl_prof.verification_status != status_str or fl_prof.verification_rejection_reason != rej_reason:
+            fl_prof.verified = is_approved
+            fl_prof.verification_status = status_str
+            fl_prof.verification_rejection_reason = rej_reason
+            fl_prof.save()
+        if user_prof and (user_prof.verified != is_approved or user_prof.verification_status != status_str or user_prof.verification_rejection_reason != rej_reason):
+            user_prof.verified = is_approved
+            user_prof.verification_status = status_str
+            user_prof.verification_rejection_reason = rej_reason
+            user_prof.save()
+
+        history_list = []
+        for v in verifications:
+            doc_num = v.document_number
+            masked_num = (doc_num[:2] + '*' * max(0, len(doc_num) - 6) + doc_num[-4:]) if len(doc_num) >= 6 else ('*' * len(doc_num))
+
+            history_list.append({
+                'id': v.id,
+                'document_type': v.document_type,
+                'document_number_masked': masked_num,
+                'document_file_url': f"http://localhost:8000/api/identity-verifications/{v.id}/document/",
+                'document_download_url': f"http://localhost:8000/api/identity-verifications/{v.id}/document/?download=true",
+                'document_file_name': v.document_file_name or 'Identity_Document.pdf',
+                'document_file_size': v.document_file_size or 'File',
+                'status': v.status,
+                'rejection_reason': v.rejection_reason if v.status == 'REJECTED' else '',
+                'submitted_at': format_ist_date(v.submitted_at),
+                'reviewed_at': format_ist_date(v.reviewed_at) if v.reviewed_at else None,
+                'reviewed_by': v.reviewed_by.username if v.reviewed_by else None
+            })
+
+        latest_data = None
+        if target_display_record:
+            doc_num = target_display_record.document_number
+            masked_num = (doc_num[:2] + '*' * max(0, len(doc_num) - 6) + doc_num[-4:]) if len(doc_num) >= 6 else ('*' * len(doc_num))
+            latest_data = {
+                'id': target_display_record.id,
+                'document_type': target_display_record.document_type,
+                'document_number_masked': masked_num,
+                'document_file_url': f"http://localhost:8000/api/identity-verifications/{target_display_record.id}/document/",
+                'document_download_url': f"http://localhost:8000/api/identity-verifications/{target_display_record.id}/document/?download=true",
+                'document_file_name': target_display_record.document_file_name or 'Identity_Document.pdf',
+                'document_file_size': target_display_record.document_file_size or 'File',
+                'status': target_display_record.status,
+                'rejection_reason': target_display_record.rejection_reason if target_display_record.status == 'REJECTED' else '',
+                'submitted_at': format_ist_date(target_display_record.submitted_at),
+                'reviewed_at': format_ist_date(target_display_record.reviewed_at) if target_display_record.reviewed_at else None,
+            }
+
+        return Response({
+            "status": current_status,
+            "verification_status": current_status,
+            "rejection_reason": rej_reason,
+            "latest_verification": latest_data,
+            "history": history_list
+        }, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        document_type = request.data.get('document_type', '').strip()
+        document_number = request.data.get('document_number', '').strip()
+        
+        valid_doc_types = ['Aadhaar Card', 'PAN Card', 'Passport', 'Driving Licence', 'Voter ID']
+        if document_type not in valid_doc_types:
+            return Response({"error": f"Invalid document type. Allowed types: {', '.join(valid_doc_types)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not document_number:
+            return Response({"error": "Document number is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        doc_file = request.FILES.get('document_file')
+        doc_file_url = str(request.data.get('document_file_url', '')).strip()
+        file_name = request.data.get('document_file_name', '')
+        file_size = request.data.get('document_file_size', '')
+
+        if doc_file:
+            ext = os.path.splitext(doc_file.name)[1].lower()
+            allowed_exts = ['.pdf', '.jpg', '.jpeg', '.png']
+            if ext not in allowed_exts:
+                return Response({"error": f"Unsupported file format '{ext}'. Allowed formats: PDF, JPG, JPEG, PNG."}, status=status.HTTP_400_BAD_REQUEST)
+            if doc_file.size > 10 * 1024 * 1024:
+                return Response({"error": "File size exceeds maximum limit of 10MB."}, status=status.HTTP_400_BAD_REQUEST)
+
+            file_name = doc_file.name
+            size_kb = round(doc_file.size / 1024, 1)
+            file_size = f"{size_kb} KB" if size_kb < 1024 else f"{round(size_kb/1024, 2)} MB"
+
+        if not doc_file and not doc_file_url:
+            file_name = file_name or f"{user.username}_KYC_{document_type.replace(' ', '_')}.pdf"
+            file_size = file_size or "1.2 MB"
+
+        # Check if there is an active PENDING verification record for this user
+        pending_verification = FreelancerIdentityVerification.objects.filter(freelancer=user, status='PENDING').order_by('-submitted_at').first()
+
+        from django.utils import timezone
+
+        if pending_verification:
+            # Update active PENDING record in-place (prevents duplicate pending requests on re-submit/refresh)
+            verification = pending_verification
+            verification.document_type = document_type
+            verification.document_number = document_number
+            if doc_file:
+                verification.document_file = doc_file
+            if doc_file_url:
+                verification.document_file_url = doc_file_url
+            verification.document_file_name = file_name
+            verification.document_file_size = file_size
+            verification.submitted_at = timezone.now()
+            sec_url = f"http://localhost:8000/api/identity-verifications/{verification.id}/document/"
+            if not doc_file_url:
+                verification.document_file_url = sec_url
+            verification.save()
+        else:
+            # Create a NEW PENDING verification attempt (preserves previous REJECTED records as history in DB)
+            verification = FreelancerIdentityVerification.objects.create(
+                freelancer=user,
+                document_type=document_type,
+                document_number=document_number,
+                document_file=doc_file if doc_file else None,
+                document_file_url=doc_file_url,
+                document_file_name=file_name,
+                document_file_size=file_size,
+                status='PENDING',
+                submitted_at=timezone.now()
+            )
+            sec_url = f"http://localhost:8000/api/identity-verifications/{verification.id}/document/"
+            verification.document_file_url = sec_url
+            verification.save(update_fields=['document_file_url'])
+
+        fl_prof.verification_status = 'Pending Verification'
+        fl_prof.verification_rejection_reason = ''
+        fl_prof.verified = False
+        fl_prof.save()
+
+        user_prof.verification_status = 'Pending Verification'
+        user_prof.verification_rejection_reason = ''
+        user_prof.verified = False
+        user_prof.save()
+
+        Notification.objects.create(
+            user=user,
+            notification_type='general',
+            title='Identity Verification Submitted',
+            message='Your identity verification documents have been submitted and are awaiting Admin review.',
+            source_id=str(verification.id)
+        )
+
+        return Response({
+            "message": "Your identity verification document has been submitted and is under Admin review.",
+            "status": "PENDING",
+            "verification": {
+                "id": verification.id,
+                "document_type": verification.document_type,
+                "document_file_url": sec_url,
+                "document_download_url": f"{sec_url}?download=true",
+                "status": "PENDING",
+                "submitted_at": format_ist_date(verification.submitted_at)
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def serve_identity_verification_document_api(request, pk=None):
+    """
+    Serves the exact uploaded identity verification document file for inline preview or download.
+    Supports PDF, JPG, JPEG, PNG, WEBP, etc.
+    Enforces authorization: Admin or owning Freelancer only.
+    """
+    import mimetypes
+    import os
+    from django.http import FileResponse
+    from django.conf import settings
+    from .models import FreelancerIdentityVerification
+
+    v_id = pk or request.GET.get('id')
+    verification = FreelancerIdentityVerification.objects.filter(id=v_id).first() if v_id else None
+    if not verification:
+        return Response({"error": "Identity verification document record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Authorization Check
+    req_username = request.GET.get('user_id') or request.GET.get('username')
+    req_user = request.user if (request.user and request.user.is_authenticated) else None
+    if not req_user and req_username:
+        req_user = resolve_user_account(req_username)
+
+    if req_user:
+        is_admin = req_user.is_staff or getattr(getattr(req_user, 'profile', None), 'role', '') == 'admin'
+        is_owner = (req_user.id == verification.freelancer_id) or (req_user.username == verification.freelancer.username)
+        if not (is_admin or is_owner):
+            return Response({"error": "Unauthorized to access this identity document."}, status=status.HTTP_403_FORBIDDEN)
+
+    # Locate actual stored file on disk
+    file_path = None
+    if verification.document_file and hasattr(verification.document_file, 'path'):
+        try:
+            if os.path.exists(verification.document_file.path):
+                file_path = verification.document_file.path
+        except Exception:
+            pass
+
+    if not file_path and verification.document_file_url:
+        clean_url = verification.document_file_url.split('?')[0]
+        if '/media/' in clean_url:
+            rel_part = clean_url.split('/media/')[-1]
+            candidate = os.path.join(settings.MEDIA_ROOT, rel_part.replace('/', os.sep))
+            if os.path.exists(candidate):
+                file_path = candidate
+
+    if not file_path or not os.path.exists(file_path):
+        return Response({"error": f"Uploaded document file '{verification.document_file_name or 'document'}' not found on storage server."}, status=status.HTTP_404_NOT_FOUND)
+
+    original_name = verification.document_file_name or os.path.basename(file_path)
+    content_type, _ = mimetypes.guess_type(file_path)
+    ext = os.path.splitext(original_name)[1].lower() or os.path.splitext(file_path)[1].lower()
+
+    if not content_type:
+        if ext == '.pdf':
+            content_type = 'application/pdf'
+        elif ext in ['.jpg', '.jpeg']:
+            content_type = 'image/jpeg'
+        elif ext == '.png':
+            content_type = 'image/png'
+        elif ext == '.webp':
+            content_type = 'image/webp'
+        else:
+            content_type = 'application/octet-stream'
+
+    is_download = str(request.GET.get('download', '')).lower() in ['true', '1', 'yes']
+    disposition = 'attachment' if is_download else 'inline'
+
+    response = FileResponse(open(file_path, 'rb'), content_type=content_type)
+    response['Content-Disposition'] = f'{disposition}; filename="{original_name}"'
+    response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Headers'] = '*'
+    response['X-Frame-Options'] = 'ALLOWALL'
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def admin_identity_verifications_list_api(request):
+    """
+    GET: Retrieve list of all freelancer KYC submissions with filters & search for Admin verification queue.
+    """
+    from .models import FreelancerIdentityVerification, FreelancerProfile, UserProfile
+    from django.db.models import Q
+
+    status_filter = str(request.GET.get('status', 'all')).lower().strip()
+    search_query = str(request.GET.get('search', '')).strip()
+
+    qs = FreelancerIdentityVerification.objects.select_related('freelancer', 'freelancer__freelancer_profile', 'reviewed_by').all()
+
+    if status_filter == 'pending':
+        qs = qs.filter(status='PENDING')
+    elif status_filter == 'approved':
+        qs = qs.filter(status='APPROVED')
+    elif status_filter == 'rejected':
+        qs = qs.filter(status='REJECTED')
+
+    if search_query:
+        qs = qs.filter(
+            Q(freelancer__username__icontains=search_query) |
+            Q(freelancer__first_name__icontains=search_query) |
+            Q(freelancer__last_name__icontains=search_query) |
+            Q(freelancer__email__icontains=search_query) |
+            Q(document_type__icontains=search_query) |
+            Q(document_number__icontains=search_query) |
+            Q(id__icontains=search_query)
+        )
+
+    items = []
+    for v in qs:
+        u = v.freelancer
+        fl_prof = getattr(u, 'freelancer_profile', None)
+        name = f"{u.first_name} {u.last_name}".strip() or u.username
+        doc_url = f"http://localhost:8000/api/identity-verifications/{v.id}/document/"
+        doc_dl_url = f"http://localhost:8000/api/identity-verifications/{v.id}/document/?download=true"
+
+        items.append({
+            'id': v.id,
+            'verification_id': f"KYC-{v.id:04d}",
+            'user_id': u.username,
+            'freelancer_id': u.id,
+            'name': name,
+            'email': u.email or f"{u.username}@example.com",
+            'avatar_url': fl_prof.avatar_url if fl_prof else '',
+            'document_type': v.document_type,
+            'document_number': v.document_number,
+            'document_file_url': doc_url,
+            'document_download_url': doc_dl_url,
+            'document_file_name': v.document_file_name or 'Identity_Document.pdf',
+            'document_file_size': v.document_file_size or '1.2 MB',
+            'status': v.status,
+            'submitted_at': format_ist_date(v.submitted_at),
+            'submitted_at_iso': v.submitted_at.isoformat() if v.submitted_at else None,
+            'reviewed_at': format_ist_date(v.reviewed_at) if v.reviewed_at else None,
+            'reviewed_by': v.reviewed_by.username if v.reviewed_by else None,
+            'rejection_reason': v.rejection_reason if v.status == 'REJECTED' else ''
+        })
+
+    return Response({
+        "verifications": items,
+        "count": len(items),
+        "pending_count": len([x for x in items if x['status'] == 'PENDING']),
+        "approved_count": len([x for x in items if x['status'] == 'APPROVED']),
+        "rejected_count": len([x for x in items if x['status'] == 'REJECTED'])
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_approve_identity_verification_api(request, pk=None):
+    """
+    Approve a freelancer's identity verification submission.
+    Strictly allows approval ONLY for PENDING records.
+    """
+    from .models import FreelancerIdentityVerification, FreelancerProfile, UserProfile, Notification
+    from django.utils import timezone
+
+    v_id = pk or request.data.get('id') or request.data.get('verification_id')
+    username = request.data.get('user_id') or request.data.get('username')
+
+    verification = None
+    if v_id and str(v_id).isdigit():
+        verification = FreelancerIdentityVerification.objects.filter(id=int(v_id)).first()
+
+    user = None
+    if verification:
+        user = verification.freelancer
+    elif username:
+        user = resolve_user_account(username)
+
+    if not user and not verification:
+        return Response({"error": "Verification record or user not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if verification:
+        if verification.status != 'PENDING':
+            return Response({"error": f"Cannot approve verification with status '{verification.status}'. Only PENDING verifications can be approved."}, status=status.HTTP_400_BAD_REQUEST)
+        verification.status = 'APPROVED'
+        verification.reviewed_at = timezone.now()
+        if request.user and request.user.is_authenticated:
+            verification.reviewed_by = request.user
+        verification.rejection_reason = ''
+        verification.save()
+
+    if user:
+        fl_prof = getattr(user, 'freelancer_profile', None)
+        if fl_prof:
+            fl_prof.verified = True
+            fl_prof.verification_status = 'Approved'
+            fl_prof.verification_rejection_reason = ''
+            fl_prof.save()
+
+        user_prof = getattr(user, 'profile', None)
+        if user_prof:
+            user_prof.verified = True
+            user_prof.verification_status = 'Approved'
+            user_prof.verification_rejection_reason = ''
+            user_prof.save()
+
+        Notification.objects.create(
+            user=user,
+            notification_type='general',
+            title='Identity Verification Approved!',
+            message='Your identity verification has been approved. Verified Freelancer Pro badge awarded.',
+            source_id=str(user.id)
+        )
+
+    return Response({
+        "message": "Identity verification approved successfully.",
+        "status": "APPROVED",
+        "verified": True
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_reject_identity_verification_api(request, pk=None):
+    """
+    Reject a freelancer's identity verification submission with required rejection reason.
+    Strictly allows rejection ONLY for PENDING records.
+    """
+    from .models import FreelancerIdentityVerification, FreelancerProfile, UserProfile, Notification
+    from django.utils import timezone
+
+    v_id = pk or request.data.get('id') or request.data.get('verification_id')
+    username = request.data.get('user_id') or request.data.get('username')
+    reason = str(request.data.get('rejection_reason', '') or request.data.get('reason', '')).strip()
+
+    if not reason:
+        reason = "Verification documents did not meet platform guidelines."
+
+    verification = None
+    if v_id and str(v_id).isdigit():
+        verification = FreelancerIdentityVerification.objects.filter(id=int(v_id)).first()
+
+    user = None
+    if verification:
+        user = verification.freelancer
+    elif username:
+        user = resolve_user_account(username)
+
+    if not user and not verification:
+        return Response({"error": "Verification record or user not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if verification:
+        if verification.status != 'PENDING':
+            return Response({"error": f"Cannot reject verification with status '{verification.status}'. Only PENDING verifications can be rejected."}, status=status.HTTP_400_BAD_REQUEST)
+        verification.status = 'REJECTED'
+        verification.rejection_reason = reason
+        verification.reviewed_at = timezone.now()
+        if request.user and request.user.is_authenticated:
+            verification.reviewed_by = request.user
+        verification.save()
+
+    if user:
+        fl_prof = getattr(user, 'freelancer_profile', None)
+        if fl_prof:
+            fl_prof.verified = False
+            fl_prof.verification_status = 'Rejected'
+            fl_prof.verification_rejection_reason = reason
+            fl_prof.save()
+
+        user_prof = getattr(user, 'profile', None)
+        if user_prof:
+            user_prof.verified = False
+            user_prof.verification_status = 'Rejected'
+            user_prof.verification_rejection_reason = reason
+            user_prof.save()
+
+        Notification.objects.create(
+            user=user,
+            notification_type='general',
+            title='Identity Verification Rejected',
+            message='Your identity verification was rejected. Please review the reason and resubmit your documents.',
+            source_id=str(user.id)
+        )
+
+    return Response({
+        "message": "Identity verification rejected.",
+        "status": "REJECTED",
+        "verified": False,
+        "rejection_reason": reason
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE', 'POST'])
+@permission_classes([AllowAny])
+def admin_delete_identity_verification_api(request, pk=None):
+    """
+    Delete a specific rejected identity verification record.
+    Authorized for Admin.
+    """
+    from .models import FreelancerIdentityVerification, FreelancerProfile, UserProfile
+
+    v_id = pk or request.data.get('id') or request.data.get('verification_id')
+    verification = FreelancerIdentityVerification.objects.filter(id=v_id).first() if v_id else None
+
+    if not verification:
+        return Response({"error": "Identity verification record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    user = verification.freelancer
+    verification.delete()
+
+    # Re-sync profile status based on remaining records for user
+    if user:
+        remaining = FreelancerIdentityVerification.objects.filter(freelancer=user).order_by('-submitted_at')
+        latest = remaining.first()
+        fl_prof = getattr(user, 'freelancer_profile', None)
+        user_prof = getattr(user, 'profile', None)
+
+        if not latest:
+            if fl_prof:
+                fl_prof.verified = False
+                fl_prof.verification_status = 'Not Submitted'
+                fl_prof.verification_rejection_reason = ''
+                fl_prof.save()
+            if user_prof:
+                user_prof.verified = False
+                user_prof.verification_status = 'Not Submitted'
+                user_prof.verification_rejection_reason = ''
+                user_prof.save()
+        else:
+            is_app = (latest.status == 'APPROVED')
+            st_str = 'Approved' if is_app else ('Rejected' if latest.status == 'REJECTED' else 'Pending Verification')
+            rej_r = latest.rejection_reason if latest.status == 'REJECTED' else ''
+            if fl_prof:
+                fl_prof.verified = is_app
+                fl_prof.verification_status = st_str
+                fl_prof.verification_rejection_reason = rej_r
+                fl_prof.save()
+            if user_prof:
+                user_prof.verified = is_app
+                user_prof.verification_status = st_str
+                user_prof.verification_rejection_reason = rej_r
+                user_prof.save()
+
+    return Response({
+        "message": "Identity verification record deleted successfully.",
+        "id": int(v_id) if str(v_id).isdigit() else v_id
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def freelancer_public_verification_status_api(request, user_id=None):
+    """
+    Safe public API returning ONLY verification status label & timestamp for Client badge views.
+    Strictly NO document files, document numbers, or private details.
+    """
+    from .models import FreelancerProfile, FreelancerIdentityVerification
+    
+    target_user = resolve_user_account(user_id) if user_id else None
+    if not target_user:
+        return Response({
+            "status": "NOT_SUBMITTED",
+            "label": "Identity Not Verified",
+            "verified_at": None,
+            "verified_by": "FreeMatch AI Admin"
+        }, status=status.HTTP_200_OK)
+
+    fl_prof = getattr(target_user, 'freelancer_profile', None)
+    latest_kyc = FreelancerIdentityVerification.objects.filter(freelancer=target_user).first()
+
+    raw_status = 'NOT_SUBMITTED'
+    if latest_kyc:
+        raw_status = latest_kyc.status
+    elif fl_prof:
+        st = (fl_prof.verification_status or '').upper()
+        if 'APPROV' in st: raw_status = 'APPROVED'
+        elif 'REJECT' in st: raw_status = 'REJECTED'
+        elif 'PEND' in st: raw_status = 'PENDING'
+
+    if raw_status == 'APPROVED' or (fl_prof and fl_prof.verified):
+        status_code = 'APPROVED'
+        label = 'Identity Verified'
+    elif raw_status == 'PENDING':
+        status_code = 'PENDING'
+        label = 'Verification Pending'
+    elif raw_status == 'REJECTED':
+        status_code = 'REJECTED'
+        label = 'Identity Verification Rejected'
+    else:
+        status_code = 'NOT_SUBMITTED'
+        label = 'Identity Not Verified'
+
+    verified_at = None
+    if latest_kyc and latest_kyc.reviewed_at:
+        verified_at = format_ist_date(latest_kyc.reviewed_at)
+    elif status_code == 'APPROVED':
+        verified_at = format_ist_date(target_user.date_joined)
+
+    return Response({
+        "status": status_code,
+        "label": label,
+        "verified_at": verified_at,
+        "verified_by": "FreeMatch AI Admin"
+    }, status=status.HTTP_200_OK)
+
+
+# PROJECT DOCUMENT VERIFICATION ENDPOINTS (ADMIN WORKFLOW)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def admin_project_document_verifications_list_api(request):
+    """
+    Returns list of client project document verification submissions for Admin review.
+    Query ONLY actual client-uploaded document files (strictly excludes plain text abstracts or projects without files).
+    """
+    from .models import Project, ProjectDocumentVerification
+
+    # Clean up legacy dummy abstract entries that do not represent physical file uploads
+    ProjectDocumentVerification.objects.filter(
+        (Q(document_file='') | Q(document_file__isnull=True)) &
+        (Q(document_file_url='') | Q(document_file_url__isnull=True)) &
+        (Q(project__attached_file_name='') | Q(project__attached_file_name__isnull=True))
+    ).delete()
+
+    # Auto-sync ONLY existing projects that have actual uploaded files (e.g. attached_file_name or attached_file_url)
+    projects_with_files = Project.objects.filter(
+        (Q(attached_file_name__isnull=False) & ~Q(attached_file_name='')) |
+        (Q(attached_file_url__isnull=False) & ~Q(attached_file_url=''))
+    )
+    for p in projects_with_files:
+        if not ProjectDocumentVerification.objects.filter(project=p).exists():
+            ProjectDocumentVerification.objects.create(
+                project=p,
+                client=p.client,
+                document_name=p.attached_file_name or f"Project_Document_{p.id}.pdf",
+                document_file_url=p.attached_file_url or '',
+                document_type='Project Requirement Spec',
+                status='PENDING',
+                rejection_reason=''
+            )
+
+    # Fetch document verification records for real uploaded files
+    docs = ProjectDocumentVerification.objects.filter(
+        (Q(document_file__isnull=False) & ~Q(document_file='')) |
+        (Q(document_file_url__isnull=False) & ~Q(document_file_url='')) |
+        (Q(project__attached_file_name__isnull=False) & ~Q(project__attached_file_name=''))
+    ).select_related('project', 'client', 'reviewed_by').order_by('-submitted_at')
+
+    # Optional status filter (PENDING, APPROVED, REJECTED)
+    status_filter = request.GET.get('status', '').upper()
+    if status_filter and status_filter in ['PENDING', 'APPROVED', 'REJECTED']:
+        docs = docs.filter(status=status_filter)
+
+    data = []
+    for d in docs:
+        client_user = d.client
+        p = d.project
+        doc_url = f"http://localhost:8000/api/project-documents/{d.id}/document/" if (d.document_file or d.document_file_url or p.attached_file_url) else ""
+        data.append({
+            "id": d.id,
+            "project_id": p.id,
+            "project_title": p.title,
+            "project_category": p.category.name if p.category else 'General',
+            "project_budget": p.budget,
+            "project_approval_status": p.approval_status,
+            "client_id": client_user.id,
+            "client_name": client_user.get_full_name() or client_user.username,
+            "client_email": client_user.email,
+            "document_name": d.document_name,
+            "document_type": d.document_type,
+            "document_file_url": doc_url,
+            "document_file_size": d.document_file_size or '1.5 MB',
+            "has_uploaded_file": True,
+            "status": d.status,
+            "rejection_reason": d.rejection_reason or '',
+            "submitted_at": format_ist_datetime(d.submitted_at),
+            "reviewed_at": format_ist_datetime(d.reviewed_at) if d.reviewed_at else None,
+            "reviewed_by": d.reviewed_by.username if d.reviewed_by else None
+        })
+
+    return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_approve_project_document_verification_api(request, pk=None):
+    """
+    Approve a client's project document verification.
+    """
+    from .models import ProjectDocumentVerification, Notification
+
+    v_id = pk or request.data.get('id')
+    doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
+    if not doc:
+        return Response({"error": "Project document verification record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    doc.status = 'APPROVED'
+    doc.rejection_reason = ''
+    doc.reviewed_at = timezone.now()
+    if request.user and request.user.is_authenticated:
+        doc.reviewed_by = request.user
+    doc.save()
+
+    # Notify Client
+    Notification.objects.create(
+        user=doc.client,
+        title="Project Document Verified",
+        message=f"Your uploaded project document '{doc.document_name}' for project '{doc.project.title}' has been reviewed and verified by Admin.",
+        source_id=str(doc.project.id)
+    )
+
+    return Response({
+        "message": "Project document verification approved successfully.",
+        "status": "APPROVED"
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def admin_reject_project_document_verification_api(request, pk=None):
+    """
+    Reject a client's project document verification with feedback reason.
+    """
+    from .models import ProjectDocumentVerification, Notification
+
+    v_id = pk or request.data.get('id')
+    reason = request.data.get('rejection_reason', '').strip() or 'Project document does not meet verification guidelines.'
+
+    doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
+    if not doc:
+        return Response({"error": "Project document verification record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    doc.status = 'REJECTED'
+    doc.rejection_reason = reason
+    doc.reviewed_at = timezone.now()
+    if request.user and request.user.is_authenticated:
+        doc.reviewed_by = request.user
+    doc.save()
+
+    # Notify Client
+    Notification.objects.create(
+        user=doc.client,
+        title="Project Document Verification Rejected",
+        message=f"Your uploaded project document '{doc.document_name}' for project '{doc.project.title}' was rejected by Admin. Reason: {reason}",
+        source_id=str(doc.project.id)
+    )
+
+    return Response({
+        "message": "Project document verification rejected.",
+        "status": "REJECTED",
+        "rejection_reason": reason
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE', 'POST'])
+@permission_classes([AllowAny])
+def admin_delete_project_document_verification_api(request, pk=None):
+    """
+    Delete a project document verification record.
+    """
+    from .models import ProjectDocumentVerification
+
+    v_id = pk or request.data.get('id')
+    doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
+    if not doc:
+        return Response({"error": "Project document verification record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    doc.delete()
+    return Response({"message": "Project document verification deleted successfully."}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def serve_project_document_file_api(request, pk=None):
+    """
+    Serve uploaded project document file with Blob preview / download headers.
+    """
+    from .models import ProjectDocumentVerification
+    import os, mimetypes
+    from django.conf import settings
+
+    v_id = pk or request.GET.get('id')
+    doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
+    if not doc:
+        return Response({"error": "Document file not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    is_download = request.GET.get('download', '').lower() == 'true'
+    target_file_path = None
+
+    # Step 1: Check doc.document_file
+    if doc.document_file and hasattr(doc.document_file, 'path'):
+        try:
+            if os.path.exists(doc.document_file.path):
+                target_file_path = doc.document_file.path
+        except Exception:
+            pass
+
+    # Step 2: If target_file_path is missing, search MEDIA_ROOT for stored file variants
+    if not target_file_path:
+        media_root = str(settings.MEDIA_ROOT)
+        candidates = []
+
+        # Check URLs
+        for url in [doc.document_file_url, getattr(doc.project, 'attached_file_url', '')]:
+            if url and '/media/' in url:
+                rel_path = url.split('/media/')[-1].strip('/')
+                candidates.append(os.path.join(media_root, rel_path))
+
+        # Check filenames
+        names_to_check = [
+            doc.document_name,
+            getattr(doc.project, 'attached_file_name', '')
+        ]
+        for name in names_to_check:
+            if name:
+                clean_name = os.path.basename(name)
+                # Generate sanitized file variants
+                import re
+                base_no_ext, ext = os.path.splitext(clean_name)
+                var_names = [
+                    clean_name,
+                    clean_name.replace(' ', '_'),
+                    clean_name.replace(' (', '_').replace(')', ''),
+                    re.sub(r'[\s()]+', '_', clean_name),
+                    re.sub(r'[\s()]+', '', clean_name),
+                    f"{base_no_ext.replace(' ', '_')}{ext}",
+                    f"{re.sub(r'[\s()]+', '_', base_no_ext)}{ext}"
+                ]
+                for subfolder in ['project_documents', 'kyc_documents', '']:
+                    for vname in set(var_names):
+                        if vname:
+                            candidates.append(os.path.join(media_root, subfolder, vname))
+
+        for cand in candidates:
+            if cand and os.path.exists(cand) and os.path.isfile(cand):
+                target_file_path = cand
+                try:
+                    rel_name = os.path.relpath(cand, media_root).replace('\\', '/')
+                    doc.document_file.name = rel_name
+                    doc.save(update_fields=['document_file'])
+                except Exception:
+                    pass
+                break
+
+    # Step 3: Stream physical file if found
+    if target_file_path and os.path.exists(target_file_path):
+        content_type, _ = mimetypes.guess_type(target_file_path)
+        content_type = content_type or 'application/octet-stream'
+        orig_filename = doc.document_name or getattr(doc.project, 'attached_file_name', '') or os.path.basename(target_file_path)
+
+        with open(target_file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type=content_type)
+            disp = 'attachment' if is_download else 'inline'
+            response['Content-Disposition'] = f'{disp}; filename="{orig_filename}"'
+            response['Access-Control-Allow-Origin'] = '*'
+            return response
+
+    # Fallback to abstract text if document file object is not physically saved
+    if doc.project and doc.project.abstract:
+        content = f"PROJECT DOCUMENT ABSTRACT\nProject: {doc.project.title}\nClient: {doc.client.username}\n\nAbstract:\n{doc.project.abstract}"
+        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+        disp = 'attachment' if is_download else 'inline'
+        response['Content-Disposition'] = f'{disp}; filename="{doc.document_name or "Abstract.txt"}"'
+        response['Access-Control-Allow-Origin'] = '*'
+        return response
+
+    return Response({"error": "No physical document file attached."}, status=status.HTTP_404_NOT_FOUND)

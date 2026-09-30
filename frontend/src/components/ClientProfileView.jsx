@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Building2, 
   UserRound, 
@@ -41,6 +41,7 @@ const ClientProfileView = ({
   hiredFreelancers = [],
   contracts = [],
   onNavigateTab,
+  onViewProjectDetail,
   showToastMessage
 }) => {
   const authUsername = (currentUserId || userSession?.user_id || userSession?.email || 'client').toLowerCase().trim();
@@ -749,7 +750,14 @@ const ClientProfileView = ({
                     </p>
                   </div>
                   <button 
-                    onClick={() => onNavigateTab('my-projects')} 
+                    onClick={() => {
+                      if (typeof onViewProjectDetail === 'function') {
+                        onViewProjectDetail(p);
+                      }
+                      if (typeof onNavigateTab === 'function') {
+                        onNavigateTab('projects', p);
+                      }
+                    }} 
                     className="px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 border border-blue-500/20 rounded-xl text-sm font-extrabold shrink-0 cursor-pointer"
                   >
                     View Project

@@ -26,6 +26,8 @@ urlpatterns = [
     path('contracts/', views.get_contracts, name='get_contracts'),
     path('contracts/create/', views.create_contract, name='create_contract'),
     path('contracts/<str:pk>/status/', views.update_contract_status, name='update_contract_status'),
+    path('contracts/<str:pk>/invoice/', views.download_contract_invoice_pdf, name='download_contract_invoice_pdf'),
+    path('payments/<int:pk>/invoice/', views.download_payment_invoice_pdf, name='download_payment_invoice_pdf'),
     path('contracts/milestones/<int:pk>/status/', views.update_milestone_status_api, name='update_milestone_status_api'),
     path('freelancer-financials/', views.freelancer_financials_api, name='freelancer_financials_api'),
     path('freelancer-financials/withdraw/', views.freelancer_financials_api, name='freelancer_financials_withdraw'),
@@ -58,6 +60,23 @@ urlpatterns = [
     path('admin-dashboard/skill/', views.admin_skill_api, name='admin_skill_api'),
     path('categories/', views.categories_api, name='categories_api'),
 
+    # FREELANCER KYC & ADMIN IDENTITY VERIFICATION ROUTES
+    path('freelancer/identity-verification/', views.freelancer_identity_verification_api, name='freelancer_identity_verification_api'),
+    path('admin/identity-verifications/', views.admin_identity_verifications_list_api, name='admin_identity_verifications_list_api'),
+    path('admin/identity-verifications/<int:pk>/approve/', views.admin_approve_identity_verification_api, name='admin_approve_identity_verification_api'),
+    path('admin/identity-verifications/<int:pk>/reject/', views.admin_reject_identity_verification_api, name='admin_reject_identity_verification_api'),
+    path('admin/identity-verifications/<int:pk>/delete/', views.admin_delete_identity_verification_api, name='admin_delete_identity_verification_api'),
+    path('identity-verifications/<int:pk>/document/', views.serve_identity_verification_document_api, name='serve_identity_verification_document_api'),
+    path('freelancers/<str:user_id>/verification-status/', views.freelancer_public_verification_status_api, name='freelancer_public_verification_status_api'),
+
+    # CLIENT PROJECT DOCUMENT VERIFICATION ROUTES
+    path('admin/project-document-verifications/', views.admin_project_document_verifications_list_api, name='admin_project_document_verifications_list_api'),
+    path('admin/project-document-verifications/<int:pk>/approve/', views.admin_approve_project_document_verification_api, name='admin_approve_project_document_verification_api'),
+    path('admin/project-document-verifications/<int:pk>/reject/', views.admin_reject_project_document_verification_api, name='admin_reject_project_document_verification_api'),
+    path('admin/project-document-verifications/<int:pk>/delete/', views.admin_delete_project_document_verification_api, name='admin_delete_project_document_verification_api'),
+    path('project-documents/<int:pk>/document/', views.serve_project_document_file_api, name='serve_project_document_file_api'),
+
     # GLOBAL SEARCH ROUTE
     path('search/', views.global_search_api, name='global_search_api'),
 ]
+

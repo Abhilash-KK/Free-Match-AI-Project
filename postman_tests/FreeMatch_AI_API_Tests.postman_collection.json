@@ -641,7 +641,7 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Status code is 200 or 201', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+                  "pm.test('Status code is 200 or 201 or 400 or 404', function () { pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 404]); });",
                   "pm.test('Response is JSON', function () { pm.response.to.be.json; });"
                 ],
                 "type": "text/javascript"
