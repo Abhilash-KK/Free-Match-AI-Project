@@ -106,11 +106,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
   useEffect(() => {
     if (initialMode === 'register') {
       setMode('register');
-      if (role === 'Admin') setRole('Client');
+      setRole((prev) => (prev === 'Admin' ? 'Client' : prev));
     } else if (initialMode === 'login') {
       setMode('login');
     }
-  }, [initialMode, role]);
+  }, [initialMode]);
 
   useEffect(() => {
     if (mode === 'register' && role === 'Admin') {
@@ -127,7 +127,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       setRegPassword('');
       setRegConfirmPassword('');
     }
-  }, [mode, role]);
+  }, [mode]);
 
   // Registered Users Registry (persisted in LocalStorage)
   const [registeredUsers, setRegisteredUsers] = useState(() => {
@@ -1241,7 +1241,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     Already part of the network?{' '}
                     <button
                       type="button"
-                      onClick={() => { setMode('login'); setMessage(null); }}
+                      onClick={() => {
+                        setMode('login');
+                        setMessage(null);
+                        if (onNavigate) onNavigate('login');
+                      }}
                       className="font-bold text-blue-500 hover:text-blue-600 hover:underline cursor-pointer ml-1"
                     >
                       Log In
@@ -1252,7 +1256,11 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
                     New to FREEMATCH?{' '}
                     <button
                       type="button"
-                      onClick={() => { setMode('register'); setMessage(null); }}
+                      onClick={() => {
+                        setMode('register');
+                        setMessage(null);
+                        if (onNavigate) onNavigate('register');
+                      }}
                       className="font-bold text-blue-500 hover:text-blue-600 hover:underline cursor-pointer ml-1"
                     >
                       Create Account

@@ -1679,6 +1679,21 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const handleSaveDraft = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     try {
+      const numB = parseFloat(budget) || 0;
+      const msArr = Array.isArray(milestoneItems) ? milestoneItems : [];
+      const allMsValid = msArr.length > 0 && msArr.every(
+        m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
+      );
+      const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+
+      if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
+        setToast({ 
+          message: `Cannot save draft: Milestone total (₹${msSum.toLocaleString()}) must exactly match the project budget (₹${numB.toLocaleString()}).`, 
+          type: 'error' 
+        });
+        return;
+      }
+
       const titleToSave = (projectTitle || '').trim() || 'Untitled Project Draft';
       const draftId = activeResumedDraftId || `draft_${Date.now()}`;
       const now = new Date();
@@ -1735,10 +1750,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   const handlePublishDraftDirectly = async (draft) => {
     if (!draft || !draft.projectTitle) return;
+
+    const rawBudget = draft.budget || '0';
+    const numB = parseFloat(rawBudget.toString().replace(/[^0-9.]/g, '')) || 0;
+    const msArr = Array.isArray(draft.milestoneItems) ? draft.milestoneItems : [];
+    const allMsValid = msArr.length > 0 && msArr.every(
+      m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
+    );
+    const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+
+    if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
+      setToast({ 
+        message: `Cannot publish draft: Milestone total (₹${msSum.toLocaleString()}) does not match project budget (₹${numB.toLocaleString()}). Please edit the draft to fix allocation before publishing.`, 
+        type: 'error' 
+      });
+      return;
+    }
+
     const currentUserName = userSession?.name || userSession?.username || 'Client';
     const currentUserId = userSession?.user_id || userSession?.username || 'client';
 
-    const rawBudget = draft.budget || '5000';
     const formattedBudget = formatCurrency(rawBudget);
     const newProj = {
       id: `proj_${Date.now()}`,
@@ -1861,23 +1892,26 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     }
 
     // 2. Milestone Validations
-    if (Array.isArray(milestoneItems) && milestoneItems.length > 0) {
-      const invalidMilestone = milestoneItems.find(
-        m => !m.title || !m.title.trim() || isNaN(parseFloat(m.amount)) || parseFloat(m.amount) <= 0
-      );
-      if (invalidMilestone) {
-        setToast({ message: 'Each milestone must have a valid title and positive amount.', type: 'error' });
-        return;
-      }
+    if (!Array.isArray(milestoneItems) || milestoneItems.length === 0) {
+      setToast({ message: 'Project must contain at least one payment milestone.', type: 'error' });
+      return;
+    }
 
-      const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
-      if (Math.abs(totalMilestoneSum - numBudget) > 0.01) {
-        setToast({
-          message: `Milestone sum (₹${totalMilestoneSum.toLocaleString()}) must match the total project budget (₹${numBudget.toLocaleString()}).`,
-          type: 'error'
-        });
-        return;
-      }
+    const invalidMilestone = milestoneItems.find(
+      m => !m.title || !m.title.trim() || isNaN(parseFloat(m.amount)) || parseFloat(m.amount) <= 0
+    );
+    if (invalidMilestone) {
+      setToast({ message: 'Each milestone must have a valid title and positive amount greater than 0.', type: 'error' });
+      return;
+    }
+
+    const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+    if (Math.abs(totalMilestoneSum - numBudget) >= 0.01) {
+      setToast({
+        message: `Milestone total (₹${totalMilestoneSum.toLocaleString()}) must exactly match the project budget (₹${numBudget.toLocaleString()}).`,
+        type: 'error'
+      });
+      return;
     }
 
     const currentUserName = userSession?.name || userSession?.username || 'Client';
@@ -4022,12 +4056,17 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                         <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
                           <button
                             onClick={() => setSelectedProfileFreelancer({
-                              name: pr.freelancer,
-                              freelancer: pr.freelancer,
+                              name: pr.freelancer || pr.freelancerName,
+                              freelancer: pr.freelancer || pr.freelancerName,
+                              user_id: pr.user_id || pr.freelancerId || pr.freelancer_id || pr.freelancer,
+                              username: pr.user_id || pr.freelancerId || pr.freelancer_id || pr.freelancer,
+                              email: pr.email || pr.freelancerId || pr.freelancer_id,
                               title: pr.title,
                               rate: pr.bid,
                               rating: pr.rating,
-                              avatar: pr.avatar
+                              avatar: pr.avatar,
+                              verified: pr.verified,
+                              verification_status: pr.verification_status || pr.freelancer_verification_status
                             })}
                             className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] border border-blue-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center space-x-1.5"
                           >
@@ -5359,7 +5398,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         )}
         {/* TAB 12: CLIENT PUBLIC & COMPANY PROFILE DASHBOARD */}
         {activeTab === 'profile' && (
-          <div className={`w-full min-h-screen relative z-10 ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
+          <div className={```w-full min-h-screen relative z-10 ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
             <ClientProfileView
               userSession={userSession}
               currentUserId={currentUserId}
@@ -5560,8 +5599,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {showPostProjectModal && (() => {
         const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
         const numBudget = parseFloat(budget) || 0;
-        const isBudgetMatched = numBudget > 0 && Math.abs(totalMilestoneSum - numBudget) < 0.01;
-        const hasBudgetMismatch = numBudget > 0 && !isBudgetMatched;
+        const allMilestonesValid = Array.isArray(milestoneItems) && milestoneItems.length > 0 && milestoneItems.every(
+          m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
+        );
+        const isBudgetMatched = numBudget > 0 && allMilestonesValid && Math.abs(totalMilestoneSum - numBudget) < 0.01;
+        const hasBudgetMismatch = !isBudgetMatched;
 
         return (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
@@ -5912,11 +5954,11 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black rounded-lg flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" /> Budget Matched
                           </span>
-                        ) : hasBudgetMismatch ? (
+                        ) : (
                           <span className="px-2.5 py-1 bg-amber-200 text-amber-950 border border-amber-400 text-xs font-black rounded-lg flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-amber-900" /> Milestones total ₹{totalMilestoneSum.toLocaleString()} vs Budget ₹{numBudget.toLocaleString()}
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-900" /> Milestone total ₹{totalMilestoneSum.toLocaleString()} does not match project budget ₹{numBudget.toLocaleString()}. Please adjust milestone amounts before saving or publishing.
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   </div>
@@ -6042,15 +6084,27 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   <div className="flex items-center space-x-3">
                     <button 
                       type="button" 
+                      disabled={!isBudgetMatched}
                       onClick={handleSaveDraft}
-                      className="px-5 py-2.5 rounded-xl text-xs font-extrabold border bg-white hover:bg-slate-50 text-slate-800 border-slate-300 transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+                      title={!isBudgetMatched ? "Milestone total must match project budget before saving draft" : "Save Draft"}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-extrabold border transition-all flex items-center gap-1.5 ${
+                        isBudgetMatched 
+                          ? 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300 cursor-pointer shadow-2xs' 
+                          : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+                      }`}
                     >
-                      <FileText className="w-4 h-4 text-slate-700" /> Save Draft
+                      <FileText className="w-4 h-4 text-slate-500" /> Save Draft
                     </button>
 
                     <button 
                       type="submit" 
-                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/20 transition-all cursor-pointer flex items-center gap-2"
+                      disabled={!isBudgetMatched}
+                      title={!isBudgetMatched ? "Milestone total must match project budget before publishing" : "Publish Project to Marketplace"}
+                      className={`px-6 py-2.5 rounded-xl text-xs font-black shadow-lg transition-all flex items-center gap-2 ${
+                        isBudgetMatched
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 cursor-pointer'
+                          : 'bg-blue-300 text-slate-100 shadow-none cursor-not-allowed opacity-60'
+                      }`}
                     >
                       <Send className="w-4 h-4" /> Publish Project to Marketplace
                     </button>
@@ -6162,11 +6216,16 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           }
 
           // Fallback for custom/other freelancers
+          const resolvedVerified = rawObj?.verified ?? (String(rawObj?.verification_status || rawObj?.freelancer_verification_status || '').toUpperCase() === 'APPROVED');
+          const resolvedStatus = rawObj?.verification_status || (resolvedVerified ? 'Approved' : 'Not Submitted');
+
           return {
-            user_id: rawObj?.email || rawObj?.user_id || rawObj?.username || targetName,
-            username: rawObj?.email || rawObj?.user_id || rawObj?.username || targetName,
+            user_id: rawObj?.user_id || rawObj?.username || rawObj?.freelancerId || rawObj?.freelancer_id || rawObj?.email || targetName,
+            username: rawObj?.username || rawObj?.user_id || rawObj?.freelancerId || rawObj?.freelancer_id || rawObj?.email || targetName,
             email: rawObj?.email || targetName,
             name: targetName,
+            verified: resolvedVerified,
+            verification_status: resolvedStatus,
             avatar: rawObj?.avatar || (targetName ? targetName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : 'FL'),
             title: rawObj?.title || 'Senior Software Engineer',
             headline: rawObj?.title || 'Senior Software Engineer & AI Specialist',

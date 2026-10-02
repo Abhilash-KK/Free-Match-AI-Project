@@ -321,7 +321,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     const userId = typeof vObj === 'object' ? (vObj.user_id || vObj.id) : vObj;
     try {
       let url = '/api/admin-dashboard/verify/';
-      if (vId && typeof vId === 'number') {
+      if (vId && (typeof vId === 'number' || (!isNaN(Number(vId)) && Number(vId) > 0))) {
         url = `/api/admin/identity-verifications/${vId}/approve/`;
       }
       const res = await apiFetch(url, {
@@ -358,7 +358,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     const feedbackReason = verificationRejectionReasonInput.trim() || 'Verification documents do not meet platform security & compliance standards.';
     try {
       let url = '/api/admin-dashboard/verify/';
-      if (vId && typeof vId === 'number') {
+      if (vId && (typeof vId === 'number' || (!isNaN(Number(vId)) && Number(vId) > 0))) {
         url = `/api/admin/identity-verifications/${vId}/reject/`;
       }
       const res = await apiFetch(url, {
@@ -442,6 +442,13 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       rawUrl = `http://localhost:8000${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
     }
 
+    let rawStatus = (v.status || v.item?.status || '').toString().trim().toUpperCase();
+    let normStatus = 'PENDING';
+    if (rawStatus === 'APPROVED' || rawStatus === 'VERIFIED') normStatus = 'APPROVED';
+    else if (rawStatus === 'REJECTED') normStatus = 'REJECTED';
+
+    let rejectionReason = v.rejection_reason || v.item?.rejection_reason || '';
+
     const docObj = {
       id: targetId,
       user_id: v.user_id,
@@ -454,10 +461,39 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       docSize: v.document_file_size || 'File',
       document_type: v.document_type || 'Identity Document',
       document_number: v.document_number || 'N/A',
+      status: normStatus,
+      rejection_reason: rejectionReason,
       item: v
     };
 
     setViewingDocumentModal(docObj);
+
+    if (targetId) {
+      fetch('http://localhost:8000/api/admin/identity-verifications/')
+        .then(res => res.json())
+        .then(data => {
+          if (data && Array.isArray(data.verifications)) {
+            const match = data.verifications.find(x => String(x.id) === String(targetId));
+            if (match) {
+              let updatedNorm = 'PENDING';
+              const st = (match.status || '').toString().trim().toUpperCase();
+              if (st === 'APPROVED' || st === 'VERIFIED') updatedNorm = 'APPROVED';
+              else if (st === 'REJECTED') updatedNorm = 'REJECTED';
+
+              setViewingDocumentModal(prev => {
+                if (!prev || String(prev.id) !== String(targetId)) return prev;
+                return {
+                  ...prev,
+                  status: updatedNorm,
+                  rejection_reason: match.rejection_reason || prev.rejection_reason,
+                  item: match
+                };
+              });
+            }
+          }
+        })
+        .catch(err => console.error('Error refreshing document verification status:', err));
+    }
 
     try {
       const fetchUrl = targetId ? `http://localhost:8000/api/identity-verifications/${targetId}/document/` : rawUrl;
@@ -2095,7 +2131,14 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                   <div key={c.id || c.name} className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
                     <div>
                       <h3 className="font-extrabold text-slate-900 text-sm">{c.name}</h3>
-                      <p className="text-xs text-slate-500 mt-1">{c.projects || 0} Active Projects</p>
+                      {(() => {
+                        const count = typeof c.projects === 'number' ? c.projects : (c.activeProjects ?? 0);
+                        return (
+                          <p className="text-xs text-slate-500 mt-1">
+                            {count} Active Project{count === 1 ? '' : 's'}
+                          </p>
+                        );
+                      })()}
                     </div>
                     <button
                       onClick={() => handleDeleteCategory(c)}
@@ -2974,32 +3017,56 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
               {/* Modal Action Buttons */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 shrink-0">
                 <div className="text-xs font-bold text-slate-500">
-                  Inspect submitted document carefully before awarding verified badge.
+                  {viewingDocumentModal.status === 'APPROVED' ? (
+                    <span className="text-emerald-700 font-semibold">This document is verified and approved. Identity badge awarded.</span>
+                  ) : viewingDocumentModal.status === 'REJECTED' ? (
+                    <span className="text-rose-700 font-semibold">
+                      This document was rejected.{viewingDocumentModal.rejection_reason ? ` Reason: ${viewingDocumentModal.rejection_reason}` : ''}
+                    </span>
+                  ) : (
+                    <span>Inspect submitted document carefully before awarding verified badge.</span>
+                  )}
                 </div>
                 <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => {
-                      const item = viewingDocumentModal.item;
-                      setViewingDocumentModal(null);
-                      handleApproveVerification(item);
-                    }}
-                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Approve Badge</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      const item = viewingDocumentModal.item;
-                      setViewingDocumentModal(null);
-                      setRejectingVerification(item);
-                      setVerificationRejectionReasonInput('');
-                    }}
-                    className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-extrabold cursor-pointer flex items-center space-x-1.5"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span>Reject</span>
-                  </button>
+                  {viewingDocumentModal.status === 'PENDING' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          const item = viewingDocumentModal.item;
+                          setViewingDocumentModal(null);
+                          handleApproveVerification(item);
+                        }}
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer flex items-center space-x-1.5"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Approve Badge</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const item = viewingDocumentModal.item;
+                          setViewingDocumentModal(null);
+                          setRejectingVerification(item);
+                          setVerificationRejectionReasonInput('');
+                        }}
+                        className="px-5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-extrabold cursor-pointer flex items-center space-x-1.5"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Reject</span>
+                      </button>
+                    </>
+                  )}
+                  {viewingDocumentModal.status === 'APPROVED' && (
+                    <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 shadow-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Approved / Verified</span>
+                    </div>
+                  )}
+                  {viewingDocumentModal.status === 'REJECTED' && (
+                    <div className="px-4 py-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 shadow-xs">
+                      <XCircle className="w-4 h-4 text-rose-600" />
+                      <span>Rejected</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

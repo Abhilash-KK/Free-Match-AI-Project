@@ -774,19 +774,48 @@ def projects_api(request):
         if not title:
             return Response({"error": "Project Title is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Milestone sum validation against total project budget
-        if isinstance(milestones_raw, list) and len(milestones_raw) > 0:
-            b_digits = re.sub(r'[^0-9]', '', str(budget or '0'))
-            budget_num = int(b_digits) if b_digits else 0
-            m_sum = 0
-            for m_item in milestones_raw:
-                if isinstance(m_item, dict):
-                    m_amt_digits = re.sub(r'[^0-9]', '', str(m_item.get('amount', '0')))
-                    m_sum += int(m_amt_digits) if m_amt_digits else 0
-            if m_sum > 0 and budget_num > 0 and m_sum != budget_num:
+        # Strict Milestone sum validation against total project budget
+        b_digits = re.sub(r'[^0-9.]', '', str(budget or '0'))
+        budget_num = float(b_digits) if b_digits else 0.0
+
+        if budget_num <= 0:
+            return Response({
+                "error": "Please enter a valid project budget greater than 0.",
+                "total_budget": budget_num,
+                "milestone_total": 0
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not isinstance(milestones_raw, list) or len(milestones_raw) == 0:
+            return Response({
+                "error": "Milestone total must exactly match the project budget. Project must contain at least one payment milestone.",
+                "total_budget": budget_num,
+                "milestone_total": 0
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        m_sum = 0.0
+        for m_item in milestones_raw:
+            if not isinstance(m_item, dict):
                 return Response({
-                    "error": f"Milestone breakdown total (₹{m_sum:,}) does not match total project budget (₹{budget_num:,}). Please ensure milestone amounts sum up to the total budget."
+                    "error": "Invalid milestone format.",
+                    "total_budget": budget_num,
+                    "milestone_total": m_sum
                 }, status=status.HTTP_400_BAD_REQUEST)
+            m_amt_digits = re.sub(r'[^0-9.]', '', str(m_item.get('amount', '0')))
+            m_val = float(m_amt_digits) if m_amt_digits else 0.0
+            if m_val <= 0:
+                return Response({
+                    "error": "Milestone amounts must be valid positive numbers greater than 0.",
+                    "total_budget": budget_num,
+                    "milestone_total": m_sum
+                }, status=status.HTTP_400_BAD_REQUEST)
+            m_sum += m_val
+
+        if abs(m_sum - budget_num) >= 0.01:
+            return Response({
+                "error": "Milestone total must exactly match the project budget.",
+                "total_budget": int(budget_num),
+                "milestone_total": int(m_sum)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = (
@@ -889,18 +918,143 @@ def resolve_user_account(query_str):
         return None
 
     from django.contrib.auth.models import User
-    from django.db.models import Q
+    from django.db.models import Q, Value, CharField, Count
+    from django.db.models.functions import Concat
 
     if q.isdigit():
         u = User.objects.filter(id=int(q)).first()
         if u:
             return u
 
-    # Look up by username or email case-insensitively
-    return User.objects.filter(
-        Q(username__iexact=q) |
-        Q(email__iexact=q)
+    qs = User.objects.annotate(
+        full_name=Concat('first_name', Value(' '), 'last_name', output_field=CharField()),
+        kyc_count=Count('identity_verifications')
+    )
+
+    # 1. Match users with KYC verification records first (most relevant real account)
+    u_kyc = qs.filter(
+        Q(username__iexact=q) | Q(email__iexact=q) | Q(full_name__iexact=q)
+    ).order_by('-kyc_count', '-id').first()
+    if u_kyc:
+        return u_kyc
+
+    # 2. Match exact username or email
+    u_exact = User.objects.filter(
+        Q(username__iexact=q) | Q(email__iexact=q)
     ).first()
+    if u_exact:
+        return u_exact
+
+    # 3. Match full_name or first_name or last_name
+    u_name = qs.filter(
+        Q(full_name__iexact=q) | Q(first_name__iexact=q) | Q(last_name__iexact=q) | Q(username__icontains=q)
+    ).order_by('-kyc_count', '-id').first()
+    if u_name:
+        return u_name
+
+    return None
+
+
+def get_user_kyc_verification_status(user_or_identifier):
+    """
+    Returns the authoritative identity/KYC verification status for a user from the FreelancerIdentityVerification DB table.
+    Ensures FreelancerProfile and UserProfile flags remain 100% in sync with the database record.
+    """
+    from .models import FreelancerIdentityVerification, UserProfile, FreelancerProfile
+
+    user = user_or_identifier if (hasattr(user_or_identifier, 'username') and hasattr(user_or_identifier, 'id')) else resolve_user_account(user_or_identifier)
+
+    default_res = {
+        'verified': False,
+        'status': 'NOT_SUBMITTED',
+        'status_display': 'Not Submitted',
+        'badge_label': 'Identity Not Verified',
+        'rejection_reason': '',
+        'reviewed_at': None,
+        'reviewed_by': None
+    }
+
+    if not user:
+        return default_res
+
+    verifications = FreelancerIdentityVerification.objects.filter(freelancer=user).order_by('-submitted_at')
+    
+    latest_approved = verifications.filter(status='APPROVED').order_by('-reviewed_at', '-submitted_at').first()
+    latest_pending = verifications.filter(status='PENDING').first()
+    latest_rejected = verifications.filter(status='REJECTED').first()
+
+    if latest_approved:
+        verified = True
+        status_code = 'APPROVED'
+        status_display = 'Approved'
+        badge_label = 'Identity Verified'
+        rejection_reason = ''
+        target_rec = latest_approved
+    elif latest_pending:
+        verified = False
+        status_code = 'PENDING'
+        status_display = 'Pending Verification'
+        badge_label = 'Identity Verification Pending'
+        rejection_reason = ''
+        target_rec = latest_pending
+    elif latest_rejected:
+        verified = False
+        status_code = 'REJECTED'
+        status_display = 'Rejected'
+        badge_label = 'Identity Not Verified'
+        rejection_reason = latest_rejected.rejection_reason
+        target_rec = latest_rejected
+    else:
+        verified = False
+        status_code = 'NOT_SUBMITTED'
+        status_display = 'Not Submitted'
+        badge_label = 'Identity Not Verified'
+        rejection_reason = ''
+        target_rec = None
+
+    # Keep FreelancerProfile and UserProfile model fields in sync with the source of truth
+    fl_prof = getattr(user, 'freelancer_profile', None)
+    if fl_prof and (fl_prof.verified != verified or fl_prof.verification_status != status_display or fl_prof.verification_rejection_reason != rejection_reason):
+        fl_prof.verified = verified
+        fl_prof.verification_status = status_display
+        fl_prof.verification_rejection_reason = rejection_reason
+        fl_prof.save(update_fields=['verified', 'verification_status', 'verification_rejection_reason'])
+
+    user_prof = getattr(user, 'profile', None)
+    if user_prof and (user_prof.verified != verified or user_prof.verification_status != status_display or user_prof.verification_rejection_reason != rejection_reason):
+        user_prof.verified = verified
+        user_prof.verification_status = status_display
+        user_prof.verification_rejection_reason = rejection_reason
+        user_prof.save(update_fields=['verified', 'verification_status', 'verification_rejection_reason'])
+
+    return {
+        'verified': verified,
+        'status': status_code,
+        'status_display': status_display,
+        'badge_label': badge_label,
+        'rejection_reason': rejection_reason,
+        'reviewed_at': format_ist_date(target_rec.reviewed_at) if (target_rec and target_rec.reviewed_at) else None,
+        'reviewed_by': target_rec.reviewed_by.username if (target_rec and target_rec.reviewed_by) else None
+    }
+
+
+def get_category_active_projects_count(category):
+    """
+    Calculates the exact number of active projects in the database for a given SkillCategory.
+    An active project has approval_status='Approved' and status NOT IN ['Completed', 'Cancelled', 'Closed'].
+    Excludes rejected, pending review, completed, cancelled, and deleted projects.
+    """
+    from .models import Project
+    if not category:
+        return 0
+    return Project.objects.filter(
+        category=category,
+        approval_status='Approved'
+    ).exclude(
+        status__in=['Completed', 'Cancelled', 'Closed']
+    ).count()
+
+
 
 
 def create_event_notification(
@@ -2255,6 +2409,7 @@ def proposals_api(request):
             client_disp = (f"{p.project.client.first_name} {p.project.client.last_name}".strip() or p.project.client.username) if p.project and p.project.client else 'Client'
             fl_uname = p.freelancer.username if p.freelancer else 'freelancer'
             fl_disp = (f"{p.freelancer.first_name} {p.freelancer.last_name}".strip() or p.freelancer.username) if p.freelancer else 'Freelancer'
+            kyc_info = get_user_kyc_verification_status(p.freelancer) if p.freelancer else {'verified': False, 'status_display': 'Not Submitted', 'badge_label': 'Identity Not Verified', 'status': 'NOT_SUBMITTED'}
             results.append({
                 "id": f"prop_{p.id}",
                 "db_id": p.id,
@@ -2278,6 +2433,10 @@ def proposals_api(request):
                 "deliveryTime": p.delivery_time,
                 "coverLetter": p.cover_letter,
                 "status": p.status,
+                "verified": kyc_info['verified'],
+                "verification_status": kyc_info['status_display'],
+                "freelancer_verification_status": kyc_info['status'],
+                "verification_badge_label": kyc_info['badge_label'],
                 "milestones_json": getattr(p, 'milestones_json', '[]') or '[]',
                 "milestones": json.loads(p.milestones_json) if getattr(p, 'milestones_json', None) else [],
                 "submitted_at": p.submitted_at.isoformat() if p.submitted_at else None
@@ -3424,13 +3583,13 @@ def _get_request_freelancer_user(request):
     username = request.GET.get('username') or request.GET.get('user_id') or request.data.get('username') or request.data.get('user_id')
     
     if username:
-        clean_user = str(username).strip().lower()
-        user = User.objects.filter(Q(username__iexact=clean_user) | Q(email__iexact=clean_user)).first()
+        clean_user = str(username).strip()
+        user = resolve_user_account(clean_user)
         if not user:
             # Create isolated user + profile for this new handle
             user, _ = User.objects.get_or_create(
-                username=clean_user,
-                defaults={'email': f"{clean_user}@freematch.ai", 'first_name': clean_user.capitalize()}
+                username=clean_user.lower(),
+                defaults={'email': f"{clean_user.lower()}@freematch.ai", 'first_name': clean_user.capitalize()}
             )
             UserProfile.objects.get_or_create(user=user, defaults={'role': 'freelancer'})
             FreelancerProfile.objects.get_or_create(
@@ -3534,6 +3693,8 @@ def freelancer_profile_detail_api(request):
         else:
             job_success_str = "100%"
 
+        kyc_info = get_user_kyc_verification_status(user)
+
         return Response({
             "user_id": user.username,
             "email": user.email,
@@ -3556,9 +3717,10 @@ def freelancer_profile_detail_api(request):
             "active_contracts_count": active_count,
             "job_success_rate": job_success_str,
             "on_time_delivery": "98%",
-            "verified": fl_prof.verified,
-            "verification_status": fl_prof.verification_status if fl_prof.verification_status else ('Approved' if fl_prof.verified else 'Not Submitted'),
-            "verification_rejection_reason": getattr(fl_prof, 'verification_rejection_reason', ''),
+            "verified": kyc_info['verified'],
+            "verification_status": kyc_info['status_display'],
+            "verification_rejection_reason": kyc_info['rejection_reason'],
+            "verification_badge_label": kyc_info['badge_label'],
             "skills": skills_arr,
             "avatar_url": fl_prof.avatar_url,
             "resume_name": fl_prof.resume_name,
@@ -4718,12 +4880,15 @@ def admin_dashboard_api(request):
         cats_qs = SkillCategory.objects.all().prefetch_related('skills')
         cat_list = []
         for c in cats_qs:
-            proj_count = Project.objects.filter(category=c).count()
+            active_proj_count = get_category_active_projects_count(c)
+            total_proj_count = Project.objects.filter(category=c).count()
             cat_list.append({
                 'id': f"c_{c.id}",
                 'name': c.name,
                 'activeSkills': c.skills.count(),
-                'projects': proj_count
+                'projects': active_proj_count,
+                'activeProjects': active_proj_count,
+                'totalProjects': total_proj_count
             })
 
         skills_qs = Skill.objects.all().select_related('category')
@@ -5048,18 +5213,27 @@ def admin_verify_user_api(request):
     status_str = 'Approved' if is_verified else 'Rejected'
     rejection_text = '' if is_verified else (reason if reason else 'Verification documents do not meet platform security & compliance standards.')
 
-    user_prof, _ = UserProfile.objects.get_or_create(user=user)
-    user_prof.verified = is_verified
-    user_prof.verification_status = status_str
-    user_prof.verification_rejection_reason = rejection_text
-    user_prof.save()
+    from .models import FreelancerIdentityVerification
+    kyc_rec = FreelancerIdentityVerification.objects.filter(freelancer=user).first()
+    if not kyc_rec and is_verified:
+        kyc_rec = FreelancerIdentityVerification.objects.create(
+            freelancer=user,
+            document_type='Aadhaar Card',
+            document_number='VERIFIED-ADMIN',
+            document_file_name='Identity_Verification_Document.pdf',
+            status='APPROVED',
+            submitted_at=timezone.now(),
+            reviewed_at=timezone.now()
+        )
+    elif kyc_rec:
+        kyc_rec.status = 'APPROVED' if is_verified else 'REJECTED'
+        kyc_rec.rejection_reason = rejection_text
+        kyc_rec.reviewed_at = timezone.now()
+        if request.user and request.user.is_authenticated:
+            kyc_rec.reviewed_by = request.user
+        kyc_rec.save()
 
-    fl_prof = getattr(user, 'freelancer_profile', None)
-    if fl_prof:
-        fl_prof.verified = is_verified
-        fl_prof.verification_status = status_str
-        fl_prof.verification_rejection_reason = rejection_text
-        fl_prof.save()
+    kyc_info = get_user_kyc_verification_status(user)
 
     notif_title = 'Identity Verification Approved!' if is_verified else 'Identity Verification Application Update'
     notif_msg = (
@@ -5077,10 +5251,10 @@ def admin_verify_user_api(request):
     )
 
     return Response({
-        "message": f"User '{user.username}' identity verification status updated to {status_str}.",
-        "verified": is_verified,
-        "verification_status": status_str,
-        "rejection_reason": rejection_text,
+        "message": f"User '{user.username}' identity verification status updated to {kyc_info['status_display']}.",
+        "verified": kyc_info['verified'],
+        "verification_status": kyc_info['status_display'],
+        "rejection_reason": kyc_info['rejection_reason'],
         "user_id": user.username
     }, status=status.HTTP_200_OK)
 
@@ -5157,13 +5331,17 @@ def categories_api(request):
                     sk_cnt = c.skills.count()
                 except Exception:
                     pass
+                active_proj_count = get_category_active_projects_count(c)
+                total_proj_count = Project.objects.filter(category=c).count()
                 data.append({
                     "id": f"c_{c.id}",
                     "raw_id": c.id,
                     "name": c.name,
                     "description": c.description,
                     "activeSkills": sk_cnt,
-                    "projects": Project.objects.filter(category=c).count()
+                    "projects": active_proj_count,
+                    "activeProjects": active_proj_count,
+                    "totalProjects": total_proj_count
                 })
             return Response(data, status=status.HTTP_200_OK)
 
@@ -6543,53 +6721,26 @@ def freelancer_public_verification_status_api(request, user_id=None):
     Safe public API returning ONLY verification status label & timestamp for Client badge views.
     Strictly NO document files, document numbers, or private details.
     """
-    from .models import FreelancerProfile, FreelancerIdentityVerification
-    
     target_user = resolve_user_account(user_id) if user_id else None
     if not target_user:
         return Response({
             "status": "NOT_SUBMITTED",
             "label": "Identity Not Verified",
+            "verified": False,
+            "verification_status": "Not Submitted",
             "verified_at": None,
             "verified_by": "FreeMatch AI Admin"
         }, status=status.HTTP_200_OK)
 
-    fl_prof = getattr(target_user, 'freelancer_profile', None)
-    latest_kyc = FreelancerIdentityVerification.objects.filter(freelancer=target_user).first()
-
-    raw_status = 'NOT_SUBMITTED'
-    if latest_kyc:
-        raw_status = latest_kyc.status
-    elif fl_prof:
-        st = (fl_prof.verification_status or '').upper()
-        if 'APPROV' in st: raw_status = 'APPROVED'
-        elif 'REJECT' in st: raw_status = 'REJECTED'
-        elif 'PEND' in st: raw_status = 'PENDING'
-
-    if raw_status == 'APPROVED' or (fl_prof and fl_prof.verified):
-        status_code = 'APPROVED'
-        label = 'Identity Verified'
-    elif raw_status == 'PENDING':
-        status_code = 'PENDING'
-        label = 'Verification Pending'
-    elif raw_status == 'REJECTED':
-        status_code = 'REJECTED'
-        label = 'Identity Verification Rejected'
-    else:
-        status_code = 'NOT_SUBMITTED'
-        label = 'Identity Not Verified'
-
-    verified_at = None
-    if latest_kyc and latest_kyc.reviewed_at:
-        verified_at = format_ist_date(latest_kyc.reviewed_at)
-    elif status_code == 'APPROVED':
-        verified_at = format_ist_date(target_user.date_joined)
+    kyc_info = get_user_kyc_verification_status(target_user)
 
     return Response({
-        "status": status_code,
-        "label": label,
-        "verified_at": verified_at,
-        "verified_by": "FreeMatch AI Admin"
+        "status": kyc_info['status'],
+        "label": kyc_info['badge_label'],
+        "verified": kyc_info['verified'],
+        "verification_status": kyc_info['status_display'],
+        "verified_at": kyc_info['reviewed_at'],
+        "verified_by": kyc_info['reviewed_by'] or "FreeMatch AI Admin"
     }, status=status.HTTP_200_OK)
 
 
