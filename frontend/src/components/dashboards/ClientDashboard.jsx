@@ -5398,7 +5398,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         )}
         {/* TAB 12: CLIENT PUBLIC & COMPANY PROFILE DASHBOARD */}
         {activeTab === 'profile' && (
-          <div className={```w-full min-h-screen relative z-10 ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
+          <div className={`w-full min-h-screen relative z-10 ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
             <ClientProfileView
               userSession={userSession}
               currentUserId={currentUserId}
