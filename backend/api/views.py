@@ -4857,13 +4857,18 @@ def admin_dashboard_api(request):
                 'rejection_reason': v.rejection_reason if v.status == 'REJECTED' else ''
             })
 
-        # 5. User Account Moderation (genuine users in database)
+        # 5. User Account Moderation (genuine Client and Freelancer users in database)
         users_qs = User.objects.all().select_related('profile').order_by('-date_joined')
         user_list = []
         for u in users_qs:
-            name = f"{u.first_name} {u.last_name}".strip() or u.username
             prof = getattr(u, 'profile', None)
-            role = (prof.role.capitalize() if prof and prof.role else ('Admin' if u.is_staff else 'Client'))
+            prof_role = (prof.role.lower().strip() if prof and prof.role else '')
+            # Exclude Super Admin / Admin accounts from User Moderation roster
+            if u.is_staff or u.is_superuser or prof_role in ['admin', 'super admin', 'superuser']:
+                continue
+
+            name = f"{u.first_name} {u.last_name}".strip() or u.username
+            role = prof.role.capitalize() if prof and prof.role else 'Client'
             is_suspended = (prof.is_deactivated if prof else False) or (not u.is_active)
             user_list.append({
                 'id': f"u_{u.id}",
@@ -5274,7 +5279,12 @@ def admin_toggle_user_status_api(request):
         return Response({"error": "User account not found."}, status=status.HTTP_404_NOT_FOUND)
 
     user_prof, _ = UserProfile.objects.get_or_create(user=user)
-    
+    prof_role = (user_prof.role.lower().strip() if user_prof and user_prof.role else '')
+
+    # Admin and Super Admin accounts must never be suspended
+    if user.is_staff or user.is_superuser or prof_role in ['admin', 'super admin', 'superuser']:
+        return Response({"error": "Admin and Super Admin accounts cannot be suspended."}, status=status.HTTP_400_BAD_REQUEST)
+
     # Determine current suspension state
     is_currently_suspended = (not user.is_active) or user_prof.deactivation_period == 'Suspended by Admin'
     new_suspended = not is_currently_suspended
