@@ -1,3 +1,4 @@
+import os
 import json
 import io
 from django.http import HttpResponse
@@ -333,54 +334,7 @@ def login_user(request):
         }
     }, status=status.HTTP_200_OK)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def google_auth(request):
-    """
-    Authenticate or register user via Google OAuth SSO in Django backend.
-    """
-    data = request.data
-    email = data.get('email', '').strip().lower()
-    first_name = data.get('first_name', 'Google')
-    last_name = data.get('last_name', 'User')
-    role = data.get('role', 'client').lower()
-    if role not in ['client', 'freelancer']:
-        role = 'client'
 
-    if not email:
-        return Response({"error": "Google email is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    user = User.objects.filter(email=email).first()
-    if not user:
-        username = email.split('@')[0]
-        base_username = username
-        counter = 1
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}_{counter}"
-            counter += 1
-
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=get_random_string(32),
-            first_name=first_name,
-            last_name=last_name
-        )
-
-    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'role': role})
-
-    return Response({
-        "message": "Google Authentication Successful",
-        "user": {
-            "user_id": user.username,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "name": f"{user.first_name} {user.last_name}".strip() or user.username,
-            "email": user.email,
-            "role": profile.role,
-            "auth_provider": "Google"
-        }
-    }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -635,6 +589,45 @@ def submit_contact(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+def save_base64_data_url_to_file(data_url, document_name, subfolder='project_documents'):
+    """
+    Utility function to decode a base64 Data URL and save it as a physical file in MEDIA_ROOT.
+    Returns (relative_file_path, absolute_file_path, mime_type).
+    """
+    import os, base64, mimetypes
+    from django.conf import settings
+    from django.utils.text import get_valid_filename
+    from django.utils import timezone
+
+    if not data_url or not isinstance(data_url, str) or not data_url.startswith('data:'):
+        return None, None, None
+
+    try:
+        header, base64_str = data_url.split(',', 1)
+        mime_type = header.split(';')[0].replace('data:', '').strip()
+        file_bytes = base64.b64decode(base64_str)
+
+        raw_name = os.path.basename(document_name or 'project_document.pdf')
+        clean_name = get_valid_filename(raw_name)
+        if not clean_name:
+            ext = mimetypes.guess_extension(mime_type) or '.pdf'
+            clean_name = f"doc_{int(timezone.now().timestamp())}{ext}"
+
+        media_dir = os.path.join(settings.MEDIA_ROOT, subfolder)
+        os.makedirs(media_dir, exist_ok=True)
+
+        target_path = os.path.join(media_dir, clean_name)
+        with open(target_path, 'wb') as f:
+            f.write(file_bytes)
+
+        rel_path = f"{subfolder}/{clean_name}" if subfolder else clean_name
+        return rel_path, target_path, mime_type
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error decoding base64 data URL: {e}")
+        return None, None, None
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def projects_api(request):
@@ -642,7 +635,7 @@ def projects_api(request):
     GET: Retrieve project postings filtered by client_id / user_id / username.
     POST: Create and persist a new project posting in PostgreSQL database for authenticated client.
     """
-    from .models import Project, SkillCategory, Contract, Proposal
+    from .models import Project, SkillCategory, Contract, Proposal, ProjectDocumentVerification
     if request.method == 'GET':
         try:
             status_param = request.GET.get('status')
@@ -785,37 +778,34 @@ def projects_api(request):
                 "milestone_total": 0
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not isinstance(milestones_raw, list) or len(milestones_raw) == 0:
-            return Response({
-                "error": "Milestone total must exactly match the project budget. Project must contain at least one payment milestone.",
-                "total_budget": budget_num,
-                "milestone_total": 0
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+        # Milestone validation (Milestones are optional; validate only if provided)
         m_sum = 0.0
-        for m_item in milestones_raw:
-            if not isinstance(m_item, dict):
-                return Response({
-                    "error": "Invalid milestone format.",
-                    "total_budget": budget_num,
-                    "milestone_total": m_sum
-                }, status=status.HTTP_400_BAD_REQUEST)
-            m_amt_digits = re.sub(r'[^0-9.]', '', str(m_item.get('amount', '0')))
-            m_val = float(m_amt_digits) if m_amt_digits else 0.0
-            if m_val <= 0:
-                return Response({
-                    "error": "Milestone amounts must be valid positive numbers greater than 0.",
-                    "total_budget": budget_num,
-                    "milestone_total": m_sum
-                }, status=status.HTTP_400_BAD_REQUEST)
-            m_sum += m_val
+        has_milestones = isinstance(milestones_raw, list) and len(milestones_raw) > 0
 
-        if abs(m_sum - budget_num) >= 0.01:
-            return Response({
-                "error": "Milestone total must exactly match the project budget.",
-                "total_budget": int(budget_num),
-                "milestone_total": int(m_sum)
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if has_milestones:
+            for m_item in milestones_raw:
+                if not isinstance(m_item, dict):
+                    return Response({
+                        "error": "Invalid milestone format.",
+                        "total_budget": budget_num,
+                        "milestone_total": m_sum
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                m_amt_digits = re.sub(r'[^0-9.]', '', str(m_item.get('amount', '0')))
+                m_val = float(m_amt_digits) if m_amt_digits else 0.0
+                if m_val <= 0:
+                    return Response({
+                        "error": "Milestone amounts must be valid positive numbers greater than 0.",
+                        "total_budget": budget_num,
+                        "milestone_total": m_sum
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                m_sum += m_val
+
+            if abs(m_sum - budget_num) >= 0.01:
+                return Response({
+                    "error": f"Milestone total (₹{int(m_sum):,}) does not match project budget (₹{int(budget_num):,}). Please adjust milestone amounts before saving or publishing.",
+                    "total_budget": int(budget_num),
+                    "milestone_total": int(m_sum)
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = (
@@ -845,9 +835,22 @@ def projects_api(request):
                 rejection_reason=''
             )
 
-            # Create ProjectDocumentVerification IF and ONLY IF an actual file was attached
-            if file_name or file_url:
-                ProjectDocumentVerification.objects.create(
+            # Create ProjectDocumentVerification IF an actual file was uploaded or provided
+            uploaded_file_obj = request.FILES.get('attached_file') or request.FILES.get('file') or request.FILES.get('document_file')
+            if uploaded_file_obj:
+                doc_v = ProjectDocumentVerification.objects.create(
+                    project=proj,
+                    client=user,
+                    document_name=uploaded_file_obj.name or file_name or f"Project_Spec_{proj.id}.pdf",
+                    document_file=uploaded_file_obj,
+                    document_file_url='',
+                    document_file_size=f"{round(uploaded_file_obj.size / 1024, 1)} KB",
+                    document_type='Project Requirement Spec',
+                    status='PENDING'
+                )
+            elif file_name or file_url:
+                rel_path, abs_path, _ = save_base64_data_url_to_file(file_url, file_name, 'project_documents')
+                doc_v = ProjectDocumentVerification.objects.create(
                     project=proj,
                     client=user,
                     document_name=file_name or f"Project_Spec_{proj.id}.pdf",
@@ -856,6 +859,11 @@ def projects_api(request):
                     document_type='Project Requirement Spec',
                     status='PENDING'
                 )
+                if rel_path:
+                    doc_v.document_file.name = rel_path
+                    doc_v.save(update_fields=['document_file'])
+                    proj.attached_file_url = f"/media/{rel_path}"
+                    proj.save(update_fields=['attached_file_url'])
 
             client_friendly_name = f"{user.first_name} {user.last_name}".strip() or user.username
             admin_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True) | Q(profile__role='admin')).distinct()
@@ -1405,8 +1413,18 @@ def get_contracts(request):
                 Q(client_id_str__iexact=clean_u) | Q(client_name__iexact=clean_u) |
                 Q(freelancer_id_str__iexact=clean_u) | Q(freelancer_name__iexact=clean_u)
             )
+    elif request.query_params.get('all') == 'true':
+        pass
+    elif request.query_params.get('project_id'):
+        clean_pid = str(request.query_params.get('project_id')).replace('proj_', '').replace('cp', '').strip()
+        if clean_pid.isdigit():
+            qs = qs.filter(project_id=int(clean_pid))
+        else:
+            qs = qs.filter(Q(project_name__iexact=clean_pid) | Q(project__title__iexact=clean_pid))
     elif request.user.is_authenticated and not request.user.is_staff:
         qs = qs.filter(Q(client=request.user) | Q(freelancer=request.user))
+    elif request.user.is_authenticated and request.user.is_staff:
+        pass
     else:
         qs = Contract.objects.none()
         
@@ -2244,36 +2262,78 @@ def client_financials_api(request):
         contract_num = c.contract_id or f"CTR-{c.id:04d}"
 
         if c.status == 'Completed':
-            # Project completed: full agreed amount was released to freelancer
-            released_raw += c_amt
-            transactions.append({
-                "id": f"TXN-C{c.id:06d}",
-                "db_id": c.id,
-                "payment_id": c.id,
-                "contract_id": c.id,
-                "contract_number": contract_num,
-                "milestone_id": "N/A (Full Contract Payout)",
-                "date": format_ist_datetime(c.updated_at) if c.updated_at else "Completed",
-                "project": proj_title,
-                "project_name": proj_title,
-                "milestone": "Project Completion Payout",
-                "milestone_name": "Project Completion Payout",
-                "client_name": client_full_name,
-                "client_email": client_email,
-                "client_display": client_display,
-                "freelancer_name": freelancer_full_name,
-                "freelancer_email": freelancer_email,
-                "freelancer_display": freelancer_display,
-                "type": "Contract Payout",
-                "payment_type": "Contract Payout",
-                "amount": f"₹{c_amt:,}",
-                "amount_val": c_amt,
-                "status": "Paid",
-                "payment_status": "Paid & Released",
-                "payment_method": "FreeMatch Escrow Wallet",
-                "invoice_info": f"Invoice #INV-C{c.id:06d} (PDF Available)",
-                "release_status": "Funds Released from Escrow to Freelancer Wallet"
-            })
+            m_list = list(c.milestones.all())
+            if m_list:
+                for m in m_list:
+                    m_amt_digits = re.sub(r'[^0-9]', '', str(m.amount or '0'))
+                    m_val = int(m_amt_digits) if m_amt_digits else 0
+                    py_rec = Payment.objects.filter(contract=c, milestone_title__icontains=m.title).order_by('-id').first()
+                    if not py_rec:
+                        py_rec = Payment.objects.filter(contract=c).order_by('-id').first()
+                    py_id = py_rec.id if py_rec else m.id
+                    py_date = format_ist_datetime(py_rec.timestamp) if (py_rec and py_rec.timestamp) else (format_ist_datetime(m.updated_at) if m.updated_at else "Completed")
+                    txn_id_str = f"TXN-{py_id:06d}"
+
+                    released_raw += m_val
+                    transactions.append({
+                        "id": txn_id_str,
+                        "db_id": py_id,
+                        "payment_id": py_id,
+                        "contract_id": c.id,
+                        "contract_number": contract_num,
+                        "milestone_id": f"MS-{m.id:04d} (#{m.id})",
+                        "date": py_date,
+                        "project": proj_title,
+                        "project_name": proj_title,
+                        "milestone": m.title,
+                        "milestone_name": m.title,
+                        "client_name": client_full_name,
+                        "client_email": client_email,
+                        "client_display": client_display,
+                        "freelancer_name": freelancer_full_name,
+                        "freelancer_email": freelancer_email,
+                        "freelancer_display": freelancer_display,
+                        "type": "Milestone Release",
+                        "payment_type": "Milestone Release",
+                        "amount": f"₹{m_val:,}",
+                        "amount_val": m_val,
+                        "status": "Paid",
+                        "payment_status": "Paid & Released",
+                        "payment_method": py_rec.payment_type if (py_rec and py_rec.payment_type) else "FreeMatch Escrow Wallet",
+                        "invoice_info": f"Invoice #INV-{py_id:06d} (PDF Available)",
+                        "release_status": "Completed & Released from Escrow"
+                    })
+            else:
+                # Project completed with no individual milestones logged: full agreed amount was released to freelancer
+                released_raw += c_amt
+                transactions.append({
+                    "id": f"TXN-C{c.id:06d}",
+                    "db_id": c.id,
+                    "payment_id": c.id,
+                    "contract_id": c.id,
+                    "contract_number": contract_num,
+                    "milestone_id": "N/A (Full Contract Payout)",
+                    "date": format_ist_datetime(c.updated_at) if c.updated_at else "Completed",
+                    "project": proj_title,
+                    "project_name": proj_title,
+                    "milestone": "Project Completion Payout",
+                    "milestone_name": "Project Completion Payout",
+                    "client_name": client_full_name,
+                    "client_email": client_email,
+                    "client_display": client_display,
+                    "freelancer_name": freelancer_full_name,
+                    "freelancer_email": freelancer_email,
+                    "freelancer_display": freelancer_display,
+                    "type": "Contract Payout",
+                    "payment_type": "Contract Payout",
+                    "amount": f"₹{c_amt:,}",
+                    "amount_val": c_amt,
+                    "status": "Paid",
+                    "payment_status": "Paid & Released",
+                    "payment_method": "FreeMatch Escrow Wallet",
+                    "invoice_info": f"Invoice #INV-C{c.id:06d} (PDF Available)",
+                    "release_status": "Funds Released from Escrow to Freelancer Wallet"
+                })
         elif c.status == 'Active':
             m_list = list(c.milestones.all())
             if m_list:
@@ -2398,8 +2458,12 @@ def proposals_api(request):
                 qs = Proposal.objects.none()
         elif project_id:
             qs = qs.filter(project_id=project_id)
+        elif request.GET.get('all') == 'true':
+            pass
         elif request.user.is_authenticated and not request.user.is_staff:
             qs = qs.filter(Q(project__client=request.user) | Q(freelancer=request.user))
+        elif request.user.is_authenticated and request.user.is_staff:
+            pass
         else:
             qs = Proposal.objects.none()
 
@@ -3082,160 +3146,7 @@ def sprint_tasks_api(request, pk=None):
         return Response(tasks, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        from django.utils import timezone
-        import datetime
-
-        data = request.data
-        title = data.get('title', '').strip()
-        if not title:
-            return Response({"error": "Task title is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        project_ref = data.get('project_id') or data.get('projectId') or data.get('project') or data.get('projectTitle')
-        assignee_name = data.get('assignee')
-        budget = data.get('budget', '₹1,500')
-        client_id = data.get('client_id') or request.GET.get('client_id')
-        freelancer_id = data.get('freelancer_id') or request.GET.get('freelancer_id') or request.GET.get('freelancer')
-
-        client_user = None
-        if client_id:
-            client_user = resolve_user_account(client_id)
-
-        fl_user = None
-        if freelancer_id:
-            fl_user = resolve_user_account(freelancer_id)
-
-        proj = None
-        if project_ref and str(project_ref).strip() not in ('All', 'All Assigned Projects'):
-            clean_pref = str(project_ref).strip().replace('proj_', '').replace('cp', '')
-            if clean_pref.isdigit():
-                proj = Project.objects.filter(id=int(clean_pref)).first()
-            if not proj:
-                proj = Project.objects.filter(title__iexact=str(project_ref).strip()).first()
-            if not proj:
-                proj = Project.objects.filter(title__icontains=str(project_ref).strip()).first()
-
-        if not proj and not project_ref:
-            if client_user:
-                proj = Project.objects.filter(client=client_user).order_by('-created_at').first()
-            elif fl_user:
-                c = Contract.objects.filter(
-                    Q(freelancer=fl_user) | Q(freelancer_id_str__iexact=fl_user.username)
-                ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).order_by('-created_at').first()
-                if c and c.project:
-                    proj = c.project
-
-        if proj:
-            p_st = (proj.status or '').strip().lower()
-            if p_st in ['completed', 'closed', 'cancelled']:
-                return Response({
-                    "error": f"Cannot create new sprint tasks for project '{proj.title}' because it is already {proj.status.lower()}.",
-                    "is_completed": True,
-                    "project_status": proj.status
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            active_c = Contract.objects.filter(project=proj).order_by('-created_at').first()
-            if active_c and (active_c.status or '').strip().lower() in ['completed', 'closed', 'cancelled', 'terminated']:
-                return Response({
-                    "error": f"Cannot create new sprint tasks for project '{proj.title}' because its contract is {active_c.status.lower()}.",
-                    "is_completed": True,
-                    "contract_status": active_c.status
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-            # Check if project has an assigned freelancer / active contract / accepted proposal
-            has_active_contract = Contract.objects.filter(project=proj).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).exists()
-            has_accepted_proposal = Proposal.objects.filter(project=proj, status='Accepted').exists()
-
-            if not has_active_contract and not has_accepted_proposal:
-                return Response({
-                    "error": f"Cannot create sprint tasks for project '{proj.title}' because no freelancer has been hired or assigned yet. Please hire a freelancer first.",
-                    "is_unassigned": True
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-        assignee_user = None
-        if assignee_name and assignee_name not in ('Assigned Freelancer', 'All', ''):
-            assignee_user = resolve_user_account(assignee_name)
-
-        if not assignee_user:
-            if fl_user:
-                assignee_user = fl_user
-            elif proj:
-                c = Contract.objects.filter(project=proj).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).first()
-                if c and c.freelancer:
-                    assignee_user = c.freelancer
-
-        if proj and not client_user:
-            client_user = proj.client
-
-        # Deduplication safeguard: return existing task if identical request was sent in the last 5 seconds
-        recent_duplicate = SprintTask.objects.filter(
-            title__iexact=title,
-            project=proj
-        ).filter(
-            created_at__gte=timezone.now() - datetime.timedelta(seconds=5)
-        ).first()
-
-        if recent_duplicate:
-            return Response({
-                "message": "Sprint Task already exists",
-                "id": recent_duplicate.id,
-                "task": {
-                    "id": recent_duplicate.id,
-                    "title": recent_duplicate.title,
-                    "projectTitle": recent_duplicate.project.title if recent_duplicate.project else (project_title or 'General Task'),
-                    "projectId": f"proj_{recent_duplicate.project.id}" if recent_duplicate.project else None,
-                    "assignee": f"{recent_duplicate.assignee.first_name} {recent_duplicate.assignee.last_name}".strip() or recent_duplicate.assignee.username if recent_duplicate.assignee else (assignee_name or 'Assigned Freelancer'),
-                    "status": recent_duplicate.status,
-                    "progress": recent_duplicate.get_progress_percentage(),
-                    "budget": recent_duplicate.budget,
-                    "created_at": recent_duplicate.created_at.isoformat() if recent_duplicate.created_at else None
-                }
-            }, status=status.HTTP_200_OK)
-
-        st = SprintTask.objects.create(
-            title=title,
-            project=proj,
-            assignee=assignee_user,
-            status='To Do',
-            budget=budget
-        )
-
-        creator_query = request.data.get('creator') or request.data.get('user_id') or (request.user.username if request.user.is_authenticated else '')
-        creator_user = resolve_user_account(creator_query)
-
-        # Only notify assignee if assignee is not the creator themselves
-        if assignee_user and (not creator_user or creator_user.id != assignee_user.id):
-            create_event_notification(
-                user=assignee_user,
-                notification_type='task',
-                title=f"New Task Assigned: {title}",
-                message=f"You have been assigned a new sprint task: '{title}' ({budget}) for {proj.title if proj else 'your active project'}.",
-                source_id=str(st.id),
-                event_key=f"{assignee_user.id}:TASK_ASSIGNED:{st.id}",
-                project_id=str(proj.id) if proj else '',
-                project_name=proj.title if proj else (project_title or '')
-            )
-
-        st_start = st.project.created_at if (st.project and st.project.created_at) else st.created_at
-        st_dur = st.project.duration if (st.project and st.project.duration) else '1 Month'
-        st_dl = calculate_project_deadline(st_start, st_dur)
-
-        return Response({
-            "message": "Sprint Task created",
-            "id": st.id,
-            "task": {
-                "id": st.id,
-                "title": st.title,
-                "projectTitle": st.project.title if st.project else (project_title or 'General Task'),
-                "projectId": f"proj_{st.project.id}" if st.project else None,
-                "assignee": f"{st.assignee.first_name} {st.assignee.last_name}".strip() or st.assignee.username if st.assignee else (assignee_name or 'Assigned Freelancer'),
-                "status": st.status,
-                "progress": st.get_progress_percentage(),
-                "budget": st.budget,
-                "deadline": st_dl,
-                "due": st_dl,
-                "created_at": st.created_at.isoformat() if st.created_at else None
-            }
-        }, status=status.HTTP_201_CREATED)
+        return Response({"error": "Manual sprint task creation has been disabled."}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'PUT':
         st = SprintTask.objects.filter(id=pk).first()
@@ -3264,10 +3175,29 @@ def sprint_tasks_api(request, pk=None):
             st.status = status_val
             st.save()
 
+            if not st.milestone and st.project:
+                c = Contract.objects.filter(project=st.project).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).first()
+                if c:
+                    cm = ContractMilestone.objects.filter(contract=c, title__iexact=st.title).first()
+                    if not cm:
+                        max_num = c.milestones.count() + 1
+                        cm = ContractMilestone.objects.create(
+                            contract=c,
+                            milestone_number=max_num,
+                            title=st.title,
+                            description=f"Sprint deliverable task: {st.title}",
+                            amount=st.budget or '₹2,500',
+                            status='Completed' if clean_status in ['done', 'completed'] else 'Pending'
+                        )
+                    st.milestone = cm
+                    st.milestone_number = cm.milestone_number
+                    st.save()
+
             if st.milestone:
                 if clean_status in ['review', 'under review', 'submitted', 'submitted for review']:
-                    st.milestone.status = 'Submitted for Review'
-                    st.milestone.save()
+                    if (st.milestone.status or '').lower() not in ['paid', 'approved']:
+                        st.milestone.status = 'Submitted for Review'
+                        st.milestone.save()
                 elif clean_status in ['in progress', 'doing']:
                     if (st.milestone.status or '').lower() not in ['paid', 'approved']:
                         st.milestone.status = 'In Progress'
@@ -4843,6 +4773,8 @@ def admin_dashboard_api(request):
                 'name': name,
                 'email': u.email or f"{u.username}@example.com",
                 'avatar_url': fl_prof.avatar_url if fl_prof else '',
+                'skills': fl_prof.skills_list if fl_prof else '',
+                'role': 'Freelancer',
                 'document_type': v.document_type,
                 'document_number': v.document_number,
                 'document_file_url': doc_url,
@@ -6507,6 +6439,8 @@ def admin_identity_verifications_list_api(request):
             'name': name,
             'email': u.email or f"{u.username}@example.com",
             'avatar_url': fl_prof.avatar_url if fl_prof else '',
+            'skills': fl_prof.skills_list if fl_prof else '',
+            'role': 'Freelancer',
             'document_type': v.document_type,
             'document_number': v.document_number,
             'document_file_url': doc_url,
@@ -6777,8 +6711,9 @@ def admin_project_document_verifications_list_api(request):
         (Q(attached_file_url__isnull=False) & ~Q(attached_file_url=''))
     )
     for p in projects_with_files:
-        if not ProjectDocumentVerification.objects.filter(project=p).exists():
-            ProjectDocumentVerification.objects.create(
+        doc_v = ProjectDocumentVerification.objects.filter(project=p).first()
+        if not doc_v:
+            doc_v = ProjectDocumentVerification.objects.create(
                 project=p,
                 client=p.client,
                 document_name=p.attached_file_name or f"Project_Document_{p.id}.pdf",
@@ -6787,6 +6722,14 @@ def admin_project_document_verifications_list_api(request):
                 status='PENDING',
                 rejection_reason=''
             )
+        # Ensure document_file is populated if attached_file_url has base64 data
+        if doc_v and (not doc_v.document_file or not os.path.exists(doc_v.document_file.path if hasattr(doc_v.document_file, 'path') else '')):
+            url_to_check = doc_v.document_file_url or p.attached_file_url
+            if url_to_check and url_to_check.startswith('data:'):
+                rel_path, abs_path, _ = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
+                if rel_path:
+                    doc_v.document_file.name = rel_path
+                    doc_v.save(update_fields=['document_file'])
 
     # Fetch document verification records for real uploaded files
     docs = ProjectDocumentVerification.objects.filter(
@@ -6927,6 +6870,7 @@ def serve_project_document_file_api(request, pk=None):
     from .models import ProjectDocumentVerification
     import os, mimetypes
     from django.conf import settings
+    from django.http import HttpResponse
 
     v_id = pk or request.GET.get('id')
     doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
@@ -6935,16 +6879,37 @@ def serve_project_document_file_api(request, pk=None):
 
     is_download = request.GET.get('download', '').lower() == 'true'
     target_file_path = None
+    mime_override = None
 
     # Step 1: Check doc.document_file
-    if doc.document_file and hasattr(doc.document_file, 'path'):
+    if doc.document_file and hasattr(doc.document_file, 'path') and doc.document_file.name:
         try:
             if os.path.exists(doc.document_file.path):
                 target_file_path = doc.document_file.path
         except Exception:
             pass
 
-    # Step 2: If target_file_path is missing, search MEDIA_ROOT for stored file variants
+    # Step 2: Check base64 Data URL in document_file_url or project attached_file_url
+    if not target_file_path:
+        url_candidates = [doc.document_file_url, getattr(doc.project, 'attached_file_url', '')]
+        for url in url_candidates:
+            if url and isinstance(url, str) and url.startswith('data:'):
+                rel_path, abs_path, guessed_mime = save_base64_data_url_to_file(
+                    url,
+                    doc.document_name or getattr(doc.project, 'attached_file_name', ''),
+                    'project_documents'
+                )
+                if abs_path and os.path.exists(abs_path):
+                    target_file_path = abs_path
+                    mime_override = guessed_mime
+                    try:
+                        doc.document_file.name = rel_path
+                        doc.save(update_fields=['document_file'])
+                    except Exception:
+                        pass
+                    break
+
+    # Step 3: If target_file_path is missing, search MEDIA_ROOT for stored file variants
     if not target_file_path:
         media_root = str(settings.MEDIA_ROOT)
         candidates = []
@@ -6963,7 +6928,6 @@ def serve_project_document_file_api(request, pk=None):
         for name in names_to_check:
             if name:
                 clean_name = os.path.basename(name)
-                # Generate sanitized file variants
                 import re
                 base_no_ext, ext = os.path.splitext(clean_name)
                 var_names = [
@@ -6991,10 +6955,14 @@ def serve_project_document_file_api(request, pk=None):
                     pass
                 break
 
-    # Step 3: Stream physical file if found
+    # Step 4: Stream physical file if found
     if target_file_path and os.path.exists(target_file_path):
-        content_type, _ = mimetypes.guess_type(target_file_path)
-        content_type = content_type or 'application/octet-stream'
+        content_type = mime_override
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(target_file_path)
+        content_type = content_type or (
+            'application/pdf' if (doc.document_name or target_file_path).lower().endswith('.pdf') else 'application/octet-stream'
+        )
         orig_filename = doc.document_name or getattr(doc.project, 'attached_file_name', '') or os.path.basename(target_file_path)
 
         with open(target_file_path, 'rb') as f:
@@ -7003,14 +6971,5 @@ def serve_project_document_file_api(request, pk=None):
             response['Content-Disposition'] = f'{disp}; filename="{orig_filename}"'
             response['Access-Control-Allow-Origin'] = '*'
             return response
-
-    # Fallback to abstract text if document file object is not physically saved
-    if doc.project and doc.project.abstract:
-        content = f"PROJECT DOCUMENT ABSTRACT\nProject: {doc.project.title}\nClient: {doc.client.username}\n\nAbstract:\n{doc.project.abstract}"
-        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
-        disp = 'attachment' if is_download else 'inline'
-        response['Content-Disposition'] = f'{disp}; filename="{doc.document_name or "Abstract.txt"}"'
-        response['Access-Control-Allow-Origin'] = '*'
-        return response
 
     return Response({"error": "No physical document file attached."}, status=status.HTTP_404_NOT_FOUND)

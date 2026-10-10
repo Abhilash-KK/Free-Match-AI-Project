@@ -392,20 +392,45 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       });
   }, [role, currentUserName, currentUserId, isDemoUser, taskStorageKey, getFreelancerDefaultTasks]);
 
-  // Re-sync tasks from backend whenever component mounts, filter changes, or event fires
+  const [liveContracts, setLiveContracts] = useState([]);
+  const [liveProposals, setLiveProposals] = useState([]);
+
+  const loadBackendMetadata = React.useCallback(() => {
+    let userQuery = currentUserId || currentUserName || '';
+    let urlContracts = `http://localhost:8000/api/contracts/?user_id=${encodeURIComponent(userQuery)}`;
+    fetch(urlContracts)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setLiveContracts(data);
+      })
+      .catch(() => {});
+
+    let urlProps = `http://localhost:8000/api/proposals/?user_id=${encodeURIComponent(userQuery)}`;
+    fetch(urlProps)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setLiveProposals(data);
+      })
+      .catch(() => {});
+  }, [currentUserId, currentUserName]);
+
+  // Re-sync tasks and metadata from backend whenever component mounts, filter changes, or event fires
   useEffect(() => {
     loadBackendTasks();
+    loadBackendMetadata();
     window.addEventListener('storage', loadBackendTasks);
     window.addEventListener('focus', loadBackendTasks);
     window.addEventListener('freematch_shared_event', loadBackendTasks);
+    window.addEventListener('freematch_shared_event', loadBackendMetadata);
     window.addEventListener('freematch_kanban_event', loadBackendTasks);
     return () => {
       window.removeEventListener('storage', loadBackendTasks);
       window.removeEventListener('focus', loadBackendTasks);
       window.removeEventListener('freematch_shared_event', loadBackendTasks);
+      window.removeEventListener('freematch_shared_event', loadBackendMetadata);
       window.removeEventListener('freematch_kanban_event', loadBackendTasks);
     };
-  }, [loadBackendTasks, selectedProjectFilter]);
+  }, [loadBackendTasks, loadBackendMetadata, selectedProjectFilter]);
 
   const updateTaskStatus = async (taskId, newStatus, message) => {
     const targetIdStr = String(taskId).trim();
@@ -538,13 +563,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     window.dispatchEvent(new Event('freematch_kanban_event'));
   };
 
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskProject, setNewTaskProject] = useState('');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('');
-  const [newTaskBudget, setNewTaskBudget] = useState('');
-  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
-
+  
   // Extract available projects and hired freelancers for dropdowns
   const availableProjects = React.useMemo(() => {
     if (role === 'freelancer') {
@@ -708,129 +727,108 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     return result;
   }, [role, tasks, currentUserName, currentUserId]);
 
-  const availableFreelancers = React.useMemo(() => {
+  const getProjectAssignedFreelancers = useCallback((projectTitle) => {
+    if (!projectTitle || projectTitle === 'All' || projectTitle === 'All Assigned Projects') return [];
+
+    const cleanTarget = projectTitle.toLowerCase().trim();
+    const assigned = new Map();
+
+    // 1. Check liveContracts & localStorage contracts
+    const allContracts = [...(liveContracts || [])];
     try {
-      const savedProps = localStorage.getItem(proposalStorageKey);
-      if (savedProps) {
-        const parsed = JSON.parse(savedProps);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const names = parsed.map(p => p.freelancer || p.freelancerName).filter(Boolean);
-          if (names.length > 0) return Array.from(new Set(names));
+      const savedC = localStorage.getItem(`freematch_user_${currentUserId}_contracts`) || localStorage.getItem('freematch_shared_contracts');
+      if (savedC) {
+        const pC = JSON.parse(savedC);
+        if (Array.isArray(pC)) allContracts.push(...pC);
+      }
+    } catch (e) {}
+
+    allContracts.forEach(c => {
+      if (!c) return;
+      const cStatus = (c.status || '').toLowerCase().trim();
+      if (cStatus === 'cancelled' || cStatus === 'archived' || cStatus === 'terminated') return;
+
+      const pName = (c.project_name || c.projectName || c.projectTitle || c.project?.title || c.project || '').toLowerCase().trim();
+      if (pName && (pName === cleanTarget || pName.includes(cleanTarget) || cleanTarget.includes(pName))) {
+        let flName = c.freelancerName || c.freelancer_name || c.freelancer_display;
+        if (!flName && c.freelancer) {
+          if (typeof c.freelancer === 'object') {
+            flName = (c.freelancer.first_name || c.freelancer.last_name) 
+              ? `${c.freelancer.first_name || ''} ${c.freelancer.last_name || ''}`.trim()
+              : c.freelancer.username || c.freelancer.email;
+          } else {
+            flName = String(c.freelancer);
+          }
+        }
+        if (!flName && c.freelancer_id_str) flName = c.freelancer_id_str;
+
+        if (flName && flName !== 'Unassigned' && flName !== 'None' && flName !== '') {
+          const key = flName.toLowerCase().trim();
+          if (!assigned.has(key)) {
+            assigned.set(key, flName.trim());
+          }
+        }
+      }
+    });
+
+    // 2. Check liveProposals & localStorage proposals
+    const allProposals = [...(liveProposals || [])];
+    try {
+      const savedP = localStorage.getItem(proposalStorageKey) || localStorage.getItem('freematch_shared_proposals');
+      if (savedP) {
+        const pP = JSON.parse(savedP);
+        if (Array.isArray(pP)) allProposals.push(...pP);
+      }
+    } catch (e) {}
+
+    allProposals.forEach(p => {
+      if (!p) return;
+      const pSt = (p.status || '').toLowerCase().trim();
+      if (pSt !== 'accepted' && pSt !== 'hired' && !pSt.includes('hired')) return;
+
+      const pName = (p.project || p.projectTitle || p.project_name || '').toLowerCase().trim();
+      if (pName && (pName === cleanTarget || pName.includes(cleanTarget) || cleanTarget.includes(pName))) {
+        let flName = p.freelancerName || p.freelancer_name || p.freelancer;
+        if (typeof flName === 'object') {
+          flName = (flName.first_name || flName.last_name)
+            ? `${flName.first_name || ''} ${flName.last_name || ''}`.trim()
+            : flName.username || flName.email;
+        }
+
+        if (flName && flName !== 'Unassigned' && flName !== 'None' && flName !== '') {
+          const key = String(flName).toLowerCase().trim();
+          if (!assigned.has(key)) {
+            assigned.set(key, String(flName).trim());
+          }
+        }
+      }
+    });
+
+    // 3. Check Projects Metadata
+    try {
+      const savedProjs = localStorage.getItem(projectStorageKey);
+      if (savedProjs) {
+        const parsedProjs = JSON.parse(savedProjs);
+        if (Array.isArray(parsedProjs)) {
+          parsedProjs.forEach(proj => {
+            if (!proj || !proj.title) return;
+            const pTitle = proj.title.toLowerCase().trim();
+            if (pTitle === cleanTarget || pTitle.includes(cleanTarget) || cleanTarget.includes(pTitle)) {
+              const hFl = proj.hiredFreelancer || proj.freelancer || proj.assigned_freelancer;
+              if (hFl && hFl !== 'Unassigned' && hFl !== 'None' && hFl !== '') {
+                const key = String(hFl).toLowerCase().trim();
+                if (!assigned.has(key)) {
+                  assigned.set(key, String(hFl).trim());
+                }
+              }
+            }
+          });
         }
       }
     } catch (e) {}
-    return ['Haines Jose Paulson', 'Alex Mercer', 'Sarah Chen', 'Lana Kim', 'Elena Rostova', 'Marcus Vance'];
-  }, [proposalStorageKey]);
 
-  const handleOpenAddTaskModal = () => {
-    setNewTaskTitle('');
-    const firstEligibleProject = eligibleTaskProjects[0] || '';
-    setNewTaskProject(firstEligibleProject);
-    setNewTaskAssignee(availableFreelancers[0] || 'Haines Jose Paulson');
-    setNewTaskBudget('₹1,500');
-    setIsSubmittingTask(false);
-
-    if (eligibleTaskProjects.length === 0) {
-      setToast({
-        message: 'All projects are completed and read-only. Cannot create new sprint tasks.',
-        type: 'error'
-      });
-      return;
-    }
-
-    setShowAddTaskModal(true);
-  };
-
-  const handleSaveNewTask = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (isSubmittingTask) return;
-
-    const trimmedTitle = newTaskTitle.trim();
-    if (!trimmedTitle) {
-      setToast({ message: 'Please enter a task title!', type: 'error' });
-      return;
-    }
-
-    const projectVal = newTaskProject && newTaskProject !== 'All' && newTaskProject !== 'All Assigned Projects'
-      ? newTaskProject
-      : (eligibleTaskProjects[0] || '');
-
-    if (!projectVal || !eligibleTaskProjects.includes(projectVal)) {
-      setToast({
-        message: `Cannot create task: Project '${projectVal || 'Selected'}' is completed and read-only.`,
-        type: 'error'
-      });
-      return;
-    }
-
-    setIsSubmittingTask(true);
-
-    try {
-      let formattedBudget = newTaskBudget.trim();
-      if (formattedBudget && !formattedBudget.startsWith('₹') && !formattedBudget.startsWith('$')) {
-        const num = parseFloat(formattedBudget.replace(/[^0-9.]/g, ''));
-        formattedBudget = isNaN(num) ? '₹1,500' : `₹${num.toLocaleString('en-IN')}`;
-      }
-
-      const assignedPerson = newTaskAssignee || (role === 'freelancer' ? (currentUserName || currentUserId) : 'Assigned Freelancer');
-
-      const res = await fetch('http://localhost:8000/api/sprint-tasks/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          project: projectVal,
-          assignee: assignedPerson,
-          budget: formattedBudget || '₹1,500',
-          client_id: role === 'client' ? currentUserId : undefined,
-          freelancer_id: role === 'freelancer' ? currentUserId : undefined,
-          creator: currentUserId
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create sprint task');
-      }
-
-      const createdTask = data.task || {
-        id: data.id,
-        title: trimmedTitle,
-        project: projectVal || 'Enterprise Project',
-        projectTitle: projectVal || 'Enterprise Project',
-        assignee: assignedPerson,
-        status: 'To Do',
-        progress: 0,
-        budget: formattedBudget || '₹1,500',
-        created_at: new Date().toISOString()
-      };
-
-      // Add ONLY the single newly created task to state, preserving all existing tasks
-      setTasks(prevTasks => {
-        const filtered = prevTasks.filter(t => String(t.id).trim() !== String(createdTask.id).trim());
-        const updated = [createdTask, ...filtered];
-        localStorage.setItem(taskStorageKey, JSON.stringify(updated));
-        if (isDemoUser) {
-          localStorage.setItem('freematch_shared_tasks', JSON.stringify(updated));
-          localStorage.setItem('freematch_kanban_tasks', JSON.stringify(updated));
-        }
-        return updated;
-      });
-
-      setShowAddTaskModal(false);
-      setNewTaskTitle('');
-      setToast({ message: `Sprint task "${trimmedTitle}" created successfully!`, type: 'success' });
-
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new Event('freematch_shared_event'));
-      window.dispatchEvent(new Event('freematch_kanban_event'));
-    } catch (err) {
-      console.error('Sprint task POST error:', err);
-      setToast({ message: err.message || 'Could not create task', type: 'error' });
-    } finally {
-      setIsSubmittingTask(false);
-    }
-  };
+    return Array.from(assigned.values());
+  }, [liveContracts, liveProposals, currentUserId, proposalStorageKey, projectStorageKey]);
 
   // Filter tasks based on role and selected project filter
   const displayTasks = tasks.filter(t => {
@@ -1016,15 +1014,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
             <span>Clear Completed</span>
           </button>
 
-          {role === 'client' && (
-            <button
-              onClick={handleOpenAddTaskModal}
-              className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-2xl text-sm font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer shrink-0 flex items-center space-x-2"
-            >
-              <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
-              <span>Add Sprint Task</span>
-            </button>
-          )}
+          
         </div>
       </div>
 
@@ -1412,15 +1402,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               </div>
             </div>
 
-            {role === 'client' && (
-              <button
-                onClick={handleOpenAddTaskModal}
-                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Task</span>
-              </button>
-            )}
+            
           </div>
         )}
 
@@ -1537,15 +1519,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               </div>
             </div>
 
-            {role === 'client' && (
-              <button
-                onClick={handleOpenAddTaskModal}
-                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Task</span>
-              </button>
-            )}
+            
           </div>
         )}
 
@@ -1656,15 +1630,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               </div>
             </div>
 
-            {role === 'client' && (
-              <button
-                onClick={handleOpenAddTaskModal}
-                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Task</span>
-              </button>
-            )}
+            
           </div>
         )}
 
@@ -1740,15 +1706,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
               </div>
             </div>
 
-            {role === 'client' && (
-              <button
-                onClick={handleOpenAddTaskModal}
-                className="text-xs font-extrabold text-[#2563eb] hover:text-blue-700 flex items-center space-x-1 cursor-pointer pt-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Task</span>
-              </button>
-            )}
+            
           </div>
         )}
 
@@ -1878,103 +1836,9 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
         </div>
       )}
 
-      {/* ADD SPRINT TASK MODAL */}
-      {showAddTaskModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`rounded-3xl p-6 sm:p-7 max-w-md w-full border shadow-2xl space-y-5 ${isDark ? 'bg-[#0b1736] border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200/40">
-              <div className="flex items-center space-x-2">
-                <span className="text-xl">✨</span>
-                <h3 className="font-extrabold text-base">Add New Sprint Task</h3>
-              </div>
-              <button 
-                onClick={() => setShowAddTaskModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveNewTask} className="space-y-4 text-left">
-              <div>
-                <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Task Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Build Rust Order Execution Core Engine"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                />
-              </div>
-
-              <div>
-                <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Select Project</label>
-                {eligibleTaskProjects.length > 0 ? (
-                  <select
-                    value={newTaskProject}
-                    onChange={(e) => setNewTaskProject(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                  >
-                    {eligibleTaskProjects.map((proj, idx) => (
-                      <option key={idx} value={proj}>{proj}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-semibold">
-                    ⚠️ No active projects available. Completed projects are read-only.
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Assignee / Freelancer</label>
-                  <select
-                    value={newTaskAssignee}
-                    onChange={(e) => setNewTaskAssignee(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                  >
-                    {availableFreelancers.map((fl, idx) => (
-                      <option key={idx} value={fl}>{fl}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={`block text-xs font-bold mb-1 uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Task Budget (₹ INR)</label>
-                  <input
-                    type="text"
-                    placeholder="₹1,500"
-                    value={newTaskBudget}
-                    onChange={(e) => setNewTaskBudget(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDark ? 'bg-[#060e22] border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200/40">
-                <button
-                  type="button"
-                  onClick={() => setShowAddTaskModal(false)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingTask || eligibleTaskProjects.length === 0}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
-                >
-                  {isSubmittingTask ? 'Creating...' : 'Create Task'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 export default KanbanBoard;
+

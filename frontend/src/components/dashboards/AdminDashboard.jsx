@@ -1258,29 +1258,29 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                   <p className="text-xs text-slate-600">Review tax forms, certificates, and ID documents submitted by freelancers.</p>
                 </div>
                 <span className="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-xs font-extrabold">
-                  {verifications.length} Pending
+                  {verifications.filter(v => v.status === 'PENDING').length} Pending
                 </span>
               </div>
 
-              {verifications.length === 0 ? (
+              {verifications.filter(v => v.status === 'PENDING').length === 0 ? (
                 <p className="text-xs text-slate-600 font-bold py-4">No pending identity verification applications in queue.</p>
               ) : (
                 <div className="space-y-3">
-                  {verifications.map(v => (
+                  {verifications.filter(v => v.status === 'PENDING').map(v => (
                     <div key={v.id} className="p-4.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="space-y-1.5 min-w-0 flex-1">
                         <div className="flex items-center space-x-2">
                           <h4 className="font-extrabold text-slate-900 text-sm">{v.name}</h4>
                           <span className="text-xs text-blue-600 font-bold">({v.role})</span>
                         </div>
-                        <p className="text-xs text-slate-600 font-medium">Skills: {v.skills}</p>
+                        <p className="text-xs text-slate-600 font-medium truncate">Skills: {v.skills || 'Not specified'}</p>
                         
                         {/* Document Verification Box */}
                         <div className="p-2.5 bg-white rounded-xl border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 mt-2">
                           <div className="flex items-center space-x-2 text-xs">
                             <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                            <span className="font-bold text-slate-700">📄 Document:</span>
-                            <span className="font-extrabold text-slate-900 truncate max-w-[200px] sm:max-w-xs">{v.resume_name || v.docs || 'Verification_Doc.pdf'}</span>
+                            <span className="font-bold text-slate-700">📄 {v.document_type || 'Document'}:</span>
+                            <span className="font-extrabold text-slate-900 truncate max-w-[200px] sm:max-w-xs">{v.document_file_name || 'Identity_Document.pdf'}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <button
@@ -1299,7 +1299,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                             </button>
                           </div>
                         </div>
-                        <p className="text-[11px] text-slate-500 font-medium pt-0.5">Submitted: {v.date}</p>
+                        <p className="text-[11px] text-slate-500 font-medium pt-0.5">Submitted: {v.submitted_at || v.date}</p>
                       </div>
                       <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
                         <button onClick={() => handleApproveVerification(v)} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer flex items-center space-x-1">
@@ -1615,24 +1615,24 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
 
                             {/* Action Buttons */}
                             <div className="flex items-center space-x-2 shrink-0 self-start md:self-center">
-                              {d.status !== 'APPROVED' && (
-                                <button
-                                  onClick={() => handleApproveProjDoc(d)}
-                                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1 cursor-pointer"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Approve Document</span>
-                                </button>
-                              )}
+                              {d.status === 'PENDING' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveProjDoc(d)}
+                                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Approve Document</span>
+                                  </button>
 
-                              {d.status !== 'REJECTED' && (
-                                <button
-                                  onClick={() => { setRejectingProjDoc(d); setProjDocRejectionReasonInput(''); }}
-                                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 transition-colors flex items-center space-x-1 cursor-pointer"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>Reject</span>
-                                </button>
+                                  <button
+                                    onClick={() => { setRejectingProjDoc(d); setProjDocRejectionReasonInput(''); }}
+                                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-extrabold text-xs rounded-xl border border-rose-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>Reject</span>
+                                  </button>
+                                </>
                               )}
 
                               <button

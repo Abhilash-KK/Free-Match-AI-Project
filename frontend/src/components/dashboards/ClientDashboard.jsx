@@ -1681,17 +1681,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     try {
       const numB = parseFloat(budget) || 0;
       const msArr = Array.isArray(milestoneItems) ? milestoneItems : [];
-      const allMsValid = msArr.length > 0 && msArr.every(
-        m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
-      );
-      const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+      if (msArr.length > 0) {
+        const allMsValid = msArr.every(
+          m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
+        );
+        const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
 
-      if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
-        setToast({ 
-          message: `Cannot save draft: Milestone total (₹${msSum.toLocaleString()}) must exactly match the project budget (₹${numB.toLocaleString()}).`, 
-          type: 'error' 
-        });
-        return;
+        if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
+          setToast({ 
+            message: `Cannot save draft: Milestone total (₹${msSum.toLocaleString()}) must exactly match the project budget (₹${numB.toLocaleString()}).`, 
+            type: 'error' 
+          });
+          return;
+        }
       }
 
       const titleToSave = (projectTitle || '').trim() || 'Untitled Project Draft';
@@ -1754,17 +1756,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const rawBudget = draft.budget || '0';
     const numB = parseFloat(rawBudget.toString().replace(/[^0-9.]/g, '')) || 0;
     const msArr = Array.isArray(draft.milestoneItems) ? draft.milestoneItems : [];
-    const allMsValid = msArr.length > 0 && msArr.every(
-      m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
-    );
-    const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+    if (msArr.length > 0) {
+      const allMsValid = msArr.every(
+        m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
+      );
+      const msSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
 
-    if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
-      setToast({ 
-        message: `Cannot publish draft: Milestone total (₹${msSum.toLocaleString()}) does not match project budget (₹${numB.toLocaleString()}). Please edit the draft to fix allocation before publishing.`, 
-        type: 'error' 
-      });
-      return;
+      if (numB <= 0 || !allMsValid || Math.abs(msSum - numB) >= 0.01) {
+        setToast({ 
+          message: `Cannot publish draft: Milestone total (₹${msSum.toLocaleString()}) does not match project budget (₹${numB.toLocaleString()}). Please edit the draft to fix allocation before publishing.`, 
+          type: 'error' 
+        });
+        return;
+      }
     }
 
     const currentUserName = userSession?.name || userSession?.username || 'Client';
@@ -1891,27 +1895,25 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       return;
     }
 
-    // 2. Milestone Validations
-    if (!Array.isArray(milestoneItems) || milestoneItems.length === 0) {
-      setToast({ message: 'Project must contain at least one payment milestone.', type: 'error' });
-      return;
-    }
+    // 2. Milestone Validations (Optional: perform validation only if milestones exist)
+    const msArr = Array.isArray(milestoneItems) ? milestoneItems : [];
+    if (msArr.length > 0) {
+      const invalidMilestone = msArr.find(
+        m => !m.title || !m.title.trim() || isNaN(parseFloat(m.amount)) || parseFloat(m.amount) <= 0
+      );
+      if (invalidMilestone) {
+        setToast({ message: 'Each milestone must have a valid title and positive amount greater than 0.', type: 'error' });
+        return;
+      }
 
-    const invalidMilestone = milestoneItems.find(
-      m => !m.title || !m.title.trim() || isNaN(parseFloat(m.amount)) || parseFloat(m.amount) <= 0
-    );
-    if (invalidMilestone) {
-      setToast({ message: 'Each milestone must have a valid title and positive amount greater than 0.', type: 'error' });
-      return;
-    }
-
-    const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
-    if (Math.abs(totalMilestoneSum - numBudget) >= 0.01) {
-      setToast({
-        message: `Milestone total (₹${totalMilestoneSum.toLocaleString()}) must exactly match the project budget (₹${numBudget.toLocaleString()}).`,
-        type: 'error'
-      });
-      return;
+      const totalMilestoneSum = msArr.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
+      if (Math.abs(totalMilestoneSum - numBudget) >= 0.01) {
+        setToast({
+          message: `Milestone total (₹${totalMilestoneSum.toLocaleString()}) must exactly match the project budget (₹${numBudget.toLocaleString()}).`,
+          type: 'error'
+        });
+        return;
+      }
     }
 
     const currentUserName = userSession?.name || userSession?.username || 'Client';
@@ -5599,11 +5601,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {showPostProjectModal && (() => {
         const totalMilestoneSum = milestoneItems.reduce((acc, m) => acc + (parseFloat(m.amount) || 0), 0);
         const numBudget = parseFloat(budget) || 0;
-        const allMilestonesValid = Array.isArray(milestoneItems) && milestoneItems.length > 0 && milestoneItems.every(
+        const hasMilestones = Array.isArray(milestoneItems) && milestoneItems.length > 0;
+        const allMilestonesValid = hasMilestones ? milestoneItems.every(
           m => m.title && m.title.trim() && !isNaN(parseFloat(m.amount)) && parseFloat(m.amount) > 0
-        );
-        const isBudgetMatched = numBudget > 0 && allMilestonesValid && Math.abs(totalMilestoneSum - numBudget) < 0.01;
-        const hasBudgetMismatch = !isBudgetMatched;
+        ) : true;
+        const isBudgetMatched = !hasMilestones || (numBudget > 0 && allMilestonesValid && Math.abs(totalMilestoneSum - numBudget) < 0.01);
+        const hasBudgetMismatch = hasMilestones && !isBudgetMatched;
 
         return (
           <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden">
@@ -5950,13 +5953,19 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       </div>
 
                       <div>
-                        {isBudgetMatched ? (
-                          <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black rounded-lg flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Budget Matched
-                          </span>
+                        {hasMilestones ? (
+                          isBudgetMatched ? (
+                            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-black rounded-lg flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5" /> Budget Matched
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 bg-amber-200 text-amber-950 border border-amber-400 text-xs font-black rounded-lg flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-900" /> Milestone total ₹{totalMilestoneSum.toLocaleString()} does not match project budget ₹{numBudget.toLocaleString()}. Please adjust milestone amounts before saving or publishing.
+                            </span>
+                          )
                         ) : (
-                          <span className="px-2.5 py-1 bg-amber-200 text-amber-950 border border-amber-400 text-xs font-black rounded-lg flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-amber-900" /> Milestone total ₹{totalMilestoneSum.toLocaleString()} does not match project budget ₹{numBudget.toLocaleString()}. Please adjust milestone amounts before saving or publishing.
+                          <span className="px-2.5 py-1 bg-slate-200 text-slate-700 border border-slate-300 text-xs font-black rounded-lg flex items-center gap-1">
+                            No milestones added (Optional)
                           </span>
                         )}
                       </div>
