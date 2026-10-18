@@ -131,11 +131,14 @@ def health_check(request):
     """
     Health check endpoint to verify Python Django PostgreSQL backend connectivity.
     """
+    from .models import Project
     return Response({
         "status": "online",
         "message": "FreeMatch AI Django Backend Connected to PostgreSQL!",
         "framework": "Django 6.0",
-        "database": "PostgreSQL"
+        "database": "PostgreSQL",
+        "projects_in_db": Project.objects.count(),
+        "build_version": "2026-10-18-v2-truncate"
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
