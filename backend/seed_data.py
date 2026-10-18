@@ -35,25 +35,29 @@ def seed_database():
 
     # 3. Seed Users
     # Admin User
-    admin_user, created = User.objects.get_or_create(
-        username='admin',
-        defaults={'email': 'admin@freematch.ai', 'first_name': 'Super', 'last_name': 'Admin', 'is_staff': True, 'is_superuser': True}
-    )
-    if created:
-        admin_user.set_password('admin123')
-        admin_user.save()
+    admin_user, _ = User.objects.get_or_create(username='admin')
+    admin_user.email = 'admin@freematch.ai'
+    admin_user.first_name = 'Super'
+    admin_user.last_name = 'Admin'
+    admin_user.is_staff = True
+    admin_user.is_superuser = True
+    admin_user.is_active = True
+    admin_user.set_password('admin123')
+    admin_user.save()
+
     admin_prof, _ = UserProfile.objects.get_or_create(user=admin_user)
     admin_prof.role = 'admin'
     admin_prof.save()
 
     # Client User (TechStream Corp)
-    client_user, created = User.objects.get_or_create(
-        username='techstream',
-        defaults={'email': 'contact@techstream.io', 'first_name': 'TechStream', 'last_name': 'Corp'}
-    )
-    if created:
-        client_user.set_password('client123')
-        client_user.save()
+    client_user, _ = User.objects.get_or_create(username='techstream')
+    client_user.email = 'contact@techstream.io'
+    client_user.first_name = 'TechStream'
+    client_user.last_name = 'Corp'
+    client_user.is_active = True
+    client_user.set_password('client123')
+    client_user.save()
+
     client_prof, _ = UserProfile.objects.get_or_create(user=client_user)
     client_prof.role = 'client'
     client_prof.company_name = 'TechStream Corp'
@@ -61,13 +65,14 @@ def seed_database():
     client_prof.save()
 
     # Freelancer 1 (Alex Mercer)
-    alex_user, created = User.objects.get_or_create(
-        username='alexmercer',
-        defaults={'email': 'alex.m@system.net', 'first_name': 'Alex', 'last_name': 'Mercer'}
-    )
-    if created:
-        alex_user.set_password('freelancer123')
-        alex_user.save()
+    alex_user, _ = User.objects.get_or_create(username='alexmercer')
+    alex_user.email = 'alex.m@system.net'
+    alex_user.first_name = 'Alex'
+    alex_user.last_name = 'Mercer'
+    alex_user.is_active = True
+    alex_user.set_password('freelancer123')
+    alex_user.save()
+
     alex_prof, _ = UserProfile.objects.get_or_create(user=alex_user)
     alex_prof.role = 'freelancer'
     alex_prof.verified = True
@@ -82,13 +87,13 @@ def seed_database():
     alex_fl.save()
 
     # Freelancer 2 (Sarah Chen)
-    sarah_user, created = User.objects.get_or_create(
-        username='sarahchen',
-        defaults={'email': 'sarah.chen@ai-labs.io', 'first_name': 'Sarah', 'last_name': 'Chen'}
-    )
-    if created:
-        sarah_user.set_password('freelancer123')
-        sarah_user.save()
+    sarah_user, _ = User.objects.get_or_create(username='sarahchen')
+    sarah_user.email = 'sarah.chen@ai-labs.io'
+    sarah_user.first_name = 'Sarah'
+    sarah_user.last_name = 'Chen'
+    sarah_user.is_active = True
+    sarah_user.set_password('freelancer123')
+    sarah_user.save()
     sarah_prof, _ = UserProfile.objects.get_or_create(user=sarah_user)
     sarah_prof.role = 'freelancer'
     sarah_prof.verified = True
