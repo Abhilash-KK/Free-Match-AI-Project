@@ -6985,42 +6985,88 @@ def sync_real_data_api(request):
     Emergency sync endpoint: loads real_project_data.json directly into connected database.
     """
     import os
+    import sys
+    import traceback
     from django.core.management import call_command
     from django.contrib.auth.models import User
-    from .models import (
-        UserProfile, FreelancerProfile, SkillCategory, Skill,
-        Project, Proposal, Contract, ContractMilestone, Payment,
-        Review, Message, ContactMessage, Notification, SavedFreelancer,
-        SprintTask, FreelancerIdentityVerification, ProjectDocumentVerification
-    )
+    from django.db import connection
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    fixture_path = os.path.join(base_dir, 'real_project_data.json')
-    if not os.path.exists(fixture_path):
-        return Response({"error": f"Fixture not found at {fixture_path}"}, status=status.HTTP_404_NOT_FOUND)
+    candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'real_project_data.json'),
+        os.path.join(os.getcwd(), 'real_project_data.json'),
+        os.path.join(os.getcwd(), 'backend', 'real_project_data.json'),
+        os.path.abspath('real_project_data.json'),
+    ]
+    fixture_path = None
+    for p in candidates:
+        if os.path.exists(p):
+            fixture_path = p
+            break
+
+    if not fixture_path:
+        return Response({
+            "status": "error",
+            "error": "Fixture real_project_data.json not found",
+            "searched": candidates,
+            "cwd": os.getcwd()
+        }, status=status.HTTP_200_OK)
+
+    # Clean existing tables cleanly to prevent duplicate key or foreign key conflicts
+    try:
+        with connection.cursor() as cursor:
+            tables = [
+                'django_admin_log',
+                'django_session',
+                'api_sprinttask',
+                'api_contractmilestone',
+                'api_payment',
+                'api_contract',
+                'api_proposal',
+                'api_projectdocumentverification',
+                'api_project',
+                'api_freelanceridentityverification',
+                'api_freelancerportfolio',
+                'api_freelancerexperience',
+                'api_freelancereducation',
+                'api_freelancercertification',
+                'api_freelancerwithdrawal',
+                'api_freelancerprofile',
+                'api_userprofile',
+                'api_message',
+                'api_notification',
+                'api_review',
+                'api_savedfreelancer',
+                'api_contactmessage',
+                'api_skill',
+                'api_skillcategory',
+                'auth_user'
+            ]
+            cursor.execute(f"TRUNCATE TABLE {', '.join(tables)} CASCADE;")
+    except Exception as truncate_err:
+        from .models import (
+            UserProfile, FreelancerProfile, SkillCategory, Skill,
+            Project, Proposal, Contract, ContractMilestone, Payment,
+            Review, Message, ContactMessage, Notification, SavedFreelancer,
+            SprintTask, FreelancerIdentityVerification, ProjectDocumentVerification,
+            FreelancerPortfolio, FreelancerExperience, FreelancerEducation,
+            FreelancerCertification, FreelancerWithdrawal
+        )
+        for m in [
+            SprintTask, ContractMilestone, Payment, Contract, Proposal,
+            ProjectDocumentVerification, Project, FreelancerIdentityVerification,
+            FreelancerPortfolio, FreelancerExperience, FreelancerEducation,
+            FreelancerCertification, FreelancerWithdrawal,
+            FreelancerProfile, UserProfile, Message, Notification,
+            Review, SavedFreelancer, ContactMessage, User, Skill, SkillCategory
+        ]:
+            try:
+                m.objects.all().delete()
+            except Exception:
+                pass
 
     try:
-        # Delete old placeholder data to prevent duplicate key / unique constraint conflicts
-        SprintTask.objects.all().delete()
-        ContractMilestone.objects.all().delete()
-        Payment.objects.all().delete()
-        Contract.objects.all().delete()
-        Proposal.objects.all().delete()
-        ProjectDocumentVerification.objects.all().delete()
-        Project.objects.all().delete()
-        FreelancerIdentityVerification.objects.all().delete()
-        FreelancerProfile.objects.all().delete()
-        UserProfile.objects.all().delete()
-        Message.objects.all().delete()
-        Notification.objects.all().delete()
-        Review.objects.all().delete()
-        SavedFreelancer.objects.all().delete()
-        ContactMessage.objects.all().delete()
-        User.objects.all().delete()
-        Skill.objects.all().delete()
-        SkillCategory.objects.all().delete()
-
         call_command('loaddata', fixture_path)
+        from .models import Project
         proj_count = Project.objects.count()
         user_count = User.objects.count()
         return Response({
@@ -7030,4 +7076,8 @@ def sync_real_data_api(request):
             "user_count": user_count
         }, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({
+            "status": "error",
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }, status=status.HTTP_200_OK)

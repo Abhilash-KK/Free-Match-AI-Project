@@ -7,44 +7,87 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 django.setup()
 
 from django.core.management import call_command
-from django.contrib.auth.models import User
-from api.models import (
-    UserProfile, FreelancerProfile, SkillCategory, Skill,
-    Project, Proposal, Contract, ContractMilestone, Payment,
-    Review, Message, ContactMessage, Notification, SavedFreelancer,
-    SprintTask, FreelancerIdentityVerification, ProjectDocumentVerification
-)
+from django.db import connection
 
 def run():
     print("Preparing database for exact local backup import...")
-    backup_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'real_project_data.json')
-    if not os.path.exists(backup_file):
-        print("Backup file not found at", backup_file)
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'real_project_data.json'),
+        os.path.join(os.getcwd(), 'real_project_data.json'),
+        os.path.join(os.getcwd(), 'backend', 'real_project_data.json'),
+    ]
+    backup_file = None
+    for p in candidates:
+        if os.path.exists(p):
+            backup_file = p
+            break
+
+    if not backup_file:
+        print("Backup file not found in candidates:", candidates)
         return
 
     # Delete old placeholder data to prevent duplicate key / unique constraint conflicts
-    SprintTask.objects.all().delete()
-    ContractMilestone.objects.all().delete()
-    Payment.objects.all().delete()
-    Contract.objects.all().delete()
-    Proposal.objects.all().delete()
-    ProjectDocumentVerification.objects.all().delete()
-    Project.objects.all().delete()
-    FreelancerIdentityVerification.objects.all().delete()
-    FreelancerProfile.objects.all().delete()
-    UserProfile.objects.all().delete()
-    Message.objects.all().delete()
-    Notification.objects.all().delete()
-    Review.objects.all().delete()
-    SavedFreelancer.objects.all().delete()
-    ContactMessage.objects.all().delete()
-    User.objects.all().delete()
-    Skill.objects.all().delete()
-    SkillCategory.objects.all().delete()
+    try:
+        with connection.cursor() as cursor:
+            tables = [
+                'django_admin_log',
+                'django_session',
+                'api_sprinttask',
+                'api_contractmilestone',
+                'api_payment',
+                'api_contract',
+                'api_proposal',
+                'api_projectdocumentverification',
+                'api_project',
+                'api_freelanceridentityverification',
+                'api_freelancerportfolio',
+                'api_freelancerexperience',
+                'api_freelancereducation',
+                'api_freelancercertification',
+                'api_freelancerwithdrawal',
+                'api_freelancerprofile',
+                'api_userprofile',
+                'api_message',
+                'api_notification',
+                'api_review',
+                'api_savedfreelancer',
+                'api_contactmessage',
+                'api_skill',
+                'api_skillcategory',
+                'auth_user'
+            ]
+            cursor.execute(f"TRUNCATE TABLE {', '.join(tables)} CASCADE;")
+            print("Truncated tables cleanly via PostgreSQL CASCADE.")
+    except Exception as e:
+        print(f"SQL truncate failed ({e}), falling back to ORM delete...")
+        from django.contrib.auth.models import User
+        from api.models import (
+            UserProfile, FreelancerProfile, SkillCategory, Skill,
+            Project, Proposal, Contract, ContractMilestone, Payment,
+            Review, Message, ContactMessage, Notification, SavedFreelancer,
+            SprintTask, FreelancerIdentityVerification, ProjectDocumentVerification,
+            FreelancerPortfolio, FreelancerExperience, FreelancerEducation,
+            FreelancerCertification, FreelancerWithdrawal
+        )
+        for m in [
+            SprintTask, ContractMilestone, Payment, Contract, Proposal,
+            ProjectDocumentVerification, Project, FreelancerIdentityVerification,
+            FreelancerPortfolio, FreelancerExperience, FreelancerEducation,
+            FreelancerCertification, FreelancerWithdrawal,
+            FreelancerProfile, UserProfile, Message, Notification,
+            Review, SavedFreelancer, ContactMessage, User, Skill, SkillCategory
+        ]:
+            try:
+                m.objects.all().delete()
+            except Exception as del_err:
+                print(f"Error deleting {m.__name__}: {del_err}")
 
     print(f"Loading real project data from {backup_file}...")
-    call_command('loaddata', backup_file)
-    print("Real project data loaded successfully!")
+    try:
+        call_command('loaddata', backup_file)
+        print("Real project data loaded successfully!")
+    except Exception as err:
+        print(f"Error loading fixture: {err}")
 
 if __name__ == '__main__':
     run()
