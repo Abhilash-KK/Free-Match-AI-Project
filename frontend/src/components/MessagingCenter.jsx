@@ -110,7 +110,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
 
     // Mark unread messages as read in DB
     try {
-      await fetch(`/api/messages/mark-read/`, {
+      await fetch(`${BACKEND_URL}/api/messages/mark-read/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -150,7 +150,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
     setTimeout(() => scrollToBottom(true), 50);
 
     try {
-      const res = await fetch(`/api/messages/send/`, {
+      const res = await fetch(`${BACKEND_URL}/api/messages/send/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -161,7 +161,7 @@ const ClientProfileView = ({
       persistState(updated);
 
       try {
-        await fetch(`/api/user-avatar/`, {
+        await fetch(`${BACKEND_URL}/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: authUsername, avatar_url: base64Data })
@@ -281,7 +281,7 @@ const ClientProfileView = ({
       persistState(updated);
 
       try {
-        await fetch(`/api/user-profile/`, {
+        await fetch(`${BACKEND_URL}/api/user-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -113,7 +113,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   ]);
 
   const loadCategories = React.useCallback(() => {
-    fetch(`/api/categories/`)
+    fetch(`${BACKEND_URL}/api/categories/`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -621,7 +621,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const flId = freelancerObj.freelancer_id || freelancerObj.username || freelancerObj.freelancer || freelancerObj.email || freelancerObj.name;
     const flName = freelancerObj.name || freelancerObj.freelancer || flId;
     try {
-      const res = await fetch(`/api/saved-freelancers/`, {
+      const res = await fetch(`${BACKEND_URL}/api/saved-freelancers/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: currentUserId, freelancer_id: flId, name: flName })
@@ -672,7 +672,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const flId = freelancerObj.freelancer_id || freelancerObj.freelancer || freelancerObj.name;
     const projId = projectId || (clientProjects[0]?.id || 'proj_1');
     try {
-      const res = await fetch(`/api/hire-freelancer/`, {
+      const res = await fetch(`${BACKEND_URL}/api/hire-freelancer/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1349,7 +1349,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const avgRating = Math.round((commRating + codeRating + deadlineRating) / 3.0);
 
     try {
-      const res = await fetch(`/api/reviews/submit/`, {
+      const res = await fetch(`${BACKEND_URL}/api/reviews/submit/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1556,7 +1556,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     window.dispatchEvent(new Event('storage'));
 
     try {
-      await fetch(`/api/user-avatar/`, {
+      await fetch(`${BACKEND_URL}/api/user-avatar/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1817,7 +1817,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     localStorage.removeItem(activeDraftKey);
 
     try {
-      await fetch(`/api/projects/`, {
+      await fetch(`${BACKEND_URL}/api/projects/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1973,7 +1973,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     // Persist project directly into Django database
     try {
-      const res = await fetch(`/api/projects/`, {
+      const res = await fetch(`${BACKEND_URL}/api/projects/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2094,7 +2094,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     // 3. Persist Contract to Django PostgreSQL Database API
     const propDbId = acceptedProp.db_id || String(acceptedProp.id || '').replace('prop_', '');
-    fetch(`/api/contracts/create/`, {
+    fetch(`${BACKEND_URL}/api/contracts/create/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

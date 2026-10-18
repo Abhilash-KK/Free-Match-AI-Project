@@ -113,7 +113,7 @@ const FreelancerIdentityVerificationView = ({
         formData.append('document_file_size', '1.2 MB');
       }
 
-      const res = await fetch(`/api/freelancer/identity-verification/`, {
+      const res = await fetch(`${BACKEND_URL}/api/freelancer/identity-verification/`, {
         method: 'POST',
         body: formData,
       });

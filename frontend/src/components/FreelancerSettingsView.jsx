@@ -211,7 +211,7 @@ const FreelancerSettingsView = ({
   const handleDeactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch(`/api/deactivate-account/`, {
+      const res = await fetch(`${BACKEND_URL}/api/deactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername, period: deactivationPeriod })
@@ -238,7 +238,7 @@ const FreelancerSettingsView = ({
   const handleReactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch(`/api/reactivate-account/`, {
+      const res = await fetch(`${BACKEND_URL}/api/reactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername })
@@ -346,7 +346,7 @@ const FreelancerSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch(`/api/freelancer-profile/`, {
+        await fetch(`${BACKEND_URL}/api/freelancer-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -429,7 +429,7 @@ const FreelancerSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch(`/api/freelancer-profile/`, {
+        await fetch(`${BACKEND_URL}/api/freelancer-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -528,7 +528,7 @@ const FreelancerSettingsView = ({
 
     setChangingPass(true);
     try {
-      const res = await fetch(`/api/change-password/`, {
+      const res = await fetch(`${BACKEND_URL}/api/change-password/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -689,7 +689,7 @@ const FreelancerSettingsView = ({
     reader.onload = async () => {
       try {
         const fileDataUrl = reader.result;
-        const res = await fetch(`/api/freelancer-resume/`, {
+        const res = await fetch(`${BACKEND_URL}/api/freelancer-resume/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

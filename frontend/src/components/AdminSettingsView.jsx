@@ -180,7 +180,7 @@ const AdminSettingsView = ({
 
       // Persist to backend database via user-avatar API
       try {
-        await fetch(`/api/user-avatar/`, {
+        await fetch(`${BACKEND_URL}/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: authUsername, username: authUsername, avatar_url: base64Data })

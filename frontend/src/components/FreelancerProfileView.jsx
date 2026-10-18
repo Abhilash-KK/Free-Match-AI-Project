@@ -377,7 +377,7 @@ export default function FreelancerProfileView({
       try {
         const base64Data = reader.result;
 
-        const res = await fetch(`/api/user-avatar/`, {
+        const res = await fetch(`${BACKEND_URL}/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -481,7 +481,7 @@ export default function FreelancerProfileView({
         avatar_url: profileForm.avatar_url
       };
 
-      const res = await fetch(`/api/freelancer-profile/`, {
+      const res = await fetch(`${BACKEND_URL}/api/freelancer-profile/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -534,7 +534,7 @@ export default function FreelancerProfileView({
     setSaving(true);
     try {
       const updatedSkills = [...(profile.skills || []), cleanSkill];
-      await fetch(`/api/freelancer-skills/`, {
+      await fetch(`${BACKEND_URL}/api/freelancer-skills/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: authUsername, skills: updatedSkills })
@@ -746,7 +746,7 @@ export default function FreelancerProfileView({
       try {
         const fileDataUrl = reader.result;
 
-        const res = await fetch(`/api/freelancer-resume/`, {
+        const res = await fetch(`${BACKEND_URL}/api/freelancer-resume/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -841,7 +841,7 @@ export default function FreelancerProfileView({
       const method = isEdit ? 'PUT' : 'POST';
       const payload = { username: authUsername, ...certForm };
 
-      await fetch(`/api/freelancer-certifications/`, {
+      await fetch(`${BACKEND_URL}/api/freelancer-certifications/`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -907,7 +907,7 @@ export default function FreelancerProfileView({
     try {
       const isEdit = !!eduForm.id;
       const payload = { username: authUsername, ...eduForm };
-      await fetch(`/api/freelancer-education/`, {
+      await fetch(`${BACKEND_URL}/api/freelancer-education/`, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -958,7 +958,7 @@ export default function FreelancerProfileView({
     try {
       const isEdit = !!expForm.id;
       const payload = { username: authUsername, ...expForm };
-      await fetch(`/api/freelancer-experience/`, {
+      await fetch(`${BACKEND_URL}/api/freelancer-experience/`, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

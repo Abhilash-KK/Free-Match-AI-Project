@@ -691,7 +691,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     };
 
     const loadMarketplaceProjects = () => {
-      fetch(`/api/projects/`)
+      fetch(`${BACKEND_URL}/api/projects/`)
         .then(res => res.json())
         .then(apiProjects => {
           if (Array.isArray(apiProjects)) {
@@ -957,7 +957,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
     let proposalDbId = null;
     try {
-      const res = await fetch(`/api/proposals/`, {
+      const res = await fetch(`${BACKEND_URL}/api/proposals/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

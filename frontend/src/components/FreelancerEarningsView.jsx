@@ -72,7 +72,7 @@ export default function FreelancerEarningsView({
     }
     setIsSubmittingWithdrawal(true);
     try {
-      const res = await fetch(`/api/freelancer-financials/withdraw/`, {
+      const res = await fetch(`${BACKEND_URL}/api/freelancer-financials/withdraw/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

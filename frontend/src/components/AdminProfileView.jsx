@@ -106,7 +106,7 @@ const AdminProfileView = ({
 
       // Persist to backend database via user-avatar endpoint
       try {
-        await fetch(`/api/user-avatar/`, {
+        await fetch(`${BACKEND_URL}/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: authUsername, username: authUsername, avatar_url: base64Data })
@@ -128,7 +128,7 @@ const AdminProfileView = ({
     setEditAvatarUrl('');
     try {
       localStorage.removeItem('freematch_user_avatar');
-      await fetch(`/api/user-avatar/`, {
+      await fetch(`${BACKEND_URL}/api/user-avatar/`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername, username: authUsername })

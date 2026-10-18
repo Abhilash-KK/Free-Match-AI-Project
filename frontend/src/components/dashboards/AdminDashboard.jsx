@@ -156,11 +156,11 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     try {
       let data = null;
       try {
-        const res = await fetch(`/api/admin-dashboard/`);
+        const res = await fetch(`${BACKEND_URL}/api/admin-dashboard/`);
         if (res.ok) data = await res.json();
       } catch (e1) {
         try {
-          const res2 = await fetch('/api/admin-dashboard/');
+          const res2 = await fetch(`${BACKEND_URL}/api/admin-dashboard/`);
           if (res2.ok) data = await res2.json();
         } catch (e2) {}
       }
@@ -473,7 +473,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     setViewingDocumentModal(docObj);
 
     if (targetId) {
-      fetch(`/api/admin/identity-verifications/`)
+      fetch(`${BACKEND_URL}/api/admin/identity-verifications/`)
         .then(res => res.json())
         .then(data => {
           if (data && Array.isArray(data.verifications)) {

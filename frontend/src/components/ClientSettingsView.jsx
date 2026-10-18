@@ -189,7 +189,7 @@ const ClientSettingsView = ({
   const handleDeactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch(`/api/deactivate-account/`, {
+      const res = await fetch(`${BACKEND_URL}/api/deactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername, period: deactivationPeriod })
@@ -216,7 +216,7 @@ const ClientSettingsView = ({
   const handleReactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch(`/api/reactivate-account/`, {
+      const res = await fetch(`${BACKEND_URL}/api/reactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername })
@@ -316,7 +316,7 @@ const ClientSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch(`/api/user-profile/`, {
+        await fetch(`${BACKEND_URL}/api/user-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -385,7 +385,7 @@ const ClientSettingsView = ({
 
     setChangingPass(true);
     try {
-      const res = await fetch(`/api/change-password/`, {
+      const res = await fetch(`${BACKEND_URL}/api/change-password/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
