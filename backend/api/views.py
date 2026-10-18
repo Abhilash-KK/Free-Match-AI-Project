@@ -6987,10 +6987,12 @@ def sync_real_data_api(request):
     import os
     from django.core.management import call_command
     from django.contrib.auth.models import User
-    from .models import Project
-
-    # Delete placeholder demo accounts
-    User.objects.filter(username__in=['techstream', 'alexmercer', 'sarahchen']).delete()
+    from .models import (
+        UserProfile, FreelancerProfile, SkillCategory, Skill,
+        Project, Proposal, Contract, ContractMilestone, Payment,
+        Review, Message, ContactMessage, Notification, SavedFreelancer,
+        SprintTask, FreelancerIdentityVerification, ProjectDocumentVerification
+    )
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     fixture_path = os.path.join(base_dir, 'real_project_data.json')
@@ -6998,6 +7000,26 @@ def sync_real_data_api(request):
         return Response({"error": f"Fixture not found at {fixture_path}"}, status=status.HTTP_404_NOT_FOUND)
 
     try:
+        # Delete old placeholder data to prevent duplicate key / unique constraint conflicts
+        SprintTask.objects.all().delete()
+        ContractMilestone.objects.all().delete()
+        Payment.objects.all().delete()
+        Contract.objects.all().delete()
+        Proposal.objects.all().delete()
+        ProjectDocumentVerification.objects.all().delete()
+        Project.objects.all().delete()
+        FreelancerIdentityVerification.objects.all().delete()
+        FreelancerProfile.objects.all().delete()
+        UserProfile.objects.all().delete()
+        Message.objects.all().delete()
+        Notification.objects.all().delete()
+        Review.objects.all().delete()
+        SavedFreelancer.objects.all().delete()
+        ContactMessage.objects.all().delete()
+        User.objects.all().delete()
+        Skill.objects.all().delete()
+        SkillCategory.objects.all().delete()
+
         call_command('loaddata', fixture_path)
         proj_count = Project.objects.count()
         user_count = User.objects.count()
