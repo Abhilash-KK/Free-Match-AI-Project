@@ -25,7 +25,7 @@ import { getInitials } from '../utils/avatarUtils';
  * Displays overall ratings, rating breakdown, filterable/sortable client feedback cards,
  * and project context for completed deliverables.
  */
-const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
 
 export default function ClientReviewsView({
   userSession = null,

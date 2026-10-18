@@ -91,7 +91,7 @@ const DEFAULT_PROPOSALS = [
   { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '₹11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
 ];
 
-const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
 
 const ClientDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;

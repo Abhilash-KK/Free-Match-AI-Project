@@ -33,7 +33,7 @@ const DEFAULT_TASKS = [
   { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '₹4,200', project: 'Cybersecurity Audit & Shield' }
 ];
 
-const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
 
 const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initialProjectFilter = 'All', isDark = false, onNavigateHome = () => {} }) => {
   const [toast, setToast] = useState(null);
