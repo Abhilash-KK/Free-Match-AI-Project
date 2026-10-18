@@ -125,6 +125,72 @@ def calculate_project_deadline(start_date_input, duration_str='1 Month'):
 
     return f"{target.strftime('%b')} {target.day}, {target.year}"
 
+def sync_contract_and_project_completion(contract):
+    """
+    Evaluates whether a contract and its associated project have satisfied
+    all genuine completion conditions based on database milestones, sprint tasks, and payments.
+    When all required project milestones are completed and the contract's completion
+    conditions are satisfied, updates contract.status to 'Completed' and project.status to 'Completed'.
+    Does NOT modify payment, escrow, or freelancer earnings records.
+    Returns (is_completed, updated_flag).
+    """
+    if not contract:
+        return False, False
+
+    clean_status = (contract.status or '').strip()
+    if clean_status in ['Cancelled', 'Archived', 'Terminated']:
+        return False, False
+
+    from .models import Payment, Project, SprintTask
+
+    project = contract.project
+    if not project and contract.project_name:
+        project = Project.objects.filter(title__iexact=contract.project_name).first()
+
+    milestones = list(contract.milestones.all())
+    tasks = list(project.sprint_tasks.all()) if project else []
+
+    if not milestones and not tasks:
+        return clean_status == 'Completed', False
+
+    # 1. Milestone completion check: ALL milestones must be in completed state or have paid payment
+    milestones_completed = True
+    if milestones:
+        for m in milestones:
+            st = (m.status or '').strip().lower()
+            is_paid_or_completed = (
+                st in ['paid', 'approved', 'completed'] or
+                Payment.objects.filter(contract=contract, milestone_title__icontains=m.title).exists()
+            )
+            if not is_paid_or_completed:
+                milestones_completed = False
+                break
+
+    # 2. Sprint tasks completion check: ALL sprint tasks must be in ('done', 'completed', 'approved')
+    tasks_completed = True
+    if tasks:
+        for t in tasks:
+            st = (t.status or '').strip().lower()
+            if st not in ['done', 'completed', 'approved']:
+                tasks_completed = False
+                break
+
+    should_be_completed = milestones_completed and tasks_completed
+
+    updated = False
+    if should_be_completed:
+        if contract.status != 'Completed':
+            contract.status = 'Completed'
+            contract.save(update_fields=['status', 'updated_at'])
+            updated = True
+
+        if project and project.status != 'Completed':
+            project.status = 'Completed'
+            project.save(update_fields=['status'])
+            updated = True
+
+    return should_be_completed, updated
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def health_check(request):
@@ -138,7 +204,7 @@ def health_check(request):
         "framework": "Django 6.0",
         "database": "PostgreSQL",
         "projects_in_db": Project.objects.count(),
-        "build_version": "2026-10-18-v2-truncate"
+        "build_version": "2026-10-18-v3-contract-completion"
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
@@ -669,6 +735,13 @@ def projects_api(request):
                 projects = Project.objects.filter(approval_status__iexact=approval_status_param).order_by('-created_at')
             else:
                 projects = Project.objects.filter(approval_status='Approved').order_by('-created_at')
+
+            for p in list(projects):
+                p_contract = Contract.objects.filter(
+                    Q(project=p) | Q(project_name__iexact=p.title)
+                ).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).first()
+                if p_contract:
+                    sync_contract_and_project_completion(p_contract)
 
             if status_param:
                 st_clean = status_param.strip().lower()
@@ -1430,7 +1503,11 @@ def get_contracts(request):
         pass
     else:
         qs = Contract.objects.none()
-        
+
+    # Reconcile genuine database completion state before applying status_filter
+    for c in list(qs):
+        sync_contract_and_project_completion(c)
+
     if status_filter:
         qs = qs.filter(status__iexact=status_filter)
         
@@ -2065,6 +2142,7 @@ def freelancer_financials_api(request):
     transactions = []
 
     for c in contracts:
+        sync_contract_and_project_completion(c)
         amt_digits = re.sub(r'[^0-9]', '', str(c.agreed_amount or '0'))
         c_amt = int(amt_digits) if amt_digits else 0
         proj_title = c.project_name or (c.project.title if c.project else 'Contract Project')
@@ -3219,6 +3297,10 @@ def sprint_tasks_api(request, pk=None):
                 elif proj.status == 'Open':
                     proj.status = 'In Progress'
                     proj.save()
+
+                linked_c = Contract.objects.filter(Q(project=proj) | Q(project_name__iexact=proj.title)).exclude(status__in=['Cancelled', 'Archived', 'Terminated']).first()
+                if linked_c:
+                    sync_contract_and_project_completion(linked_c)
 
             updater_query = request.data.get('user_id') or request.data.get('updater') or (request.user.username if request.user.is_authenticated else '')
             updater_user = resolve_user_account(updater_query)
@@ -4486,18 +4568,10 @@ def update_milestone_status_api(request, pk):
                         related_user_name=contract.freelancer_name
                     )
 
-                # Check if ALL milestones for contract are now Paid -> Project & Contract Completion
+                # Check if ALL milestones & tasks for contract are now Completed -> Project & Contract Completion
                 if contract:
-                    remaining_unpaid = contract.milestones.exclude(status='Paid').count()
-                    if remaining_unpaid == 0:
-                        contract.status = 'Completed'
-                        contract.escrow_balance = '₹0'
-                        contract.save()
-
-                        proj_obj = contract.project
-                        if proj_obj:
-                            proj_obj.status = 'Completed'
-                            proj_obj.save()
+                    is_comp, _ = sync_contract_and_project_completion(contract)
+                    if is_comp:
 
                         # Project completion notifications
                         if contract.freelancer:
@@ -4601,6 +4675,7 @@ def admin_dashboard_api(request):
         all_contracts = Contract.objects.all().select_related('client', 'freelancer', 'project').order_by('-created_at')
 
         for c in all_contracts:
+            sync_contract_and_project_completion(c)
             proj = c.project
             proj_title = c.project_name or (proj.title if proj else 'Contract Project')
             proj_id = proj.id if proj else c.id
@@ -7069,7 +7144,9 @@ def sync_real_data_api(request):
 
     try:
         call_command('loaddata', fixture_path)
-        from .models import Project
+        from .models import Project, Contract
+        for c in Contract.objects.all():
+            sync_contract_and_project_completion(c)
         proj_count = Project.objects.count()
         user_count = User.objects.count()
         return Response({

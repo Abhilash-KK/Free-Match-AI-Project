@@ -86,6 +86,11 @@ def run():
     try:
         call_command('loaddata', backup_file)
         print("Real project data loaded successfully!")
+        from api.views import sync_contract_and_project_completion
+        from api.models import Contract
+        for c in Contract.objects.all():
+            sync_contract_and_project_completion(c)
+        print("Contract and project completions reconciled successfully!")
     except Exception as err:
         print(f"Error loading fixture: {err}")
 
