@@ -6930,14 +6930,17 @@ def serve_project_document_file_api(request, pk=None):
                 clean_name = os.path.basename(name)
                 import re
                 base_no_ext, ext = os.path.splitext(clean_name)
+                re_clean_name = re.sub(r'[\s()]+', '_', clean_name)
+                re_clean_empty = re.sub(r'[\s()]+', '', clean_name)
+                re_clean_base = re.sub(r'[\s()]+', '_', base_no_ext)
                 var_names = [
                     clean_name,
                     clean_name.replace(' ', '_'),
                     clean_name.replace(' (', '_').replace(')', ''),
-                    re.sub(r'[\s()]+', '_', clean_name),
-                    re.sub(r'[\s()]+', '', clean_name),
+                    re_clean_name,
+                    re_clean_empty,
                     f"{base_no_ext.replace(' ', '_')}{ext}",
-                    f"{re.sub(r'[\s()]+', '_', base_no_ext)}{ext}"
+                    f"{re_clean_base}{ext}"
                 ]
                 for subfolder in ['project_documents', 'kyc_documents', '']:
                     for vname in set(var_names):
