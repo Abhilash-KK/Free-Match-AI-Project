@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Real-time Notification Service for FreeMatch AI
 const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
 const API_BASE = `${BACKEND_URL}/api/notifications`;

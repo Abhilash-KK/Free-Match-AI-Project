@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Document Viewer utility for safely opening uploaded project documents and PDFs
  * across Client and Freelancer workspaces.

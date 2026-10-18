@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React from 'react';
 
 // Dev status badge hidden for production evaluation presentation

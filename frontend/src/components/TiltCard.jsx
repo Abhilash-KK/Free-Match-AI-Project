@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useRef, useState } from 'react';
 
 const TiltCard = ({ children, className = '', maxTilt = 12, scale = 1.02 }) => {

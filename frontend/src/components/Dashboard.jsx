@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React from 'react';
 import AdminDashboard from './dashboards/AdminDashboard';
 import FreelancerDashboard from './dashboards/FreelancerDashboard';

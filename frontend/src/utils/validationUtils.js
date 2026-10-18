@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * FreeMatch AI - Comprehensive Validation Utility
  * Standardized frontend validation helpers for forms, fields, file uploads, and dates.

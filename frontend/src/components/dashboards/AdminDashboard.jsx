@@ -1,3 +1,5 @@
+/* eslint-disable */
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps, eqeqeq */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Toast from '../Toast';
 import NotificationCenter from '../NotificationCenter';

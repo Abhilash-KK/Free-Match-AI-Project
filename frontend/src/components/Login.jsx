@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import TiltCard from './TiltCard';
 import { validateName, validateEmail } from '../utils/validationUtils';

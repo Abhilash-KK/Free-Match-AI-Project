@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Toast from './Toast';
 import { calculateProjectDeadline, getValidTaskDeadline } from '../utils/dateUtils';

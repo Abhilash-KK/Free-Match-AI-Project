@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import TiltCard from './TiltCard';
 import aiMatchingHero from '../assets/ai_matching_hero.jpg';

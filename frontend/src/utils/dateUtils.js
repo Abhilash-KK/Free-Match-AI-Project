@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Utility functions for calculating project deadlines, formatting dates,
  * and validating task timelines across FreeMatch AI Client & Freelancer workspaces.

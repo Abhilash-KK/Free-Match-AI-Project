@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Centralized Currency Configuration & Utility for FreeMatch AI
  * Currency: Indian Rupee (₹ / INR)

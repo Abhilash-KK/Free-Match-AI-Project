@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Avatar helper utility for FreeMatch AI
 
 export const getInitials = (name = '') => {

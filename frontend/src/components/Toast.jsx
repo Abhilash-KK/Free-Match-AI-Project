@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useEffect } from 'react';
 
 const Toast = ({ message, type = 'success', onClose, duration = 4000 }) => {

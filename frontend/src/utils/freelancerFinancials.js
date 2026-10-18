@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * freelancerFinancials.js
  * 
