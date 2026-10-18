@@ -44,6 +44,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'project_verifications' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings' | 'notifications' | 'profile'
   const [toast, setToast] = useState(null); // { message, type }
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Header Profile Dropdown & Logout Confirmation
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -923,20 +924,39 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     <div className={`min-h-screen flex font-sans ${isDark ? 'bg-[#030712] text-slate-100' : 'bg-[#f8fafc] text-slate-900'}`}>
       <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
       
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {mobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ADMIN CONTROL CONSOLE SIDEBAR */}
-      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors ${
+      <aside className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-transform duration-200 lg:translate-x-0 ${
+        mobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+      } ${
         isDark ? 'bg-[#060e22] border-slate-800' : 'bg-white border-slate-200/90 shadow-2xs'
       }`}>
         <div>
           {/* Logo & Admin Console Title */}
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
-              <Shield className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-extrabold text-base tracking-tight text-blue-500">FreeMatch AI</h1>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-bold tracking-wider uppercase">System Control Panel</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight text-blue-500">FreeMatch AI</h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-bold tracking-wider uppercase">System Control Panel</p>
-            </div>
+            <button 
+              onClick={() => setMobileSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation Links */}
@@ -956,7 +976,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setMobileSidebarOpen(false);
+                  }}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                     activeTab === item.id 
                       ? 'bg-blue-600 text-white shadow-xs' 
@@ -980,7 +1003,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-1 text-xs font-semibold">
           <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">ACCOUNT</p>
           <button 
-            onClick={() => setActiveTab('profile')} 
+            onClick={() => {
+              setActiveTab('profile');
+              setMobileSidebarOpen(false);
+            }} 
             className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
               activeTab === 'profile' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
             }`}
@@ -989,7 +1015,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             <span>View Profile</span>
           </button>
           <button 
-            onClick={() => setActiveTab('settings')} 
+            onClick={() => {
+              setActiveTab('settings');
+              setMobileSidebarOpen(false);
+            }} 
             className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
               activeTab === 'settings' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
             }`}
@@ -1004,23 +1033,36 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f4f7fc]">
         
         {/* Top Control Bar & Header Profile Dropdown */}
-        <header className="sticky top-0 z-30 px-8 py-3.5 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between">
-          {/* Health Status Ticker */}
-          <div className="flex items-center space-x-3">
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-xs font-bold text-slate-700">
-              System Health: <span className="text-emerald-600 font-extrabold">PostgreSQL Healthy (99.98% Uptime)</span>
-            </span>
+        <header className="sticky top-0 z-30 px-4 sm:px-8 py-3.5 border-b border-slate-200/80 bg-[#f4f7fc]/90 backdrop-blur-md flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+              aria-label="Open sidebar menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            {/* Health Status Ticker */}
+            <div className="flex items-center space-x-2 sm:space-x-3 truncate">
+              <span className="flex h-2.5 w-2.5 relative shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-xs font-bold text-slate-700 truncate">
+                <span className="hidden sm:inline">System Health: </span><span className="text-emerald-600 font-extrabold">PostgreSQL Healthy<span className="hidden md:inline"> (99.98% Uptime)</span></span>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
             {/* Notifications Button */}
             <button 
               onClick={() => setActiveTab('notifications')} 
-              className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50 flex items-center justify-center"
+              className="p-2 sm:p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50 flex items-center justify-center shrink-0"
             >
               <Bell className="w-4 h-4 text-slate-700" />
               {unreadNotifCount > 0 && (
@@ -1034,15 +1076,15 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                className="flex items-center space-x-3 pl-3 border-l border-slate-300 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none"
+                className="flex items-center space-x-2 sm:space-x-3 pl-2 sm:pl-3 border-l border-slate-300 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none"
               >
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-xs font-extrabold text-slate-900">{currentUserName}</p>
                   <p className="text-xs text-blue-600 font-extrabold tracking-wider uppercase">
                     SUPER ADMIN
                   </p>
                 </div>
-                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs overflow-hidden">
+                <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs overflow-hidden shrink-0">
                   {userSession?.avatar_url ? (
                     <img src={userSession.avatar_url} alt="Admin" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                   ) : (
@@ -2072,7 +2114,8 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           <div className="p-8 space-y-6">
             <h2 className="text-2xl font-bold tracking-tight">User Account Moderation</h2>
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-              <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600 font-extrabold uppercase">
                     <th className="pb-3">Name</th>
@@ -2108,6 +2151,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -2671,7 +2715,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         {/* MODAL: ADD CATEGORY */}
         {showAddCategoryModal && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="p-6 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl">
+            <div className="p-6 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl">
               <h3 className="text-lg font-bold mb-4">Add New Skill Category</h3>
               <form onSubmit={handleAddCategory} className="space-y-4">
                 <input
@@ -2694,7 +2738,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         {/* MODAL: LOGOUT CONFIRMATION */}
         {showLogoutConfirmModal && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="p-6 sm:p-8 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
+            <div className="p-6 sm:p-8 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
                   <LogOut className="w-5 h-5 text-rose-600" />
@@ -2735,7 +2779,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         {/* MODAL: REJECT PROJECT REASON */}
         {rejectingProject && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="p-6 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
+            <div className="p-6 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
                   <XCircle className="w-6 h-6 text-rose-600" />
@@ -2788,7 +2832,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         {/* MODAL: REJECT FREELANCER IDENTITY VERIFICATION */}
         {rejectingVerification && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="p-6 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
+            <div className="p-6 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0">
                   <XCircle className="w-6 h-6 text-rose-600" />
@@ -2860,7 +2904,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
                 <div>
                   <span className="text-slate-400 font-bold uppercase text-[10px]">Category</span>
                   <p className="font-extrabold text-slate-800 mt-0.5">{selectedProjectDetail.category}</p>
@@ -3234,7 +3278,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
             onClick={(e) => { if (e.target === e.currentTarget) setDeletingCategoryModal(null); }}
           >
-            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-5">
+            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-5">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
                   <AlertTriangle className="w-5 h-5 text-rose-600" />
@@ -3287,7 +3331,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
             onClick={(e) => { if (e.target === e.currentTarget) setDeletingVerification(null); }}
           >
-            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 shadow-2xl space-y-5">
+            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 shadow-2xl space-y-5">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center shrink-0 border border-rose-100 dark:border-rose-800">
                   <Trash2 className="w-5 h-5 text-rose-600" />
@@ -3329,7 +3373,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
             onClick={(e) => { if (e.target === e.currentTarget) setRejectingProjDoc(null); }}
           >
-            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
+            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-4">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
                   <XCircle className="w-5 h-5 text-rose-600" />
@@ -3380,7 +3424,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
             onClick={(e) => { if (e.target === e.currentTarget) setDeletingProjDoc(null); }}
           >
-            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-5">
+            <div className="p-6 sm:p-7 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto border bg-white border-slate-200 text-slate-900 shadow-2xl space-y-5">
               <div className="flex items-center space-x-3 text-rose-600">
                 <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0 border border-rose-100">
                   <Trash2 className="w-5 h-5 text-rose-600" />

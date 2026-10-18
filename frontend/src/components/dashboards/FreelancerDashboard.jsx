@@ -56,7 +56,8 @@ const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_
 
 const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
   const isDark = false;
-  const [activeTab, setActiveTab] = useState('workspace'); // 'workspace' | 'jobs' | 'proposals' | 'tasks' | 'earnings' | 'contracts' | 'profile' | 'settings' | 'notifications'
+  const [activeTab, setActiveTab] = useState('workspace');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false); // 'workspace' | 'jobs' | 'proposals' | 'tasks' | 'earnings' | 'contracts' | 'profile' | 'settings' | 'notifications'
   const [selectedJob, setSelectedJob] = useState(null);
   const [showBidModal, setShowBidModal] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -1065,20 +1066,39 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[140px] pointer-events-none z-0 bg-blue-600/10"></div>
       )}
 
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {mobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* FREELANCER PRODUCTIVITY SIDEBAR */}
-      <aside className={`w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-colors relative z-20 backdrop-blur-xl ${
+      <aside className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-64 flex-shrink-0 border-r flex flex-col justify-between p-6 transition-transform duration-200 lg:translate-x-0 backdrop-blur-xl ${
+        mobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+      } ${
         isDark ? 'bg-[#060e22]/90 border-slate-800/80' : 'bg-white/90 border-slate-200/90 shadow-xs'
       }`}>
         <div>
           {/* Logo */}
-          <div className="flex items-center space-x-3 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
-              <Zap className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="font-extrabold text-base tracking-tight text-blue-500">FreeMatch AI</h1>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-bold tracking-wider uppercase">Freelancer Workspace</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight text-blue-500">FreeMatch AI</h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-bold tracking-wider uppercase">Freelancer Workspace</p>
-            </div>
+            <button 
+              onClick={() => setMobileSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <nav className="space-y-4 text-xs font-semibold">
@@ -1096,7 +1116,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-blue-600 text-white shadow-xs' 
@@ -1129,7 +1149,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-blue-600 text-white shadow-xs' 
@@ -1156,7 +1176,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-blue-600 text-white shadow-xs' 
@@ -1180,7 +1200,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             {/* 4. ACCOUNT */}
             <div className="space-y-1 pt-2 border-t border-slate-200 dark:border-slate-800">
               <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">ACCOUNT</p>
-              <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'profile' 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -1188,7 +1208,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <UserCircle className="w-4 h-4" />
                 <span>View Profile</span>
               </button>
-              <button onClick={() => setActiveTab('kyc')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('kyc'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'kyc' 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -1196,7 +1216,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <span>KYC / Identity Verification</span>
               </button>
-              <button onClick={() => setActiveTab('reviews')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('reviews'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'reviews' 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -1204,7 +1224,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                 <span>Client Reviews & Ratings</span>
               </button>
-              <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('settings'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'settings' 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : isDark ? 'text-slate-300 hover:bg-slate-800/60' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -1222,8 +1242,18 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       <main id="freelancer-dashboard-main" className={`flex-1 flex flex-col min-w-0 overflow-y-auto ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
         
         {/* Top Bar */}
-        <header className={`sticky top-0 z-30 px-8 py-3 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
-          <div className="relative w-full max-w-md" ref={searchContainerRef}>
+        <header className={`sticky top-0 z-30 px-4 sm:px-8 py-3 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between gap-2 sm:gap-4 ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0 max-w-md">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+              aria-label="Open sidebar menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="relative w-full" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300">
               <Search className="w-4 h-4" />
             </span>
@@ -1618,9 +1648,10 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 })()}
               </div>
             )}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
             <button onClick={() => setActiveTab('notifications')} className="p-2 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50">
               <Bell className="w-4 h-4 text-slate-700" />
               {unreadNotifCount > 0 && (
@@ -1634,9 +1665,9 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             <div className="relative">
               <button 
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                className="flex items-center space-x-3 p-1.5 rounded-xl hover:bg-slate-200/60 transition-all cursor-pointer text-left"
+                className="flex items-center space-x-2 sm:space-x-3 p-1.5 rounded-xl hover:bg-slate-200/60 transition-all cursor-pointer text-left"
               >
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-sm font-black text-slate-900">{userSession?.name || userSession?.username || userSession?.user_id || 'Freelancer'}</p>
                   <p className="text-xs text-[#2563eb] font-extrabold tracking-wider uppercase">{userSession?.headline || userSession?.title || userSession?.role_title || 'FREELANCER SPECIALIST'}</p>
                 </div>
@@ -1702,7 +1733,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: MY PROJECTS PAGE */}
         {activeTab === 'my_projects' && (
-          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full animate-fadeIn">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full animate-fadeIn">
             {/* Breadcrumb & Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1">
@@ -1986,7 +2017,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: BROWSE JOBS FEED */}
         {activeTab === 'jobs' && (
-          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
             
             {/* Header Title Section with Breadcrumb & Right Illustration Banner */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -2144,7 +2175,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           const combinedContractsList = freelancerDbContracts || [];
 
           return (
-            <div className="p-8 space-y-6">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
               {/* Breadcrumb Navigation */}
               <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
                 <button
@@ -2475,7 +2506,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           })();
 
           return (
-            <div className="p-8 space-y-8">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-8">
               
               {/* PAGE HEADER */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -2556,7 +2587,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
                 {/* Card 4: Client Rating */}
                 <div 
-                  onClick={() => setActiveTab('reviews')} 
+                  onClick={() => { setActiveTab('reviews'); setMobileSidebarOpen(false); }} 
                   className="bg-amber-50/40 border border-amber-100/90 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-start justify-between"
                 >
                   <div className="space-y-1 w-full">
@@ -2689,7 +2720,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                     </div>
 
                     {/* 3 Stat Boxes Grid */}
-                    <div className="grid grid-cols-3 gap-2.5 text-center text-xs font-bold">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center text-xs font-bold">
                       <div className="p-3 rounded-2xl bg-emerald-50/70 text-emerald-700 border border-emerald-200/80 space-y-1">
                         <div className="text-xs text-emerald-600">✓</div>
                         <div className="text-lg font-black text-slate-900">{doneTasksCount}</div>
@@ -2852,7 +2883,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
           }, 0);
 
           return (
-            <div className="p-8 space-y-6">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6">
               {/* BREADCRUMB NAVIGATION */}
               <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
                 <button
@@ -3112,7 +3143,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
         {/* TAB: MESSAGES CHAT WORKSPACE */}
         {activeTab === 'messages' && (
-          <div className="p-8 space-y-4">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-4">
             {/* BREADCRUMB NAVIGATION */}
             <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
               <button
@@ -3456,7 +3487,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* CONTRACT DETAILS MODAL */}
         {selectedContractDetail && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="p-6 rounded-3xl max-w-xl w-full bg-white border border-slate-200 text-slate-900 space-y-5 shadow-2xl animate-fadeIn">
+            <div className="p-6 rounded-3xl max-w-xl w-full bg-white border border-slate-200 text-slate-900 space-y-5 shadow-2xl animate-fadeIn max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b pb-4 border-slate-100">
                 <div className="flex items-center space-x-3">
                   <div className="p-2.5 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-200">
@@ -3573,7 +3604,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* MODAL: LOGOUT CONFIRMATION */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-100 text-center animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-sm w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl border border-slate-100 text-center animate-fadeIn">
               <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto font-bold">
                 <LogOut className="w-6 h-6 text-rose-600" />
               </div>

@@ -96,6 +96,7 @@ const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_
 const ClientDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showPostProjectModal, setShowPostProjectModal] = useState(false);
   const [toast, setToast] = useState(null); // { message, type }
   const [confirmingPayMilestone, setConfirmingPayMilestone] = useState(null);
@@ -2267,18 +2268,37 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* 3D Floating Grid Environment (Dark mode only) */}
       {isDark && <div className="bg-3d-grid-clean"></div>}
 
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {mobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 flex-shrink-0 border-r border-slate-200/80 bg-white flex flex-col justify-between p-5 relative z-20 shadow-xs">
+      <aside className={`fixed lg:static top-0 bottom-0 left-0 z-50 w-64 flex-shrink-0 border-r border-slate-200/80 bg-white flex flex-col justify-between p-5 transition-transform duration-200 lg:translate-x-0 ${
+        mobileSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+      }`}>
         <div className="space-y-6">
           {/* Logo Header */}
-          <div className="flex items-center space-x-3 px-2 pt-1">
-            <div className="w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-sm shadow-xs">
-              FM
+          <div className="flex items-center justify-between px-2 pt-1">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-[#2563eb] text-white flex items-center justify-center font-extrabold text-sm shadow-xs">
+                FM
+              </div>
+              <div>
+                <h1 className="font-extrabold text-base tracking-tight text-[#2563eb]">FreeMatch AI</h1>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-extrabold tracking-wider uppercase">CLIENT WORKSPACE</p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight text-[#2563eb]">FreeMatch AI</h1>
-              <p className="text-xs text-slate-600 dark:text-slate-300 font-extrabold tracking-wider uppercase">CLIENT WORKSPACE</p>
-            </div>
+            <button 
+              onClick={() => setMobileSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer"
+              aria-label="Close sidebar"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation Sections */}
@@ -2302,10 +2322,12 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                     onClick={() => {
                       if (item.action) {
                         item.action();
+                        setMobileSidebarOpen(false);
                       } else {
                         if (item.id === 'applications') setSelectedProjectApplicationsFilter(null);
                         if (item.id === 'projects') setProjectFilter('All');
                         setActiveTab(item.id);
+                        setMobileSidebarOpen(false);
                       }
                     }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
@@ -2341,7 +2363,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-[#2563eb] text-white shadow-xs' 
@@ -2368,7 +2390,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => { setActiveTab(item.id); setMobileSidebarOpen(false); }}
                     className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                       activeTab === item.id 
                         ? 'bg-[#2563eb] text-white shadow-xs' 
@@ -2394,7 +2416,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             {/* 5. ACCOUNT */}
             <div className="space-y-1 pt-2 border-t border-slate-200">
               <p className="px-3 text-xs font-extrabold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">ACCOUNT</p>
-              <button onClick={() => setActiveTab('profile')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('profile'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'profile' 
                   ? 'bg-[#2563eb] text-white shadow-xs' 
                   : 'text-slate-600 hover:bg-slate-100'
@@ -2402,7 +2424,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 <UserCircle className="w-4 h-4" />
                 <span>View Profile</span>
               </button>
-              <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
+              <button onClick={() => { setActiveTab('settings'); setMobileSidebarOpen(false); }} className={`w-full flex items-center space-x-2.5 px-3.5 py-2.5 rounded-xl transition-all cursor-pointer font-bold ${
                 activeTab === 'settings' 
                   ? 'bg-[#2563eb] text-white shadow-xs' 
                   : 'text-slate-600 hover:bg-slate-100'
@@ -2420,8 +2442,18 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       <main id="client-dashboard-main" className={`flex-1 flex flex-col min-w-0 overflow-y-auto ${isDark ? 'bg-[#030712]' : 'bg-white'}`}>
         
         {/* Top Navigation Header */}
-        <header className={`sticky top-0 z-30 px-8 py-4 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
-          <div className="relative w-full max-w-md" ref={searchContainerRef}>
+        <header className={`sticky top-0 z-30 px-4 sm:px-8 py-3 sm:py-4 border-b border-slate-200/80 backdrop-blur-md flex items-center justify-between gap-2 sm:gap-4 ${isDark ? 'bg-[#030712]/90' : 'bg-white/90'}`}>
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0 max-w-md">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+              aria-label="Open sidebar menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="relative w-full" ref={searchContainerRef}>
             <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-600 dark:text-slate-300 text-xs">🔍</span>
             <input
               type="text"
@@ -2789,9 +2821,10 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                 })()}
               </div>
             )}
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
             <button onClick={() => setActiveTab('notifications')} className="p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 shadow-xs relative cursor-pointer hover:bg-slate-50 flex items-center justify-center">
               <Bell className="w-4 h-4 text-slate-700" />
               {unreadNotifCount > 0 && (
@@ -2804,9 +2837,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             <div className="relative">
               <button 
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                className="flex items-center space-x-3 pl-3 border-l border-slate-300 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none"
+                className="flex items-center space-x-2 sm:space-x-3 pl-2 sm:pl-3 border-l border-slate-300 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none"
               >
-                <div className="text-right">
+                <div className="text-right hidden sm:block">
                   <p className="text-xs font-extrabold text-slate-900">{currentUserName}</p>
                   <p className="text-xs text-[#2563eb] font-extrabold tracking-wider uppercase">
                     CLIENT WORKSPACE
@@ -2933,7 +2966,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           const formattedPendingEscrow = `₹${pendingEscrowSum.toLocaleString('en-IN')}`;
 
           return (
-            <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
+            <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1600px] mx-auto w-full">
               
               {/* WELCOME BANNER SECTION */}
               <WelcomeBanner
@@ -3376,7 +3409,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 2: MY PROJECTS TAB */}
         {(activeTab === 'projects' || activeTab === 'my-projects' || activeTab === 'my_projects') && (
-          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
             
             {/* Header Title Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -3856,7 +3889,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 4: PROJECT APPLICATIONS (Proposals Inbox) */}
         {activeTab === 'applications' && (
-          <div className="p-8 space-y-6 max-w-[1600px] mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
             
             {/* Header Title Section with Top-Right Filter Pills */}
             {(() => {
@@ -4171,7 +4204,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 5: HIRED FREELANCERS ROSTER */}
         {activeTab === 'freelancers' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
             {/* Breadcrumb Navigation */}
             <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
               <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
@@ -4383,7 +4416,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB 6: CONTRACTS AGREEMENT HUB */}
         {activeTab === 'contracts' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
             {/* Breadcrumb Navigation */}
             <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
               <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
@@ -4570,7 +4603,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
         {/* TAB: SAVED FREELANCERS ROSTER */}
         {activeTab === 'saved-freelancers' && (
-          <div className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
             {/* Breadcrumb Navigation */}
             <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
               <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
@@ -5449,7 +5482,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* EDIT PROFILE MODAL */}
       {showEditProfileModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`p-6 sm:p-8 rounded-3xl max-w-lg w-full border shadow-2xl ${
+          <div className={`p-6 sm:p-8 rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto border shadow-2xl ${
             isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
@@ -6841,7 +6874,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* LOGOUT CONFIRMATION MODAL */}
       {showLogoutConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full border border-slate-200 shadow-2xl space-y-5 text-center">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl space-y-5 text-center">
             <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 text-2xl font-bold flex items-center justify-center mx-auto border border-rose-100">
               🚪
             </div>
@@ -6873,7 +6906,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* SIMULATED PAYMENT CONFIRMATION MODAL */}
       {confirmingPayMilestone && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 relative animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 relative animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center space-x-3">
@@ -6946,7 +6979,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       {/* MILESTONE DELIVERABLE REVIEW MODAL */}
       {reviewingMilestone && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 relative animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 relative animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center space-x-3">

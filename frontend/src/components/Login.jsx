@@ -597,7 +597,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       </div>
 
       {/* RIGHT SIDE PANEL (Form Workspace) */}
-      <div className={`flex flex-col justify-between p-6 sm:p-12 lg:p-16 min-h-screen transition-colors duration-200 ${
+      <div className={`flex flex-col justify-between p-4 sm:p-10 lg:p-16 min-h-screen transition-colors duration-200 ${
         isDark ? 'bg-[#040814] text-slate-100' : 'bg-white text-slate-900'
       }`}>
         
@@ -1195,7 +1195,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       {/* Policy Modal Overlay */}
       {activePolicyModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className={`rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative border animate-in fade-in zoom-in-95 duration-150 ${
+          <div className={`rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border animate-in fade-in zoom-in-95 duration-150 ${
             isDark ? 'bg-[#081024] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <button

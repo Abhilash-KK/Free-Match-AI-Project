@@ -139,7 +139,7 @@ const LandingPage = ({ onNavigate }) => {
 
       {/* Mobile Navigation Dropdown Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-[65px] left-0 right-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-2xl p-6 text-slate-900 shadow-xl transition-all">
+        <div className="lg:hidden fixed top-[65px] left-0 right-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-2xl p-6 text-slate-900 shadow-xl transition-all max-h-[calc(100vh-70px)] overflow-y-auto">
           <div className="flex flex-col space-y-3">
             <button
               onClick={() => { setMobileMenuOpen(false); scrollToSection('matching-engine'); }}
@@ -686,7 +686,7 @@ const LandingPage = ({ onNavigate }) => {
       {/* Interactive Modal Popups */}
       {activeModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-200 bg-white text-slate-900 animate-in fade-in zoom-in-95 duration-150">
+          <div className="rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border border-slate-200 bg-white text-slate-900 animate-in fade-in zoom-in-95 duration-150">
             <button
               onClick={() => setActiveModal(null)}
               className="absolute top-5 right-5 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
