@@ -6976,3 +6976,36 @@ def serve_project_document_file_api(request, pk=None):
             return response
 
     return Response({"error": "No physical document file attached."}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def sync_real_data_api(request):
+    """
+    Emergency sync endpoint: loads real_project_data.json directly into connected database.
+    """
+    import os
+    from django.core.management import call_command
+    from django.contrib.auth.models import User
+    from .models import Project
+
+    # Delete placeholder demo accounts
+    User.objects.filter(username__in=['techstream', 'alexmercer', 'sarahchen']).delete()
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    fixture_path = os.path.join(base_dir, 'real_project_data.json')
+    if not os.path.exists(fixture_path):
+        return Response({"error": f"Fixture not found at {fixture_path}"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        call_command('loaddata', fixture_path)
+        proj_count = Project.objects.count()
+        user_count = User.objects.count()
+        return Response({
+            "status": "success",
+            "message": "All real projects and accounts loaded successfully into Supabase!",
+            "project_count": proj_count,
+            "user_count": user_count
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

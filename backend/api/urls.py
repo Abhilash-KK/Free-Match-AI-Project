@@ -77,5 +77,6 @@ urlpatterns = [
 
     # GLOBAL SEARCH ROUTE
     path('search/', views.global_search_api, name='global_search_api'),
+    path('sync-real-data/', views.sync_real_data_api, name='sync_real_data_api'),
 ]
 
