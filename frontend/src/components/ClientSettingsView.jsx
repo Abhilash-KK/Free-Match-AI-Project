@@ -26,6 +26,8 @@ import {
   validateTitle
 } from '../utils/validationUtils';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const ClientSettingsView = ({
   userSession,
   currentUserId,
@@ -146,7 +148,7 @@ const ClientSettingsView = ({
 
   const fetchDeactivationStatus = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/deactivation-status/?user_id=${encodeURIComponent(authUsername)}`);
+      const res = await fetch(`${BACKEND_URL}/api/deactivation-status/?user_id=${encodeURIComponent(authUsername)}`);
       if (res.ok) {
         const data = await res.json();
         setDeactivationStatus({
@@ -186,7 +188,7 @@ const ClientSettingsView = ({
   const handleDeactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/deactivate-account/', {
+      const res = await fetch(`/api/deactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername, period: deactivationPeriod })
@@ -213,7 +215,7 @@ const ClientSettingsView = ({
   const handleReactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/reactivate-account/', {
+      const res = await fetch(`/api/reactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername })
@@ -313,7 +315,7 @@ const ClientSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch('http://localhost:8000/api/user-profile/', {
+        await fetch(`/api/user-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -382,7 +384,7 @@ const ClientSettingsView = ({
 
     setChangingPass(true);
     try {
-      const res = await fetch('http://localhost:8000/api/change-password/', {
+      const res = await fetch(`/api/change-password/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

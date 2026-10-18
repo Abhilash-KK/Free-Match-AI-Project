@@ -50,6 +50,8 @@ import {
  * PostgreSQL database persistence, loading states, delete confirmations,
  * dynamic profile completion calculation, and modern Lucide React icons.
  */
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 export default function FreelancerProfileView({
   userSession = null,
   initialFreelancerData = {},
@@ -91,7 +93,7 @@ export default function FreelancerProfileView({
     // 1. Fetch from backend REST API with user ID query
     if (authUsername) {
       try {
-        const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+        const resUser = await fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
         if (resUser.ok) {
           const apiData = await resUser.json();
           if (Array.isArray(apiData)) combined = [...combined, ...apiData];
@@ -102,7 +104,7 @@ export default function FreelancerProfileView({
     // 2. Fetch from backend REST API with display name query
     if (initialFreelancerData?.name && initialFreelancerData.name !== authUsername) {
       try {
-        const resName = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(initialFreelancerData.name)}`);
+        const resName = await fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(initialFreelancerData.name)}`);
         if (resName.ok) {
           const apiData = await resName.json();
           if (Array.isArray(apiData)) combined = [...combined, ...apiData];
@@ -187,7 +189,7 @@ export default function FreelancerProfileView({
     });
 
     try {
-      const res = await fetch(`http://localhost:8000/api/freelancer-profile/?username=${encodeURIComponent(authUsername)}`);
+      const res = await fetch(`${BACKEND_URL}/api/freelancer-profile/?username=${encodeURIComponent(authUsername)}`);
       if (res.ok) {
         const data = await res.json();
         setProfile(data);
@@ -374,7 +376,7 @@ export default function FreelancerProfileView({
       try {
         const base64Data = reader.result;
 
-        const res = await fetch('http://localhost:8000/api/user-avatar/', {
+        const res = await fetch(`/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -478,7 +480,7 @@ export default function FreelancerProfileView({
         avatar_url: profileForm.avatar_url
       };
 
-      const res = await fetch('http://localhost:8000/api/freelancer-profile/', {
+      const res = await fetch(`/api/freelancer-profile/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -531,7 +533,7 @@ export default function FreelancerProfileView({
     setSaving(true);
     try {
       const updatedSkills = [...(profile.skills || []), cleanSkill];
-      await fetch('http://localhost:8000/api/freelancer-skills/', {
+      await fetch(`/api/freelancer-skills/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: authUsername, skills: updatedSkills })
@@ -556,7 +558,7 @@ export default function FreelancerProfileView({
         setSaving(true);
         try {
           const updatedSkills = (profile.skills || []).filter(s => s !== skillName);
-          await fetch(`http://localhost:8000/api/freelancer-skills/?username=${encodeURIComponent(authUsername)}&skill=${encodeURIComponent(skillName)}`, {
+          await fetch(`${BACKEND_URL}/api/freelancer-skills/?username=${encodeURIComponent(authUsername)}&skill=${encodeURIComponent(skillName)}`, {
             method: 'DELETE'
           });
 
@@ -646,7 +648,7 @@ export default function FreelancerProfileView({
     try {
       const skillsArray = portfolioForm.skills.split(',').map(s => s.trim()).filter(Boolean);
       const isEdit = !!portfolioForm.id;
-      const endpoint = 'http://localhost:8000/api/freelancer-portfolio/';
+      const endpoint = `/api/freelancer-portfolio/`;
       const method = isEdit ? 'PUT' : 'POST';
 
       const payload = {
@@ -693,7 +695,7 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          await fetch(`http://localhost:8000/api/freelancer-portfolio/?username=${encodeURIComponent(authUsername)}&id=${proj.id}`, {
+          await fetch(`${BACKEND_URL}/api/freelancer-portfolio/?username=${encodeURIComponent(authUsername)}&id=${proj.id}`, {
             method: 'DELETE'
           });
           const updatedPortfolio = (profile.portfolio || []).filter(p => p.id !== proj.id);
@@ -743,7 +745,7 @@ export default function FreelancerProfileView({
       try {
         const fileDataUrl = reader.result;
 
-        const res = await fetch('http://localhost:8000/api/freelancer-resume/', {
+        const res = await fetch(`/api/freelancer-resume/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -787,7 +789,7 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          const res = await fetch(`http://localhost:8000/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
+          const res = await fetch(`${BACKEND_URL}/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
             method: 'DELETE'
           });
 
@@ -838,7 +840,7 @@ export default function FreelancerProfileView({
       const method = isEdit ? 'PUT' : 'POST';
       const payload = { username: authUsername, ...certForm };
 
-      await fetch('http://localhost:8000/api/freelancer-certifications/', {
+      await fetch(`/api/freelancer-certifications/`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -869,7 +871,7 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          await fetch(`http://localhost:8000/api/freelancer-certifications/?username=${encodeURIComponent(authUsername)}&id=${cert.id}`, { method: 'DELETE' });
+          await fetch(`${BACKEND_URL}/api/freelancer-certifications/?username=${encodeURIComponent(authUsername)}&id=${cert.id}`, { method: 'DELETE' });
           const updatedCerts = (profile.certifications || []).filter(c => c.id !== cert.id);
           persistState({ ...profile, certifications: updatedCerts });
           showToast('Certification deleted successfully.', 'info');
@@ -904,7 +906,7 @@ export default function FreelancerProfileView({
     try {
       const isEdit = !!eduForm.id;
       const payload = { username: authUsername, ...eduForm };
-      await fetch('http://localhost:8000/api/freelancer-education/', {
+      await fetch(`/api/freelancer-education/`, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -928,7 +930,7 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          await fetch(`http://localhost:8000/api/freelancer-education/?username=${encodeURIComponent(authUsername)}&id=${edu.id}`, { method: 'DELETE' });
+          await fetch(`${BACKEND_URL}/api/freelancer-education/?username=${encodeURIComponent(authUsername)}&id=${edu.id}`, { method: 'DELETE' });
           persistState({ ...profile, education: (profile.education || []).filter(e => e.id !== edu.id) });
           showToast('Education deleted.', 'info');
         } catch (err) { showToast('Error deleting education.', 'error'); }
@@ -955,7 +957,7 @@ export default function FreelancerProfileView({
     try {
       const isEdit = !!expForm.id;
       const payload = { username: authUsername, ...expForm };
-      await fetch('http://localhost:8000/api/freelancer-experience/', {
+      await fetch(`/api/freelancer-experience/`, {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -978,7 +980,7 @@ export default function FreelancerProfileView({
       action: async () => {
         setSaving(true);
         try {
-          await fetch(`http://localhost:8000/api/freelancer-experience/?username=${encodeURIComponent(authUsername)}&id=${exp.id}`, { method: 'DELETE' });
+          await fetch(`${BACKEND_URL}/api/freelancer-experience/?username=${encodeURIComponent(authUsername)}&id=${exp.id}`, { method: 'DELETE' });
           persistState({ ...profile, experience: (profile.experience || []).filter(e => e.id !== exp.id) });
           showToast('Work experience entry deleted.', 'info');
         } catch (err) { showToast('Error deleting experience.', 'error'); }

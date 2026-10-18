@@ -24,6 +24,8 @@ import { getInitials } from '../utils/avatarUtils';
  * Displays overall ratings, rating breakdown, filterable/sortable client feedback cards,
  * and project context for completed deliverables.
  */
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 export default function ClientReviewsView({
   userSession = null,
   freelancerData = {},
@@ -46,7 +48,7 @@ export default function ClientReviewsView({
     // 1. Fetch from backend REST API with user ID query
     if (authUsername) {
       try {
-        const resUser = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
+        const resUser = await fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(authUsername)}`);
         if (resUser.ok) {
           const apiData = await resUser.json();
           if (Array.isArray(apiData)) combined = [...combined, ...apiData];
@@ -57,7 +59,7 @@ export default function ClientReviewsView({
     // 2. Fetch from backend REST API with display name query
     if (freelancerName && freelancerName !== authUsername) {
       try {
-        const resName = await fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(freelancerName)}`);
+        const resName = await fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(freelancerName)}`);
         if (resName.ok) {
           const apiData = await resName.json();
           if (Array.isArray(apiData)) combined = [...combined, ...apiData];

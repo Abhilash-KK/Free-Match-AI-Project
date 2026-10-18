@@ -24,6 +24,8 @@ import { formatISTTimestamp, formatISTDate } from '../utils/dateUtils';
  * Dynamic Earnings & Wallet Dashboard calculated strictly from
  * authenticated freelancer assigned projects, DB contracts, and milestone payments.
  */
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 export default function FreelancerEarningsView({
   userSession = null,
   contracts = [],
@@ -69,7 +71,7 @@ export default function FreelancerEarningsView({
     }
     setIsSubmittingWithdrawal(true);
     try {
-      const res = await fetch('http://localhost:8000/api/freelancer-financials/withdraw/', {
+      const res = await fetch(`/api/freelancer-financials/withdraw/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -518,9 +520,9 @@ export default function FreelancerEarningsView({
                       onClick={() => {
                         const rawId = tx.db_id || tx.id;
                         if (rawId && String(rawId).match(/^\d+$/)) {
-                          window.open(`http://localhost:8000/api/payments/${rawId}/invoice/`, '_blank');
+                          window.open(`${BACKEND_URL}/api/payments/${rawId}/invoice/`, '_blank');
                         } else {
-                          window.open(`http://localhost:8000/api/contracts/18/invoice/`, '_blank');
+                          window.open(`${BACKEND_URL}/api/contracts/18/invoice/`, '_blank');
                         }
                       }}
                       className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-all cursor-pointer flex items-center space-x-1"

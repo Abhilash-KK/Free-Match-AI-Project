@@ -21,6 +21,8 @@ import {
 import { getInitials } from '../utils/avatarUtils';
 import { validateName, validateEmail } from '../utils/validationUtils';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const AdminSettingsView = ({
   userSession,
   currentUserId,
@@ -177,7 +179,7 @@ const AdminSettingsView = ({
 
       // Persist to backend database via user-avatar API
       try {
-        await fetch('http://localhost:8000/api/user-avatar/', {
+        await fetch(`/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ user_id: authUsername, username: authUsername, avatar_url: base64Data })

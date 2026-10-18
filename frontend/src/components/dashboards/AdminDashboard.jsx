@@ -36,6 +36,8 @@ import {
   X
 } from 'lucide-react';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const AdminDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'project_verifications' | 'verifications' | 'users' | 'governance' | 'financials' | 'audit' | 'settings' | 'notifications' | 'profile'
@@ -139,11 +141,11 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     if (!tx) return;
     let invUrl = '';
     if (tx.payment_id && (tx.status || '').toLowerCase() === 'paid') {
-      invUrl = `http://localhost:8000/api/payments/${tx.payment_id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/payments/${tx.payment_id}/invoice/`;
     } else if (tx.contract_id) {
-      invUrl = `http://localhost:8000/api/contracts/${tx.contract_id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/contracts/${tx.contract_id}/invoice/`;
     } else {
-      invUrl = `http://localhost:8000/api/payments/${tx.db_id || tx.id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/payments/${tx.db_id || tx.id}/invoice/`;
     }
     window.open(invUrl, '_blank');
   };
@@ -152,7 +154,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     try {
       let data = null;
       try {
-        const res = await fetch('http://localhost:8000/api/admin-dashboard/');
+        const res = await fetch(`/api/admin-dashboard/`);
         if (res.ok) data = await res.json();
       } catch (e1) {
         try {
@@ -282,7 +284,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
 
   // Helper fetch to support both localhost:8000 cross-origin and relative paths
   const apiFetch = async (url, options = {}) => {
-    const absoluteUrl = url.startsWith('http') ? url : `http://localhost:8000${url}`;
+    const absoluteUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
     try {
       const res = await fetch(absoluteUrl, options);
       return res;
@@ -297,7 +299,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
   // Handlers
   const fetchKycVerifications = useCallback(async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/admin/identity-verifications/?status=${kycFilterTab}&search=${encodeURIComponent(kycSearchQuery)}`);
+      const res = await fetch(`${BACKEND_URL}/api/admin/identity-verifications/?status=${kycFilterTab}&search=${encodeURIComponent(kycSearchQuery)}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.verifications)) {
@@ -436,10 +438,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     if (!v) return;
     const targetId = v.id || v.item?.id;
     let docName = v.document_file_name || v.docName || v.resume_name || 'Verification_Document.pdf';
-    let rawUrl = v.document_file_url || (targetId ? `http://localhost:8000/api/identity-verifications/${targetId}/document/` : '');
+    let rawUrl = v.document_file_url || (targetId ? `${BACKEND_URL}/api/identity-verifications/${targetId}/document/` : '');
 
     if (rawUrl && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://') && !rawUrl.startsWith('data:')) {
-      rawUrl = `http://localhost:8000${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+      rawUrl = `${BACKEND_URL}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
     }
 
     let rawStatus = (v.status || v.item?.status || '').toString().trim().toUpperCase();
@@ -469,7 +471,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     setViewingDocumentModal(docObj);
 
     if (targetId) {
-      fetch('http://localhost:8000/api/admin/identity-verifications/')
+      fetch(`/api/admin/identity-verifications/`)
         .then(res => res.json())
         .then(data => {
           if (data && Array.isArray(data.verifications)) {
@@ -496,7 +498,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     }
 
     try {
-      const fetchUrl = targetId ? `http://localhost:8000/api/identity-verifications/${targetId}/document/` : rawUrl;
+      const fetchUrl = targetId ? `${BACKEND_URL}/api/identity-verifications/${targetId}/document/` : rawUrl;
       const res = await fetch(fetchUrl);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -538,7 +540,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     try {
       let downloadBlobUrl = v.blobUrl;
       if (!downloadBlobUrl) {
-        const fetchUrl = targetId ? `http://localhost:8000/api/identity-verifications/${targetId}/document/?download=true` : (v.document_download_url || v.docUrl || v.document_file_url);
+        const fetchUrl = targetId ? `${BACKEND_URL}/api/identity-verifications/${targetId}/document/?download=true` : (v.document_download_url || v.docUrl || v.document_file_url);
         const res = await fetch(fetchUrl);
         if (res.ok) {
           const blob = await res.blob();
@@ -558,12 +560,12 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           setTimeout(() => URL.revokeObjectURL(downloadBlobUrl), 10000);
         }
       } else {
-        window.open(`http://localhost:8000/api/identity-verifications/${targetId}/document/?download=true`, '_blank');
+        window.open(`${BACKEND_URL}/api/identity-verifications/${targetId}/document/?download=true`, '_blank');
       }
     } catch (err) {
       console.error('Download document error:', err);
       if (targetId) {
-        window.open(`http://localhost:8000/api/identity-verifications/${targetId}/document/?download=true`, '_blank');
+        window.open(`${BACKEND_URL}/api/identity-verifications/${targetId}/document/?download=true`, '_blank');
       }
     }
   };
@@ -660,7 +662,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           freelancer_name: docObj.client_name,
           document_type: docObj.document_type || 'Project Requirement Spec',
           submitted_at: docObj.submitted_at,
-          downloadUrl: `http://localhost:8000/api/project-documents/${targetId}/document/?download=true`,
+          downloadUrl: `${BACKEND_URL}/api/project-documents/${targetId}/document/?download=true`,
           file_type: contentType
         });
 
@@ -670,10 +672,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           contentType
         });
       } else {
-        window.open(`http://localhost:8000/api/project-documents/${targetId}/document/`, '_blank');
+        window.open(`${BACKEND_URL}/api/project-documents/${targetId}/document/`, '_blank');
       }
     } catch (err) {
-      window.open(`http://localhost:8000/api/project-documents/${targetId}/document/`, '_blank');
+      window.open(`${BACKEND_URL}/api/project-documents/${targetId}/document/`, '_blank');
     }
   };
 
@@ -693,10 +695,10 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(downloadBlobUrl), 10000);
       } else {
-        window.open(`http://localhost:8000/api/project-documents/${targetId}/document/?download=true`, '_blank');
+        window.open(`${BACKEND_URL}/api/project-documents/${targetId}/document/?download=true`, '_blank');
       }
     } catch (err) {
-      window.open(`http://localhost:8000/api/project-documents/${targetId}/document/?download=true`, '_blank');
+      window.open(`${BACKEND_URL}/api/project-documents/${targetId}/document/?download=true`, '_blank');
     }
   };
 

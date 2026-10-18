@@ -14,6 +14,8 @@ import {
   ArrowLeft 
 } from 'lucide-react';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavigateToContract, onNavigateToProject }) => {
   const currentUserId = (userSession?.username || userSession?.user_id || userSession?.email || userSession?.name || 'guest').toLowerCase().trim();
   const currentUserName = userSession?.name || userSession?.first_name || userSession?.username || 'User';
@@ -42,7 +44,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
     if (!currentUserId || currentUserId === 'guest') return;
 
     const cpParam = targetCounterpart || selectedCounterpart || '';
-    let url = `http://localhost:8000/api/messages/?user_id=${encodeURIComponent(currentUserId)}`;
+    let url = `${BACKEND_URL}/api/messages/?user_id=${encodeURIComponent(currentUserId)}`;
     if (cpParam) {
       url += `&other_user=${encodeURIComponent(cpParam)}`;
     }
@@ -107,7 +109,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
 
     // Mark unread messages as read in DB
     try {
-      await fetch('http://localhost:8000/api/messages/mark-read/', {
+      await fetch(`/api/messages/mark-read/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,7 +149,7 @@ const MessagingCenter = ({ userSession, role = 'client', isDark = false, onNavig
     setTimeout(() => scrollToBottom(true), 50);
 
     try {
-      const res = await fetch('http://localhost:8000/api/messages/send/', {
+      const res = await fetch(`/api/messages/send/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

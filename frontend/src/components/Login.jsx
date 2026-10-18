@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import TiltCard from './TiltCard';
 import { validateName, validateEmail } from '../utils/validationUtils';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login', theme = 'dark', toggleTheme }) => {
   // Mode state: 'login' | 'register' | 'forgot-password'
   const [mode, setMode] = useState(initialMode === 'register' ? 'register' : 'login');
@@ -152,7 +154,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     localStorage.setItem('freematch_registered_users', JSON.stringify(registeredUsers));
   }, [registeredUsers]);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+  const API_BASE_URL = process.env.REACT_APP_API_URL || `/api`;
 
   // Map internal role values: Client -> client, Freelancer -> freelancer, Admin -> admin
   const getMappedRole = (selectedRole) => {

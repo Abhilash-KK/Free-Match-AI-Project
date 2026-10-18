@@ -51,6 +51,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
   const isDark = false;
   const [activeTab, setActiveTab] = useState('workspace'); // 'workspace' | 'jobs' | 'proposals' | 'tasks' | 'earnings' | 'contracts' | 'profile' | 'settings' | 'notifications'
@@ -246,7 +248,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     const q = debouncedSearchQuery.trim();
     if (q.length > 0) {
       setIsSearchOpen(true);
-      fetch(`http://localhost:8000/api/search/?role=freelancer&user_id=${encodeURIComponent(currentFlId)}&q=${encodeURIComponent(q)}`)
+      fetch(`${BACKEND_URL}/api/search/?role=freelancer&user_id=${encodeURIComponent(currentFlId)}&q=${encodeURIComponent(q)}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.results) {
@@ -353,7 +355,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       setFreelancerDbContracts([]);
       return;
     }
-    fetch(`http://localhost:8000/api/contracts/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/contracts/?freelancer_id=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(apiContracts => {
         if (Array.isArray(apiContracts)) {
@@ -368,7 +370,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       setFreelancerFinancials(null);
       return;
     }
-    fetch(`http://localhost:8000/api/freelancer-financials/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/freelancer-financials/?freelancer_id=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.available_balance !== 'undefined') {
@@ -380,7 +382,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
   const handleSubmitMilestoneForReview = async (milestoneId) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/contracts/milestones/${milestoneId}/status/`, {
+      const res = await fetch(`${BACKEND_URL}/api/contracts/milestones/${milestoneId}/status/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -407,7 +409,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       setFreelancerDbTasks([]);
       return;
     }
-    fetch(`http://localhost:8000/api/sprint-tasks/?freelancer=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/sprint-tasks/?freelancer=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -427,7 +429,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       setProposals([]);
       return;
     }
-    fetch(`http://localhost:8000/api/proposals/?freelancer_id=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/proposals/?freelancer_id=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(apiProps => {
         if (Array.isArray(apiProps)) {
@@ -442,7 +444,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
   const loadFreelancerProfileVerification = React.useCallback(() => {
     if (!currentFlId) return;
-    fetch(`http://localhost:8000/api/freelancer-profile/?username=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/freelancer-profile/?username=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(data => {
         if (data) {
@@ -462,12 +464,12 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
       setFreelancerDbReviews([]);
       return;
     }
-    fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(currentFlId)}`)
+    fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(currentFlId)}`)
       .then(res => res.json())
       .then(apiReviews => {
         let combined = Array.isArray(apiReviews) ? apiReviews : [];
         if (currentFlName && currentFlName !== currentFlId) {
-          fetch(`http://localhost:8000/api/reviews/?freelancer=${encodeURIComponent(currentFlName)}`)
+          fetch(`${BACKEND_URL}/api/reviews/?freelancer=${encodeURIComponent(currentFlName)}`)
             .then(res => res.json())
             .then(nameReviews => {
               if (Array.isArray(nameReviews) && nameReviews.length > 0) {
@@ -687,7 +689,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     };
 
     const loadMarketplaceProjects = () => {
-      fetch('http://localhost:8000/api/projects/')
+      fetch(`/api/projects/`)
         .then(res => res.json())
         .then(apiProjects => {
           if (Array.isArray(apiProjects)) {
@@ -760,7 +762,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         setMessagesCount(0);
         return;
       }
-      fetch(`http://localhost:8000/api/messages/?user_id=${encodeURIComponent(currentFlId)}`)
+      fetch(`${BACKEND_URL}/api/messages/?user_id=${encodeURIComponent(currentFlId)}`)
         .then(res => res.json())
         .then(data => {
           if (data && Array.isArray(data.conversations)) {
@@ -953,7 +955,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
     let proposalDbId = null;
     try {
-      const res = await fetch('http://localhost:8000/api/proposals/', {
+      const res = await fetch(`/api/proposals/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

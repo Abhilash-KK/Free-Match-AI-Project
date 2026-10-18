@@ -38,6 +38,8 @@ import {
   validateSkill
 } from '../utils/validationUtils';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const FreelancerSettingsView = ({
   userSession,
   currentUserId,
@@ -168,7 +170,7 @@ const FreelancerSettingsView = ({
 
   const fetchDeactivationStatus = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/deactivation-status/?user_id=${encodeURIComponent(authUsername)}`);
+      const res = await fetch(`${BACKEND_URL}/api/deactivation-status/?user_id=${encodeURIComponent(authUsername)}`);
       if (res.ok) {
         const data = await res.json();
         setDeactivationStatus({
@@ -208,7 +210,7 @@ const FreelancerSettingsView = ({
   const handleDeactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/deactivate-account/', {
+      const res = await fetch(`/api/deactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername, period: deactivationPeriod })
@@ -235,7 +237,7 @@ const FreelancerSettingsView = ({
   const handleReactivateAccount = async () => {
     setDeactivationLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/reactivate-account/', {
+      const res = await fetch(`/api/reactivate-account/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: authUsername })
@@ -343,7 +345,7 @@ const FreelancerSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch('http://localhost:8000/api/freelancer-profile/', {
+        await fetch(`/api/freelancer-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -426,7 +428,7 @@ const FreelancerSettingsView = ({
       persistProfile(updated);
 
       try {
-        await fetch('http://localhost:8000/api/freelancer-profile/', {
+        await fetch(`/api/freelancer-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -525,7 +527,7 @@ const FreelancerSettingsView = ({
 
     setChangingPass(true);
     try {
-      const res = await fetch('http://localhost:8000/api/change-password/', {
+      const res = await fetch(`/api/change-password/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -686,7 +688,7 @@ const FreelancerSettingsView = ({
     reader.onload = async () => {
       try {
         const fileDataUrl = reader.result;
-        const res = await fetch('http://localhost:8000/api/freelancer-resume/', {
+        const res = await fetch(`/api/freelancer-resume/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -722,7 +724,7 @@ const FreelancerSettingsView = ({
 
   const handleRemoveResume = async () => {
     try {
-      await fetch(`http://localhost:8000/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
+      await fetch(`${BACKEND_URL}/api/freelancer-resume/?username=${encodeURIComponent(authUsername)}`, {
         method: 'DELETE'
       });
     } catch (e) {

@@ -14,6 +14,8 @@ import {
   Home
 } from 'lucide-react';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const FreelancerIdentityVerificationView = ({
   userSession,
   currentUserId,
@@ -40,7 +42,7 @@ const FreelancerIdentityVerificationView = ({
   const fetchVerificationStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/freelancer/identity-verification/?user_id=${encodeURIComponent(username)}`);
+      const res = await fetch(`${BACKEND_URL}/api/freelancer/identity-verification/?user_id=${encodeURIComponent(username)}`);
       if (res.ok) {
         const data = await res.json();
         setStatus(data.status || 'NOT_SUBMITTED');
@@ -110,7 +112,7 @@ const FreelancerIdentityVerificationView = ({
         formData.append('document_file_size', '1.2 MB');
       }
 
-      const res = await fetch('http://localhost:8000/api/freelancer/identity-verification/', {
+      const res = await fetch(`/api/freelancer/identity-verification/`, {
         method: 'POST',
         body: formData,
       });

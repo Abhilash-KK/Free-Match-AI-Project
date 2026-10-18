@@ -89,6 +89,8 @@ const DEFAULT_PROPOSALS = [
   { id: 'prop_12', projectId: 'cp1', projectTitle: 'AI Pipeline Optimization', freelancer: 'Sophia Patel', avatar: 'SP', title: 'PyTorch & Distributed Compute Lead', rating: 5.0, bid: '₹11,800', delivery: '3 Weeks', coverLetter: 'Expert in PyTorch TensorRT acceleration, vLLM distributed batching, and Docker container GPU profiling.', status: 'Pending' }
 ];
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const ClientDashboard = ({ userSession, onSignOut }) => {
   const isDark = false;
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -109,7 +111,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   ]);
 
   const loadCategories = React.useCallback(() => {
-    fetch('http://localhost:8000/api/categories/')
+    fetch(`/api/categories/`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -190,7 +192,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   // Fetch projects live from Django REST Framework PostgreSQL database
   const loadLiveProjects = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
-    fetch(`http://localhost:8000/api/projects/?client_id=${encodeURIComponent(currentUserId)}`)
+    fetch(`${BACKEND_URL}/api/projects/?client_id=${encodeURIComponent(currentUserId)}`)
       .then(res => res.json())
       .then(dbProjects => {
         if (Array.isArray(dbProjects)) {
@@ -245,7 +247,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const loadLiveProposals = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
 
-    fetch(`http://localhost:8000/api/proposals/?client_id=${encodeURIComponent(currentUserId)}`)
+    fetch(`${BACKEND_URL}/api/proposals/?client_id=${encodeURIComponent(currentUserId)}`)
       .then(res => res.json())
       .then(dbProps => {
         if (Array.isArray(dbProps)) {
@@ -306,7 +308,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const q = debouncedSearchQuery.trim();
     if (q.length > 0) {
       setIsSearchOpen(true);
-      fetch(`http://localhost:8000/api/search/?role=client&user_id=${encodeURIComponent(currentUserId)}&q=${encodeURIComponent(q)}`)
+      fetch(`${BACKEND_URL}/api/search/?role=client&user_id=${encodeURIComponent(currentUserId)}&q=${encodeURIComponent(q)}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.results) {
@@ -525,7 +527,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   // Fetch contracts from Django REST API
   const loadLiveContracts = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
-    fetch(`http://localhost:8000/api/contracts/?client_id=${encodeURIComponent(currentUserId)}`)
+    fetch(`${BACKEND_URL}/api/contracts/?client_id=${encodeURIComponent(currentUserId)}`)
       .then(res => res.json())
       .then(apiContracts => {
         if (Array.isArray(apiContracts)) {
@@ -543,7 +545,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   const handleUpdateMilestoneStatus = async (milestoneId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/contracts/milestones/${milestoneId}/status/`, {
+      const res = await fetch(`${BACKEND_URL}/api/contracts/milestones/${milestoneId}/status/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -583,7 +585,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   const loadSavedFreelancers = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
-    fetch(`http://localhost:8000/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}`)
+    fetch(`${BACKEND_URL}/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -617,7 +619,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const flId = freelancerObj.freelancer_id || freelancerObj.username || freelancerObj.freelancer || freelancerObj.email || freelancerObj.name;
     const flName = freelancerObj.name || freelancerObj.freelancer || flId;
     try {
-      const res = await fetch('http://localhost:8000/api/saved-freelancers/', {
+      const res = await fetch(`/api/saved-freelancers/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: currentUserId, freelancer_id: flId, name: flName })
@@ -638,7 +640,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       : freelancerId
     );
     try {
-      await fetch(`http://localhost:8000/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}&freelancer_id=${encodeURIComponent(cleanId)}`, {
+      await fetch(`${BACKEND_URL}/api/saved-freelancers/?client_id=${encodeURIComponent(currentUserId)}&freelancer_id=${encodeURIComponent(cleanId)}`, {
         method: 'DELETE'
       });
       setSavedFreelancers(prev => prev.filter(f => {
@@ -668,7 +670,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const flId = freelancerObj.freelancer_id || freelancerObj.freelancer || freelancerObj.name;
     const projId = projectId || (clientProjects[0]?.id || 'proj_1');
     try {
-      const res = await fetch('http://localhost:8000/api/hire-freelancer/', {
+      const res = await fetch(`/api/hire-freelancer/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -734,7 +736,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const handleRemoveContract = (contract) => {
     const cId = contract.contractId || contract.id;
     if (window.confirm(`Are you sure you want to remove contract "${cId}"?\n\nThis will mark the contract status as Cancelled/Archived and remove it from active agreements while preserving database records.`)) {
-      fetch(`http://localhost:8000/api/contracts/${cId}/status/`, {
+      fetch(`${BACKEND_URL}/api/contracts/${cId}/status/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'Cancelled' })
@@ -944,7 +946,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     try {
       const cleanId = String(projId || '').trim();
       if (cleanId) {
-        const res = await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+        const res = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(cleanId)}/`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -999,7 +1001,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
   const loadTasks = React.useCallback(() => {
     if (!currentUserId || currentUserId === 'guest') return;
-    fetch(`http://localhost:8000/api/sprint-tasks/?client_id=${encodeURIComponent(currentUserId || '')}`)
+    fetch(`${BACKEND_URL}/api/sprint-tasks/?client_id=${encodeURIComponent(currentUserId || '')}`)
       .then(res => res.json())
       .then(apiTasks => {
         if (Array.isArray(apiTasks)) {
@@ -1114,7 +1116,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
   const loadClientFinancials = async () => {
     if (!currentUserId || currentUserId === 'guest') return;
     try {
-      const res = await fetch(`http://localhost:8000/api/client-financials/?client_id=${encodeURIComponent(currentUserId)}`);
+      const res = await fetch(`${BACKEND_URL}/api/client-financials/?client_id=${encodeURIComponent(currentUserId)}`);
       if (res.ok) {
         const data = await res.json();
         setClientFinancials(data);
@@ -1245,7 +1247,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     // 2. Fetch from backend REST API strictly scoped to current client
     try {
-      const res = await fetch(`http://localhost:8000/api/reviews/?client_id=${encodeURIComponent(currentUserId)}`);
+      const res = await fetch(`${BACKEND_URL}/api/reviews/?client_id=${encodeURIComponent(currentUserId)}`);
       if (res.ok) {
         const apiData = await res.json();
         if (Array.isArray(apiData)) combined = [...combined, ...apiData];
@@ -1345,7 +1347,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     const avgRating = Math.round((commRating + codeRating + deadlineRating) / 3.0);
 
     try {
-      const res = await fetch('http://localhost:8000/api/reviews/submit/', {
+      const res = await fetch(`/api/reviews/submit/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1552,7 +1554,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     window.dispatchEvent(new Event('storage'));
 
     try {
-      await fetch('http://localhost:8000/api/user-avatar/', {
+      await fetch(`/api/user-avatar/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1589,7 +1591,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         return;
       }
       try {
-        const res = await fetch(`http://localhost:8000/api/messages/?user_id=${encodeURIComponent(cUserId)}`);
+        const res = await fetch(`${BACKEND_URL}/api/messages/?user_id=${encodeURIComponent(cUserId)}`);
         if (res.ok) {
           const data = await res.json();
           if (data && Array.isArray(data.conversations)) {
@@ -1813,7 +1815,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     localStorage.removeItem(activeDraftKey);
 
     try {
-      await fetch('http://localhost:8000/api/projects/', {
+      await fetch(`/api/projects/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1969,7 +1971,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     // Persist project directly into Django database
     try {
-      const res = await fetch('http://localhost:8000/api/projects/', {
+      const res = await fetch(`/api/projects/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2090,7 +2092,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
     // 3. Persist Contract to Django PostgreSQL Database API
     const propDbId = acceptedProp.db_id || String(acceptedProp.id || '').replace('prop_', '');
-    fetch('http://localhost:8000/api/contracts/create/', {
+    fetch(`/api/contracts/create/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2170,7 +2172,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
       try {
         const cleanId = String(project.id || '').trim();
         if (cleanId) {
-          await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+          await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(cleanId)}/`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'Closed' })
@@ -2201,7 +2203,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
     try {
       const cleanId = String(project.id || '').trim();
       if (cleanId) {
-        await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(cleanId)}/`, {
+        await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(cleanId)}/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'Open' })
@@ -5041,9 +5043,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                                 const cId = py.contract_id || py.contractId || py.contract || '18';
                                 const pyId = py.db_id || py.id;
                                 if (pyId && String(pyId).match(/^\d+$/)) {
-                                  window.open(`http://localhost:8000/api/payments/${pyId}/invoice/`, '_blank');
+                                  window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/`, '_blank');
                                 } else {
-                                  window.open(`http://localhost:8000/api/contracts/${cId}/invoice/`, '_blank');
+                                  window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/`, '_blank');
                                 }
                               }}
                               className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
@@ -6453,7 +6455,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
 
               // Sync to Django API using PUT for existing project
               const cleanId = String(selectedManageProject.id || '').replace(/^proj_/, '');
-              const url = cleanId ? `http://localhost:8000/api/projects/${cleanId}/` : 'http://localhost:8000/api/projects/';
+              const url = cleanId ? `${BACKEND_URL}/api/projects/${cleanId}/` : `/api/projects/`;
               const method = cleanId ? 'PUT' : 'POST';
               try {
                 await fetch(url, {
@@ -7145,9 +7147,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                       const cId = viewingTransaction.contract_id || viewingTransaction.contractId || '79';
                       const pyId = viewingTransaction.db_id || viewingTransaction.payment_id || viewingTransaction.id;
                       if (pyId && String(pyId).match(/^\d+$/)) {
-                        window.open(`http://localhost:8000/api/payments/${pyId}/invoice/`, '_blank');
+                        window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/`, '_blank');
                       } else {
-                        window.open(`http://localhost:8000/api/contracts/${cId}/invoice/`, '_blank');
+                        window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/`, '_blank');
                       }
                     }}
                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] rounded-xl text-xs font-extrabold border border-blue-200 transition-all cursor-pointer flex items-center space-x-1 shrink-0"

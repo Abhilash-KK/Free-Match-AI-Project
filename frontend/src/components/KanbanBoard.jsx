@@ -32,6 +32,8 @@ const DEFAULT_TASKS = [
   { id: 't4', title: 'OWASP Security Audit & Vulnerability Report', status: 'Done', assignee: 'Lana Kim', budget: '₹4,200', project: 'Cybersecurity Audit & Shield' }
 ];
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initialProjectFilter = 'All', isDark = false, onNavigateHome = () => {} }) => {
   const [toast, setToast] = useState(null);
   const defaultFilter = role === 'freelancer' ? 'All Assigned Projects' : (initialProjectFilter || 'All');
@@ -344,7 +346,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       }
     } catch (e) {}
 
-    let fetchUrl = 'http://localhost:8000/api/sprint-tasks/';
+    let fetchUrl = `/api/sprint-tasks/`;
     if (role === 'freelancer') {
       fetchUrl += `?freelancer=${encodeURIComponent(currentUserId || currentUserName)}`;
     } else if (role === 'client') {
@@ -397,7 +399,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
   const loadBackendMetadata = React.useCallback(() => {
     let userQuery = currentUserId || currentUserName || '';
-    let urlContracts = `http://localhost:8000/api/contracts/?user_id=${encodeURIComponent(userQuery)}`;
+    let urlContracts = `${BACKEND_URL}/api/contracts/?user_id=${encodeURIComponent(userQuery)}`;
     fetch(urlContracts)
       .then(res => res.json())
       .then(data => {
@@ -405,7 +407,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       })
       .catch(() => {});
 
-    let urlProps = `http://localhost:8000/api/proposals/?user_id=${encodeURIComponent(userQuery)}`;
+    let urlProps = `${BACKEND_URL}/api/proposals/?user_id=${encodeURIComponent(userQuery)}`;
     fetch(urlProps)
       .then(res => res.json())
       .then(data => {
@@ -455,7 +457,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
 
     if (typeof taskId === 'number' || (!isNaN(Number(taskId)) && !targetIdStr.startsWith('t_'))) {
       try {
-        const res = await fetch(`http://localhost:8000/api/sprint-tasks/${taskId}/`, {
+        const res = await fetch(`${BACKEND_URL}/api/sprint-tasks/${taskId}/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -514,7 +516,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     // 1. Delete from backend database if numeric ID
     if (typeof taskId === 'number' || (!isNaN(Number(taskId)) && !targetIdStr.startsWith('t_'))) {
       try {
-        await fetch(`http://localhost:8000/api/sprint-tasks/${taskId}/`, {
+        await fetch(`${BACKEND_URL}/api/sprint-tasks/${taskId}/`, {
           method: 'DELETE'
         });
       } catch (err) {
@@ -545,7 +547,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
     for (const dt of doneTasks) {
       if (typeof dt.id === 'number' || (!isNaN(Number(dt.id)) && !String(dt.id).startsWith('t_'))) {
         try {
-          await fetch(`http://localhost:8000/api/sprint-tasks/${dt.id}/`, { method: 'DELETE' });
+          await fetch(`${BACKEND_URL}/api/sprint-tasks/${dt.id}/`, { method: 'DELETE' });
         } catch (e) {}
       }
     }

@@ -32,6 +32,8 @@ import {
   validateUrl 
 } from '../utils/validationUtils';
 
+const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000').replace(/\/api\/?$/, '');
+
 const ClientProfileView = ({
   userSession,
   currentUserId,
@@ -158,7 +160,7 @@ const ClientProfileView = ({
       persistState(updated);
 
       try {
-        await fetch('http://localhost:8000/api/user-avatar/', {
+        await fetch(`/api/user-avatar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: authUsername, avatar_url: base64Data })
@@ -182,7 +184,7 @@ const ClientProfileView = ({
     persistState(updated);
 
     try {
-      await fetch(`http://localhost:8000/api/user-avatar/?username=${encodeURIComponent(authUsername)}`, {
+      await fetch(`${BACKEND_URL}/api/user-avatar/?username=${encodeURIComponent(authUsername)}`, {
         method: 'DELETE'
       });
     } catch (err) {}
@@ -278,7 +280,7 @@ const ClientProfileView = ({
       persistState(updated);
 
       try {
-        await fetch('http://localhost:8000/api/user-profile/', {
+        await fetch(`/api/user-profile/`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
