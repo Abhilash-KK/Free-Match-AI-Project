@@ -147,6 +147,9 @@ export function calculateFreelancerFinancials({ userSession = null, contracts = 
       earnedRaw += cTotal;
       txList.push({
         id: `tx_c_${c.id || c.contractId}`,
+        db_id: c.id,
+        contract_id: c.id,
+        contractId: c.contractId || c.id,
         type: 'in',
         title: 'Project Completion Payout',
         subtitle: projTitle,
@@ -186,6 +189,9 @@ export function calculateFreelancerFinancials({ userSession = null, contracts = 
       if (cEarned > 0) {
         txList.push({
           id: `tx_m_${c.id || c.contractId}`,
+          db_id: c.id,
+          contract_id: c.id,
+          contractId: c.contractId || c.id,
           type: 'in',
           title: 'Milestone Payment Received',
           subtitle: `${projTitle} - Milestone ${doneCount}`,

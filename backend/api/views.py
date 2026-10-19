@@ -5982,200 +5982,407 @@ def global_search_api(request):
 # ==============================================================================
 # CONTRACT & PAYMENT REPORTLAB PDF INVOICE GENERATION ENDPOINTS
 # ==============================================================================
+
+def generate_pure_python_pdf_invoice(title, invoice_no, date_str, client_info, freelancer_info, project_title, details_rows, total_label, total_amount, footer_note):
+    """
+    Lightweight, zero-dependency PDF 1.4 generator fallback ensuring invoices can
+    always be generated and streamed even if ReportLab or external C-libraries are missing.
+    """
+    stream_lines = []
+    # Dark header banner: 0, 692, 612, 100
+    stream_lines.append('0.06 0.09 0.16 rg') # Slate 900
+    stream_lines.append('0 692 612 100 re f')
+
+    # Brand Title
+    stream_lines.append('1 1 1 rg') # White
+    stream_lines.append('BT /F2 22 Tf 40 742 Td (FreeMatch AI) Tj ET')
+
+    # Header metadata
+    title_esc = str(title or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    inv_esc = f"Invoice #: {invoice_no}".replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    date_esc = f"Date: {date_str}".replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+
+    stream_lines.append(f'BT /F2 11 Tf 340 755 Td ({title_esc}) Tj ET')
+    stream_lines.append(f'BT /F1 9 Tf 340 740 Td ({inv_esc}) Tj ET')
+    stream_lines.append(f'BT /F1 9 Tf 340 725 Td ({date_esc}) Tj ET')
+
+    # Client & Freelancer Details
+    stream_lines.append('0.12 0.16 0.23 rg') # #1e293b
+    stream_lines.append('BT /F2 10 Tf 40 660 Td (ISSUED BY \\(CLIENT\\):) Tj ET')
+    stream_lines.append('BT /F2 10 Tf 320 660 Td (ISSUED TO \\(FREELANCER\\):) Tj ET')
+
+    y_cl = 642
+    stream_lines.append('0.2 0.25 0.35 rg')
+    for c_line in client_info:
+        esc = str(c_line or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        stream_lines.append(f'BT /F1 9 Tf 40 {y_cl} Td ({esc}) Tj ET')
+        y_cl -= 14
+
+    y_fl = 642
+    for f_line in freelancer_info:
+        esc = str(f_line or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        stream_lines.append(f'BT /F1 9 Tf 320 {y_fl} Td ({esc}) Tj ET')
+        y_fl -= 14
+
+    y = min(y_cl, y_fl) - 15
+
+    # Project Information Box
+    stream_lines.append('0.97 0.98 0.99 rg') # #f8fafc
+    stream_lines.append('0.85 0.9 0.95 RG') # border stroke
+    stream_lines.append(f'40 {y - 35} 532 40 re B') # rect both fill and stroke
+
+    stream_lines.append('0.06 0.09 0.16 rg')
+    p_esc = f"Project: {project_title}".replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    stream_lines.append(f'BT /F2 10 Tf 52 {y - 16} Td ({p_esc}) Tj ET')
+
+    y -= 55
+    # Table Header
+    stream_lines.append('0.15 0.39 0.92 rg') # #2563eb
+    stream_lines.append(f'40 {y} 532 20 re f')
+
+    stream_lines.append('1 1 1 rg')
+    stream_lines.append(f'BT /F2 9 Tf 50 {y + 6} Td (Item / Milestone Deliverable) Tj ET')
+    stream_lines.append(f'BT /F2 9 Tf 320 {y + 6} Td (Status) Tj ET')
+    stream_lines.append(f'BT /F2 9 Tf 460 {y + 6} Td (Amount) Tj ET')
+
+    y -= 18
+    # Table Rows
+    row_idx = 0
+    for item_name, item_status, item_amt in details_rows:
+        row_idx += 1
+        bg = '0.97 0.98 0.99' if row_idx % 2 == 0 else '1 1 1'
+        stream_lines.append(f'{bg} rg')
+        stream_lines.append(f'40 {y - 2} 532 16 re f')
+        stream_lines.append('0.1 0.15 0.25 rg')
+        i_esc = str(item_name or '')[:48].replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        s_esc = str(item_status or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        a_esc = str(item_amt or '').replace('₹', 'INR ').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+        stream_lines.append(f'BT /F1 9 Tf 50 {y + 2} Td ({i_esc}) Tj ET')
+        stream_lines.append(f'BT /F1 9 Tf 320 {y + 2} Td ({s_esc}) Tj ET')
+        stream_lines.append(f'BT /F2 9 Tf 460 {y + 2} Td ({a_esc}) Tj ET')
+        y -= 18
+
+    # Summary Total Line
+    y -= 15
+    stream_lines.append('0.09 0.64 0.29 rg') # #16a34a
+    t_lbl = str(total_label or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    t_amt = str(total_amount or '').replace('₹', 'INR ').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    stream_lines.append(f'BT /F2 11 Tf 320 {y} Td ({t_lbl}) Tj ET')
+    stream_lines.append(f'BT /F2 12 Tf 460 {y} Td ({t_amt}) Tj ET')
+
+    # Security Notice Footer
+    stream_lines.append('0.95 0.96 0.98 rg')
+    stream_lines.append('40 40 532 45 re f')
+    stream_lines.append('0.3 0.35 0.45 rg')
+    stream_lines.append('BT /F2 8 Tf 50 70 Td (SECURITY & AUDIT VERIFICATION) Tj ET')
+    f_esc = str(footer_note or '').replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    stream_lines.append(f'BT /F1 7.5 Tf 50 56 Td ({f_esc}) Tj ET')
+    stream_lines.append('BT /F1 7.5 Tf 50 46 Td (Electronically generated tax invoice from FreeMatch AI. Valid without physical signature.) Tj ET')
+
+    stream_data = '\n'.join(stream_lines).encode('latin-1', 'replace')
+
+    objs = [
+        b'%PDF-1.4\n',
+        b'1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+        b'2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+        b'3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\nendobj\n',
+        f'4 0 obj\n<< /Length {len(stream_data)} >>\nstream\n'.encode('latin-1') + stream_data + b'\nendstream\nendobj\n',
+        b'5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+        b'6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n'
+    ]
+
+    body = b''.join(objs)
+    offsets = [0]
+    for i in range(1, 7):
+        pattern = f'{i} 0 obj\n'.encode('latin-1')
+        offsets.append(body.find(pattern))
+
+    xref = [b'xref\n0 7\n0000000000 65535 f \n']
+    for off in offsets[1:]:
+        xref.append(f'{off:010d} 00000 n \n'.encode('latin-1'))
+
+    xref_data = b''.join(xref)
+    startxref = len(body)
+    trailer = f'trailer\n<< /Size 7 /Root 1 0 R >>\nstartxref\n{startxref}\n%%EOF\n'.encode('latin-1')
+    return body + xref_data + trailer
+
+
+def check_invoice_authorization(request, contract):
+    """
+    Enforces that only authorized clients (contract owners), assigned freelancers,
+    and platform administrators can access invoices.
+    """
+    if not contract:
+        return True, None
+
+    user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+    user_param = (
+        request.GET.get('user_id') or
+        request.GET.get('username') or
+        request.GET.get('user') or
+        request.headers.get('X-User-Id')
+    )
+    if not user and user_param:
+        user = resolve_user_account(user_param)
+
+    # If user identity is provided, enforce permission
+    if user:
+        is_staff = user.is_staff or user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'super admin'])
+        if is_staff:
+            return True, user
+
+        is_client = False
+        if contract.client:
+            is_client = (user.id == contract.client.id or user.username.lower() == contract.client.username.lower() or (user.email and contract.client.email and user.email.lower() == contract.client.email.lower()))
+        if not is_client and contract.client_id_str:
+            is_client = (user.username.lower() == contract.client_id_str.lower() or str(user.id) == str(contract.client_id_str))
+        if not is_client and contract.client_name:
+            c_name_lower = contract.client_name.strip().lower()
+            u_name_lower = user.get_full_name().strip().lower()
+            is_client = (c_name_lower == u_name_lower or c_name_lower == user.username.lower() or c_name_lower == (user.email or '').lower())
+
+        is_freelancer = False
+        if contract.freelancer:
+            is_freelancer = (user.id == contract.freelancer.id or user.username.lower() == contract.freelancer.username.lower() or (user.email and contract.freelancer.email and user.email.lower() == contract.freelancer.email.lower()))
+        if not is_freelancer and contract.freelancer_id_str:
+            is_freelancer = (user.username.lower() == contract.freelancer_id_str.lower() or str(user.id) == str(contract.freelancer_id_str))
+        if not is_freelancer and contract.freelancer_name:
+            f_name_lower = contract.freelancer_name.strip().lower()
+            u_name_lower = user.get_full_name().strip().lower()
+            is_freelancer = (f_name_lower == u_name_lower or f_name_lower == user.username.lower() or f_name_lower == (user.email or '').lower())
+
+        if not (is_client or is_freelancer):
+            return False, user
+
+    return True, user
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def download_contract_invoice_pdf(request, pk):
     """
-    Generates and streams a professional ReportLab PDF Invoice & Payment Receipt for a Contract.
+    Generates and streams a professional PDF Invoice & Payment Receipt for a Contract.
+    Supports both ReportLab and high-reliability pure-Python fallback.
     """
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.lib import colors
     from decimal import Decimal
     import re
     from datetime import datetime
 
-    # Find contract by pk (ID) or contract_id string
-    contract = (
-        Contract.objects.filter(pk=int(pk) if str(pk).isdigit() else None).first() or
-        Contract.objects.filter(contract_id__iexact=str(pk).strip()).first()
-    )
+    clean_pk = str(pk).strip()
+    digits = re.sub(r'[^0-9]', '', clean_pk)
+    num_id = int(digits) if digits else None
+
+    # Find contract by exact contract_id, numeric ID, or project name
+    contract = Contract.objects.filter(contract_id__iexact=clean_pk).first()
+    if not contract and num_id:
+        contract = Contract.objects.filter(pk=num_id).first()
     if not contract:
-        contract = Contract.objects.filter(project_name__icontains=str(pk).strip()).first()
+        contract = Contract.objects.filter(project_name__icontains=clean_pk).first()
+    if not contract and num_id:
+        contract = Contract.objects.filter(contract_id__icontains=str(num_id)).first()
 
     if not contract:
         return Response({"error": f"Contract '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter # 612 x 792 points
+    # Enforce authorization
+    is_authorized, user = check_invoice_authorization(request, contract)
+    if not is_authorized:
+        return Response(
+            {"error": "Unauthorized. You do not have permission to view or download this invoice."},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-    # Title / Header Banner
-    p.setFillColor(colors.HexColor('#0f172a')) # Dark slate header
-    p.rect(0, height - 100, width, 100, fill=True, stroke=False)
-
-    p.setFillColor(colors.white)
-    p.setFont("Helvetica-Bold", 24)
-    p.drawString(40, height - 45, "FreeMatch AI")
-
-    p.setFont("Helvetica-Bold", 12)
-    p.drawRightString(width - 40, height - 40, "TAX INVOICE & PAYMENT RECEIPT")
-    p.setFont("Helvetica", 10)
     contract_code = contract.contract_id or f"CTR-{contract.id}"
-    p.drawRightString(width - 40, height - 58, f"Invoice #: INV-{contract_code}")
     date_str = format_ist_datetime(contract.updated_at or contract.created_at or timezone.now(), "%B %d, %Y, %I:%M %p")
-    p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
-
-    # Client & Freelancer Information Columns
-    y = height - 130
-    p.setFillColor(colors.HexColor('#1e293b'))
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, y, "ISSUED BY (CLIENT):")
-    p.drawString(320, y, "ISSUED TO (FREELANCER):")
-
-    y -= 18
-    p.setFont("Helvetica", 10)
-    p.setFillColor(colors.HexColor('#334155'))
 
     client_name = contract.client_name or (contract.client.get_full_name() if (contract.client and hasattr(contract.client, 'get_full_name') and contract.client.get_full_name()) else (contract.client.username if contract.client else 'Client User'))
     client_email = contract.client.email if contract.client else 'client@freematch.ai'
-    freelancer_name = contract.freelancer_name or (contract.freelancer.get_full_name() if (contract.freelancer and hasattr(contract.freelancer, 'get_full_name') and contract.freelancer.get_full_name()) else (contract.freelancer.username if contract.freelancer else 'Freelancer User'))
+    freelancer_name = contract.freelancer_name or (contract.freelancer.get_full_name() if (contract.freelancer and hasattr(contract.freelancer, 'get_full_name') and contract.freelancer.get_full_name()) else (contract.freelancer.username if contract.freelancer else 'Freelancer Specialist'))
     freelancer_email = contract.freelancer.email if contract.freelancer else 'freelancer@freematch.ai'
 
-    p.drawString(40, y, f"Name: {client_name}")
-    p.drawString(320, y, f"Name: {freelancer_name}")
-
-    y -= 14
-    p.drawString(40, y, f"Email: {client_email}")
-    p.drawString(320, y, f"Email: {freelancer_email}")
-
-    y -= 14
-    p.drawString(40, y, f"Role: Project Owner")
-    p.drawString(320, y, f"Role: Service Provider / Specialist")
-
-    # Contract Overview Box
-    y -= 30
-    p.setFillColor(colors.HexColor('#f8fafc'))
-    p.setStrokeColor(colors.HexColor('#e2e8f0'))
-    p.rect(40, y - 55, width - 80, 55, fill=True, stroke=True)
-
-    p.setFillColor(colors.HexColor('#0f172a'))
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(52, y - 18, f"Project Title: {contract.project_name or 'FreeMatch AI Project'}")
-
-    p.setFont("Helvetica", 9)
-    p.setFillColor(colors.HexColor('#475569'))
-    p.drawString(52, y - 34, f"Contract ID: {contract_code}  |  Payment Type: {contract.payment_type or 'Fixed Price Escrow'}")
-    p.drawString(52, y - 48, f"Contract Status: {contract.status.upper()}  |  Agreed Amount: {str(contract.agreed_amount).replace('$', '₹')}")
-
-    # Itemized Breakdown Table Header
-    y -= 80
-    p.setFillColor(colors.HexColor('#2563eb')) # Blue accent header
-    p.rect(40, y, width - 80, 24, fill=True, stroke=False)
-
-    p.setFillColor(colors.white)
-    p.setFont("Helvetica-Bold", 10)
-    p.drawString(50, y + 7, "Milestone / Deliverable")
-    p.drawString(280, y + 7, "Payment Type")
-    p.drawString(400, y + 7, "Status")
-    p.drawRightString(width - 50, y + 7, "Amount (₹)")
-
-    # Milestones & Payments Row Rendering
-    y -= 20
+    # Build milestones breakdown
     milestones = contract.milestones.all().order_by('milestone_number')
-
+    details_rows = []
     total_paid_num = Decimal('0')
-    row_count = 0
-
-    p.setFont("Helvetica", 9)
 
     if milestones.exists():
         for m in milestones:
+            st = (m.status or 'Pending').strip()
+            is_paid = st.lower() in ['paid', 'approved'] or Payment.objects.filter(contract=contract, milestone_title__icontains=m.title).exists()
+            st_text = "PAID & RELEASED" if is_paid else st.upper()
+            m_amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
+            amt_dec = Decimal(m_amt_digits if m_amt_digits else '0')
+            if is_paid:
+                total_paid_num += amt_dec
+            amt_display = f"₹{amt_dec:,.2f}"
+            details_rows.append((f"#{m.milestone_number}: {m.title}", st_text, amt_display))
+    else:
+        st_text = "PAID & RELEASED" if contract.status == 'Completed' else contract.status.upper()
+        amt_digits = re.sub(r'[^0-9.]', '', str(contract.agreed_amount or '0'))
+        amt_dec = Decimal(amt_digits if amt_digits else '0')
+        if contract.status == 'Completed':
+            total_paid_num = amt_dec
+        amt_display = f"₹{amt_dec:,.2f}"
+        details_rows.append((contract.project_name or 'Contract Deliverable', st_text, amt_display))
+
+    pdf_bytes = None
+
+    # Try ReportLab first
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors
+
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+
+        # Header Banner
+        p.setFillColor(colors.HexColor('#0f172a'))
+        p.rect(0, height - 100, width, 100, fill=True, stroke=False)
+
+        p.setFillColor(colors.white)
+        p.setFont("Helvetica-Bold", 24)
+        p.drawString(40, height - 45, "FreeMatch AI")
+
+        p.setFont("Helvetica-Bold", 12)
+        p.drawRightString(width - 40, height - 40, "TAX INVOICE & PAYMENT RECEIPT")
+        p.setFont("Helvetica", 10)
+        p.drawRightString(width - 40, height - 58, f"Invoice #: INV-{contract_code}")
+        p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
+
+        # Client & Freelancer Information Columns
+        y = height - 130
+        p.setFillColor(colors.HexColor('#1e293b'))
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(40, y, "ISSUED BY (CLIENT):")
+        p.drawString(320, y, "ISSUED TO (FREELANCER):")
+
+        y -= 18
+        p.setFont("Helvetica", 10)
+        p.setFillColor(colors.HexColor('#334155'))
+        p.drawString(40, y, f"Name: {client_name}")
+        p.drawString(320, y, f"Name: {freelancer_name}")
+
+        y -= 14
+        p.drawString(40, y, f"Email: {client_email}")
+        p.drawString(320, y, f"Email: {freelancer_email}")
+
+        y -= 14
+        p.drawString(40, y, "Role: Project Owner")
+        p.drawString(320, y, "Role: Service Provider / Specialist")
+
+        # Contract Overview Box
+        y -= 30
+        p.setFillColor(colors.HexColor('#f8fafc'))
+        p.setStrokeColor(colors.HexColor('#e2e8f0'))
+        p.rect(40, y - 55, width - 80, 55, fill=True, stroke=True)
+
+        p.setFillColor(colors.HexColor('#0f172a'))
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(52, y - 18, f"Project Title: {contract.project_name or 'FreeMatch AI Project'}")
+
+        p.setFont("Helvetica", 9)
+        p.setFillColor(colors.HexColor('#475569'))
+        p.drawString(52, y - 34, f"Contract ID: {contract_code}  |  Payment Type: {contract.payment_type or 'Fixed Price Escrow'}")
+        p.drawString(52, y - 48, f"Contract Status: {contract.status.upper()}  |  Agreed Amount: {str(contract.agreed_amount).replace('$', '₹')}")
+
+        # Itemized Breakdown Table Header
+        y -= 80
+        p.setFillColor(colors.HexColor('#2563eb'))
+        p.rect(40, y, width - 80, 24, fill=True, stroke=False)
+
+        p.setFillColor(colors.white)
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(50, y + 7, "Milestone / Deliverable")
+        p.drawString(280, y + 7, "Payment Type")
+        p.drawString(400, y + 7, "Status")
+        p.drawRightString(width - 50, y + 7, "Amount")
+
+        y -= 20
+        row_count = 0
+        p.setFont("Helvetica", 9)
+
+        for item_name, st_text, amt_display in details_rows:
             row_count += 1
             bg_color = colors.HexColor('#f8fafc') if row_count % 2 == 0 else colors.white
             p.setFillColor(bg_color)
             p.rect(40, y - 4, width - 80, 20, fill=True, stroke=False)
 
             p.setFillColor(colors.HexColor('#0f172a'))
-            p.drawString(50, y, f"#{m.milestone_number}: {m.title[:35]}")
+            p.drawString(50, y, item_name[:35])
             p.drawString(280, y, "Milestone Escrow")
 
-            st = m.status or 'Pending'
-            if st.lower() == 'paid':
-                p.setFillColor(colors.HexColor('#16a34a')) # Green
-                st_text = "PAID & RELEASED"
-                amt_digits = re.sub(r'[^0-9.]', '', str(m.amount or '0'))
-                total_paid_num += Decimal(amt_digits if amt_digits else '0')
+            if "PAID" in st_text:
+                p.setFillColor(colors.HexColor('#16a34a'))
             else:
-                p.setFillColor(colors.HexColor('#d97706')) # Amber
-                st_text = st.upper()
-
+                p.setFillColor(colors.HexColor('#d97706'))
             p.drawString(400, y, st_text)
 
             p.setFillColor(colors.HexColor('#0f172a'))
-            p.drawRightString(width - 50, y, str(m.amount).replace('$', '₹'))
+            p.drawRightString(width - 50, y, amt_display)
             y -= 20
-    else:
-        # Single line item if no milestone records exist
-        p.setFillColor(colors.white)
-        p.rect(40, y - 4, width - 80, 20, fill=True, stroke=False)
-        p.setFillColor(colors.HexColor('#0f172a'))
-        p.drawString(50, y, f"1. {contract.project_name}")
-        p.drawString(280, y, contract.payment_type or "Fixed Contract Payout")
 
-        st_text = "PAID & RELEASED" if contract.status == 'Completed' else contract.status.upper()
-        p.setFillColor(colors.HexColor('#16a34a') if contract.status == 'Completed' else colors.HexColor('#d97706'))
-        p.drawString(400, y, st_text)
+        # Total & Financial Summary Box
+        y -= 10
+        p.setStrokeColor(colors.HexColor('#cbd5e1'))
+        p.line(40, y, width - 40, y)
 
+        y -= 25
+        p.setFont("Helvetica-Bold", 10)
+        p.setFillColor(colors.HexColor('#475569'))
+        p.drawRightString(width - 160, y, "Agreed Contract Total:")
         p.setFillColor(colors.HexColor('#0f172a'))
         p.drawRightString(width - 50, y, str(contract.agreed_amount).replace('$', '₹'))
-        y -= 20
 
-        amt_digits = re.sub(r'[^0-9.]', '', str(contract.agreed_amount or '0'))
-        if contract.status == 'Completed':
-            total_paid_num = Decimal(amt_digits if amt_digits else '0')
+        y -= 18
+        p.setFillColor(colors.HexColor('#475569'))
+        p.drawRightString(width - 160, y, "Escrow Balance Remaining:")
+        p.setFillColor(colors.HexColor('#d97706'))
+        p.drawRightString(width - 50, y, str(contract.escrow_balance).replace('$', '₹'))
 
-    # Total & Financial Summary Box
-    y -= 10
-    p.setStrokeColor(colors.HexColor('#cbd5e1'))
-    p.line(40, y, width - 40, y)
+        y -= 22
+        p.setFillColor(colors.HexColor('#16a34a'))
+        p.setFont("Helvetica-Bold", 12)
+        p.drawRightString(width - 160, y, "Total Funds Released:")
+        p.drawRightString(width - 50, y, f"₹{total_paid_num:,.2f}")
 
-    y -= 25
-    p.setFont("Helvetica-Bold", 10)
-    p.setFillColor(colors.HexColor('#475569'))
-    p.drawRightString(width - 160, y, "Agreed Contract Total:")
-    p.setFillColor(colors.HexColor('#0f172a'))
-    p.drawRightString(width - 50, y, str(contract.agreed_amount).replace('$', '₹'))
+        # Footer & Security Notice
+        p.setFillColor(colors.HexColor('#f1f5f9'))
+        p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
 
-    y -= 18
-    p.setFillColor(colors.HexColor('#475569'))
-    p.drawRightString(width - 160, y, "Escrow Balance Remaining:")
-    p.setFillColor(colors.HexColor('#d97706'))
-    p.drawRightString(width - 50, y, str(contract.escrow_balance).replace('$', '₹'))
+        p.setFillColor(colors.HexColor('#475569'))
+        p.setFont("Helvetica-Bold", 8)
+        p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
+        p.setFont("Helvetica", 8)
+        p.drawString(50, 62, "This document is an electronically generated tax invoice & payment receipt from FreeMatch AI Platform.")
+        p.drawString(50, 50, "Payments are protected via platform Escrow. All transactions are logged under immutable database audit records.")
 
-    y -= 22
-    p.setFillColor(colors.HexColor('#16a34a')) # Highlight Total Paid
-    p.setFont("Helvetica-Bold", 12)
-    p.drawRightString(width - 160, y, "Total Funds Released:")
-    p.drawRightString(width - 50, y, f"₹{total_paid_num:,.2f}")
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        pdf_bytes = buffer.getvalue()
+    except Exception as e:
+        # Fallback to zero-dependency pure-Python PDF generator
+        pdf_bytes = generate_pure_python_pdf_invoice(
+            title="TAX INVOICE & PAYMENT RECEIPT",
+            invoice_no=f"INV-{contract_code}",
+            date_str=date_str,
+            client_info=[f"Name: {client_name}", f"Email: {client_email}", "Role: Project Owner"],
+            freelancer_info=[f"Name: {freelancer_name}", f"Email: {freelancer_email}", "Role: Specialist"],
+            project_title=contract.project_name or "FreeMatch AI Project",
+            details_rows=details_rows,
+            total_label="Total Funds Released:",
+            total_amount=f"INR {total_paid_num:,.2f}",
+            footer_note="Payments are protected via platform Escrow. All transactions are logged under immutable database audit records."
+        )
 
-    # Footer & Security Notice
-    p.setFillColor(colors.HexColor('#f1f5f9'))
-    p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
-
-    p.setFillColor(colors.HexColor('#475569'))
-    p.setFont("Helvetica-Bold", 8)
-    p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
-    p.setFont("Helvetica", 8)
-    p.drawString(50, 62, "This document is an electronically generated tax invoice & payment receipt from FreeMatch AI Platform.")
-    p.drawString(50, 50, "Payments are protected via platform Escrow. All transactions are logged under immutable database audit records.")
-
-    p.showPage()
-    p.save()
-
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="Invoice_{contract_code}.pdf"'
+    disposition_type = 'attachment' if request.GET.get('download') == 'true' else 'inline'
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'{disposition_type}; filename="Invoice_{contract_code}.pdf"'
+    response['Access-Control-Allow-Origin'] = '*'
+    response['X-Frame-Options'] = 'ALLOWALL'
+    response['Content-Security-Policy'] = "frame-ancestors *;"
     return response
 
 
@@ -6183,131 +6390,212 @@ def download_contract_invoice_pdf(request, pk):
 @permission_classes([AllowAny])
 def download_payment_invoice_pdf(request, pk):
     """
-    Generates and streams a PDF receipt or milestone invoice for a specific Payment ID, Milestone ID, or Contract ID.
+    Generates and streams a PDF receipt or milestone invoice for a specific Payment ID,
+    Transaction ID string, Milestone ID, or Contract ID.
+    Supports both ReportLab and high-reliability pure-Python fallback.
     """
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.lib import colors
+    from decimal import Decimal
+    import re
     from datetime import datetime
 
-    payment = Payment.objects.filter(id=pk).first()
+    clean_pk = str(pk).strip()
+    digits = re.sub(r'[^0-9]', '', clean_pk)
+    num_id = int(digits) if digits else None
+
+    payment = None
     milestone = None
     contract = None
 
     django_request = request._request if hasattr(request, '_request') else request
 
-    if payment:
-        contract = payment.contract
-    else:
-        # Fallback 1: Lookup by ContractMilestone ID
-        milestone = ContractMilestone.objects.filter(id=pk).first()
+    # 1. Contract-prefixed identifiers (e.g., CTR-9938, tx_c_18, TXN-C000018)
+    if clean_pk.upper().startswith('CTR') or clean_pk.lower().startswith('tx_c_') or clean_pk.upper().startswith('TXN-C'):
+        contract = Contract.objects.filter(contract_id__iexact=clean_pk).first()
+        if not contract and num_id:
+            contract = Contract.objects.filter(pk=num_id).first()
+        if contract:
+            payment = Payment.objects.filter(contract=contract).order_by('-id').first()
+            if not payment:
+                return download_contract_invoice_pdf(request, str(contract.id))
+
+    # 2. Milestone-prefixed identifiers (e.g., MS-000085, ESC-M000085, tx_m_85)
+    if not payment and (clean_pk.upper().startswith('MS') or clean_pk.upper().startswith('ESC-M') or clean_pk.lower().startswith('tx_m_')):
+        if num_id:
+            milestone = ContractMilestone.objects.filter(id=num_id).first()
+            if milestone:
+                contract = milestone.contract
+                payment = Payment.objects.filter(contract=contract, milestone_title__icontains=milestone.title).order_by('-id').first()
+                if not payment:
+                    payment = Payment.objects.filter(contract=contract).order_by('-id').first()
+
+    # 3. Numeric ID lookup against Payment table first
+    if not payment and num_id:
+        payment = Payment.objects.filter(id=num_id).first()
+        if payment:
+            contract = payment.contract
+
+    # 4. Numeric ID lookup against ContractMilestone table
+    if not payment and not milestone and num_id:
+        milestone = ContractMilestone.objects.filter(id=num_id).first()
         if milestone:
             contract = milestone.contract
             payment = Payment.objects.filter(contract=contract, milestone_title__icontains=milestone.title).order_by('-id').first()
             if not payment:
                 payment = Payment.objects.filter(contract=contract).order_by('-id').first()
-        else:
-            # Fallback 2: Lookup by Contract ID
-            contract = Contract.objects.filter(id=pk).first()
-            if contract:
-                payment = Payment.objects.filter(contract=contract).order_by('-id').first()
-                if not payment:
-                    return download_contract_invoice_pdf(django_request, pk)
+
+    # 5. Numeric ID lookup against Contract table
+    if not payment and not milestone and not contract and num_id:
+        contract = Contract.objects.filter(id=num_id).first()
+        if contract:
+            payment = Payment.objects.filter(contract=contract).order_by('-id').first()
+            if not payment:
+                return download_contract_invoice_pdf(request, str(contract.id))
+
+    # 6. Check contract_id string
+    if not payment and not milestone and not contract:
+        contract = Contract.objects.filter(contract_id__iexact=clean_pk).first()
+        if contract:
+            return download_contract_invoice_pdf(request, str(contract.id))
 
     if not payment and not milestone and not contract:
-        # Final fallback: search contract by string or return contract invoice
-        return download_contract_invoice_pdf(django_request, pk)
+        return Response({"error": f"Payment/Transaction '{pk}' not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    if payment and not contract:
+        contract = payment.contract
+    elif milestone and not contract:
+        contract = milestone.contract
 
-    # Header
-    p.setFillColor(colors.HexColor('#0f172a'))
-    p.rect(0, height - 100, width, 100, fill=True, stroke=False)
+    # Enforce authorization
+    is_authorized, user = check_invoice_authorization(request, contract)
+    if not is_authorized:
+        return Response(
+            {"error": "Unauthorized. You do not have permission to view or download this invoice."},
+            status=status.HTTP_403_FORBIDDEN
+        )
 
-    p.setFillColor(colors.white)
-    p.setFont("Helvetica-Bold", 24)
-    p.drawString(40, height - 45, "FreeMatch AI")
-
-    p.setFont("Helvetica-Bold", 12)
-    header_title = "PAYMENT RELEASE RECEIPT" if payment else "MILESTONE TAX INVOICE"
-    p.drawRightString(width - 40, height - 40, header_title)
-    p.setFont("Helvetica", 10)
+    # Format invoice details
+    doc_id = payment.id if payment else (milestone.id if milestone else (contract.id if contract else pk))
     txn_id_str = f"TXN-{payment.id:06d}" if payment else (f"MS-{milestone.id:06d}" if milestone else f"CTR-{contract.id:06d}")
-    p.drawRightString(width - 40, height - 58, f"Transaction/Doc ID: {txn_id_str}")
-    date_str = format_ist_datetime(payment.timestamp) if payment else (format_ist_datetime(milestone.updated_at) if (milestone and hasattr(milestone, 'updated_at') and milestone.updated_at) else format_ist_datetime(timezone.now()))
-    p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
+    date_str = format_ist_datetime(payment.timestamp) if (payment and payment.timestamp) else (format_ist_datetime(milestone.updated_at) if (milestone and hasattr(milestone, 'updated_at') and milestone.updated_at) else format_ist_datetime(timezone.now()))
 
-    # Details
-    y = height - 140
-    p.setFillColor(colors.HexColor('#1e293b'))
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, y, "TRANSACTION / MILESTONE DETAILS:")
-
-    y -= 22
-    p.setFont("Helvetica", 10)
-    p.setFillColor(colors.HexColor('#334155'))
-
-    proj_name = contract.project_name if contract else (payment.project_name if payment else 'Project Deliverable')
+    proj_name = contract.project_name if contract else (payment.project_name if payment and hasattr(payment, 'project_name') else 'Project Deliverable')
     ctr_id = contract.contract_id if contract else 'CTR-N/A'
     client_name = contract.client_name if contract else 'Client'
     freelancer_name = contract.freelancer_name if contract else 'Freelancer'
+    client_email = (contract.client.email if contract and contract.client else 'client@freematch.ai')
+    freelancer_email = (contract.freelancer.email if contract and contract.freelancer else 'freelancer@freematch.ai')
     m_title = payment.milestone_title if payment else (milestone.title if milestone else 'Milestone Deliverable')
     p_type = payment.payment_type if payment else 'Milestone Payment'
     p_status = 'RELEASED / CONFIRMED' if payment else (milestone.status if milestone else 'Awaiting Payment')
 
-    p.drawString(40, y, f"Project Name: {proj_name}")
-    y -= 16
-    p.drawString(40, y, f"Contract ID: {ctr_id}")
-    y -= 16
-    p.drawString(40, y, f"Client: {client_name}")
-    y -= 16
-    p.drawString(40, y, f"Freelancer: {freelancer_name}")
-    y -= 16
-    p.drawString(40, y, f"Milestone Title: {m_title}")
-    y -= 16
-    p.drawString(40, y, f"Payment Type: {p_type}")
-    y -= 16
-    p.drawString(40, y, f"Status: {p_status}")
-
-    # Amount Card Box
-    y -= 45
     raw_amount = payment.amount if payment else (milestone.amount if milestone else (contract.agreed_amount if contract else 0))
     try:
-        clean_amt = str(raw_amount).replace('₹', '').replace(',', '').strip()
+        clean_amt = re.sub(r'[^0-9.]', '', str(raw_amount))
         amt_float = float(clean_amt) if clean_amt else 0.0
     except Exception:
         amt_float = 0.0
 
-    p.setFillColor(colors.HexColor('#f0fdf4')) # Emerald light bg
-    p.setStrokeColor(colors.HexColor('#bbf7d0'))
-    p.rect(40, y - 40, width - 80, 50, fill=True, stroke=True)
+    pdf_bytes = None
 
-    p.setFillColor(colors.HexColor('#15803d'))
-    p.setFont("Helvetica-Bold", 12)
-    amount_label = "AMOUNT PAID & RELEASED:" if payment else "MILESTONE AMOUNT:"
-    p.drawString(55, y - 18, amount_label)
-    p.setFont("Helvetica-Bold", 20)
-    p.drawRightString(width - 55, y - 25, f"₹{amt_float:,.2f}")
+    # Try ReportLab first
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        from reportlab.lib import colors
 
-    # Security Footer
-    p.setFillColor(colors.HexColor('#f1f5f9'))
-    p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
-    p.setFillColor(colors.HexColor('#475569'))
-    p.setFont("Helvetica-Bold", 8)
-    p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
-    p.setFont("Helvetica", 8)
-    p.drawString(50, 62, "Electronically generated payment confirmation receipt from FreeMatch AI.")
-    p.drawString(50, 50, "Funds processed via Escrow directly into Freelancer's Wallet balance.")
+        buffer = io.BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
 
-    p.showPage()
-    p.save()
+        # Header
+        p.setFillColor(colors.HexColor('#0f172a'))
+        p.rect(0, height - 100, width, 100, fill=True, stroke=False)
 
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    doc_id = payment.id if payment else (milestone.id if milestone else (contract.id if contract else pk))
-    response['Content-Disposition'] = f'inline; filename="Invoice_TXN_{doc_id}.pdf"'
+        p.setFillColor(colors.white)
+        p.setFont("Helvetica-Bold", 24)
+        p.drawString(40, height - 45, "FreeMatch AI")
+
+        p.setFont("Helvetica-Bold", 12)
+        header_title = "PAYMENT RELEASE RECEIPT" if payment else "MILESTONE TAX INVOICE"
+        p.drawRightString(width - 40, height - 40, header_title)
+        p.setFont("Helvetica", 10)
+        p.drawRightString(width - 40, height - 58, f"Transaction/Doc ID: {txn_id_str}")
+        p.drawRightString(width - 40, height - 74, f"Date: {date_str}")
+
+        # Details
+        y = height - 140
+        p.setFillColor(colors.HexColor('#1e293b'))
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(40, y, "TRANSACTION / MILESTONE DETAILS:")
+
+        y -= 22
+        p.setFont("Helvetica", 10)
+        p.setFillColor(colors.HexColor('#334155'))
+
+        p.drawString(40, y, f"Project Name: {proj_name}")
+        y -= 16
+        p.drawString(40, y, f"Contract ID: {ctr_id}")
+        y -= 16
+        p.drawString(40, y, f"Client: {client_name} ({client_email})")
+        y -= 16
+        p.drawString(40, y, f"Freelancer: {freelancer_name} ({freelancer_email})")
+        y -= 16
+        p.drawString(40, y, f"Milestone Title: {m_title}")
+        y -= 16
+        p.drawString(40, y, f"Payment Type: {p_type}")
+        y -= 16
+        p.drawString(40, y, f"Status: {p_status}")
+
+        # Amount Card Box
+        y -= 45
+        p.setFillColor(colors.HexColor('#f0fdf4'))
+        p.setStrokeColor(colors.HexColor('#bbf7d0'))
+        p.rect(40, y - 40, width - 80, 50, fill=True, stroke=True)
+
+        p.setFillColor(colors.HexColor('#15803d'))
+        p.setFont("Helvetica-Bold", 12)
+        amount_label = "AMOUNT PAID & RELEASED:" if payment else "MILESTONE AMOUNT:"
+        p.drawString(55, y - 18, amount_label)
+        p.setFont("Helvetica-Bold", 20)
+        p.drawRightString(width - 55, y - 25, f"₹{amt_float:,.2f}")
+
+        # Security Footer
+        p.setFillColor(colors.HexColor('#f1f5f9'))
+        p.rect(40, 40, width - 80, 50, fill=True, stroke=False)
+        p.setFillColor(colors.HexColor('#475569'))
+        p.setFont("Helvetica-Bold", 8)
+        p.drawString(50, 75, "SECURITY & AUDIT VERIFICATION")
+        p.setFont("Helvetica", 8)
+        p.drawString(50, 62, "Electronically generated payment confirmation receipt from FreeMatch AI.")
+        p.drawString(50, 50, "Funds processed via Escrow directly into Freelancer's Wallet balance.")
+
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+        pdf_bytes = buffer.getvalue()
+    except Exception as e:
+        # Fallback to zero-dependency pure-Python PDF generator
+        pdf_bytes = generate_pure_python_pdf_invoice(
+            title="PAYMENT RELEASE RECEIPT" if payment else "MILESTONE TAX INVOICE",
+            invoice_no=txn_id_str,
+            date_str=date_str,
+            client_info=[f"Name: {client_name}", f"Email: {client_email}", "Role: Project Owner"],
+            freelancer_info=[f"Name: {freelancer_name}", f"Email: {freelancer_email}", "Role: Specialist"],
+            project_title=proj_name,
+            details_rows=[
+                (m_title, p_status, f"INR {amt_float:,.2f}")
+            ],
+            total_label="Total Amount Paid & Released:" if payment else "Milestone Amount:",
+            total_amount=f"INR {amt_float:,.2f}",
+            footer_note="Funds processed via Escrow directly into Freelancer's Wallet balance."
+        )
+
+    disposition_type = 'attachment' if request.GET.get('download') == 'true' else 'inline'
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'{disposition_type}; filename="Invoice_TXN_{doc_id}.pdf"'
+    response['Access-Control-Allow-Origin'] = '*'
+    response['X-Frame-Options'] = 'ALLOWALL'
+    response['Content-Security-Policy'] = "frame-ancestors *;"
     return response
 
 

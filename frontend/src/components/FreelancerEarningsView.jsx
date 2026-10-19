@@ -519,11 +519,15 @@ export default function FreelancerEarningsView({
                     </span>
                     <button
                       onClick={() => {
-                        const rawId = tx.db_id || tx.id;
-                        if (rawId && String(rawId).match(/^\d+$/)) {
-                          window.open(`${BACKEND_URL}/api/payments/${rawId}/invoice/`, '_blank');
+                        const cId = tx.contract_id || tx.contractId;
+                        const pyId = tx.payment_id || tx.db_id || tx.id;
+                        const uParam = encodeURIComponent(userSession?.username || userSession?.user_id || userSession?.email || currentFlId || '');
+                        if (pyId && String(pyId).match(/^\d+$/)) {
+                          window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/?user_id=${uParam}`, '_blank');
+                        } else if (cId) {
+                          window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/?user_id=${uParam}`, '_blank');
                         } else {
-                          window.open(`${BACKEND_URL}/api/contracts/18/invoice/`, '_blank');
+                          window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/?user_id=${uParam}`, '_blank');
                         }
                       }}
                       className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-all cursor-pointer flex items-center space-x-1"

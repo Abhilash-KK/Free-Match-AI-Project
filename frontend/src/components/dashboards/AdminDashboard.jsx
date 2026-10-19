@@ -144,11 +144,11 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
     if (!tx) return;
     let invUrl = '';
     if (tx.payment_id && (tx.status || '').toLowerCase() === 'paid') {
-      invUrl = `${BACKEND_URL}/api/payments/${tx.payment_id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/payments/${tx.payment_id}/invoice/?user_id=admin`;
     } else if (tx.contract_id) {
-      invUrl = `${BACKEND_URL}/api/contracts/${tx.contract_id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/contracts/${tx.contract_id}/invoice/?user_id=admin`;
     } else {
-      invUrl = `${BACKEND_URL}/api/payments/${tx.db_id || tx.id}/invoice/`;
+      invUrl = `${BACKEND_URL}/api/payments/${tx.db_id || tx.id}/invoice/?user_id=admin`;
     }
     window.open(invUrl, '_blank');
   };

@@ -5078,12 +5078,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <td className="py-3.5 px-2">
                             <button
                               onClick={() => {
-                                const cId = py.contract_id || py.contractId || py.contract || '18';
-                                const pyId = py.db_id || py.id;
-                                if (pyId && String(pyId).match(/^\d+$/)) {
-                                  window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/`, '_blank');
-                                } else {
-                                  window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/`, '_blank');
+                                const cId = py.contract_id || py.contractId || py.contract;
+                                const pyId = py.payment_id || py.db_id || py.id;
+                                const uParam = encodeURIComponent(userSession?.username || userSession?.user_id || userSession?.email || '');
+                                if (pyId) {
+                                  window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/?user_id=${uParam}`, '_blank');
+                                } else if (cId) {
+                                  window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/?user_id=${uParam}`, '_blank');
                                 }
                               }}
                               className="text-xs font-bold text-[#2563eb] hover:underline cursor-pointer flex items-center space-x-1"
@@ -7182,12 +7183,13 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                   </div>
                   <button
                     onClick={() => {
-                      const cId = viewingTransaction.contract_id || viewingTransaction.contractId || '79';
-                      const pyId = viewingTransaction.db_id || viewingTransaction.payment_id || viewingTransaction.id;
-                      if (pyId && String(pyId).match(/^\d+$/)) {
-                        window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/`, '_blank');
-                      } else {
-                        window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/`, '_blank');
+                      const cId = viewingTransaction.contract_id || viewingTransaction.contractId;
+                      const pyId = viewingTransaction.payment_id || viewingTransaction.db_id || viewingTransaction.id;
+                      const uParam = encodeURIComponent(userSession?.username || userSession?.user_id || userSession?.email || '');
+                      if (pyId) {
+                        window.open(`${BACKEND_URL}/api/payments/${pyId}/invoice/?user_id=${uParam}`, '_blank');
+                      } else if (cId) {
+                        window.open(`${BACKEND_URL}/api/contracts/${cId}/invoice/?user_id=${uParam}`, '_blank');
                       }
                     }}
                     className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#2563eb] rounded-xl text-xs font-extrabold border border-blue-200 transition-all cursor-pointer flex items-center space-x-1 shrink-0"
