@@ -1831,6 +1831,9 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
           skills: Array.isArray(draft.skillsReq) ? draft.skillsReq.join(', ') : (draft.skillsReq || ''),
           description: draft.description || '',
           abstract: draft.projectAbstract || '',
+          attachedFile: draft.attachedFile || null,
+          attached_file_name: draft.attachedFile ? draft.attachedFile.name : '',
+          attached_file_url: draft.attachedFile ? draft.attachedFile.url : '',
           milestones: draft.milestoneItems || []
         })
       });

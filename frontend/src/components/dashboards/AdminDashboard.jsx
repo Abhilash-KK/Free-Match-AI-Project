@@ -169,6 +169,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       if (data) {
         if (data.metrics) setMetrics(data.metrics);
         if (Array.isArray(data.verifications)) setVerifications(data.verifications);
+        if (Array.isArray(data.project_document_verifications)) setProjectDocVerifications(data.project_document_verifications);
         if (Array.isArray(data.active_contracts)) setActiveContracts(data.active_contracts);
         if (Array.isArray(data.completed_projects)) setCompletedProjects(data.completed_projects);
         if (Array.isArray(data.users)) setUsers(data.users);
@@ -712,7 +713,14 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
       const res = await apiFetch('/api/admin-dashboard/verify-project/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projId, action: 'approve' })
+        body: JSON.stringify({
+          project_id: projId,
+          id: projId,
+          title: projObj.title,
+          project_title: projObj.title,
+          action: 'approve',
+          project: projObj
+        })
       });
 
       if (res && res.ok) {
@@ -776,6 +784,9 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: projId,
+          id: projId,
+          title: rejectingProject.title,
+          project_title: rejectingProject.title,
           action: 'reject',
           rejection_reason: feedbackReason
         })

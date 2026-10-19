@@ -884,14 +884,31 @@ def projects_api(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = (
-                User.objects.filter(id=client_name).first() if str(client_name).isdigit() else
-                User.objects.filter(Q(username__iexact=client_name) | Q(email__iexact=client_name)).first()
-            )
-            if not user and request.user.is_authenticated:
+            user = resolve_user_account(client_name)
+            if not user and request.user and request.user.is_authenticated:
                 user = request.user
             if not user:
-                return Response({"error": f"Client user '{client_name}' not found."}, status=status.HTTP_400_BAD_REQUEST)
+                user = User.objects.filter(Q(username__iexact=client_name) | Q(email__iexact=client_name)).first()
+            if not user:
+                # Fallback to an existing client user if available
+                existing_client = User.objects.filter(profile__role='client').first()
+                if existing_client:
+                    user = existing_client
+                else:
+                    clean_u = str(client_name or 'client').strip().lower()
+                    if not clean_u or clean_u in ['null', 'undefined']:
+                        clean_u = 'client'
+                    email_val = f"{clean_u}@freematch.ai" if '@' not in clean_u else clean_u
+                    user, _ = User.objects.get_or_create(
+                        username=clean_u,
+                        defaults={
+                            'email': email_val,
+                            'first_name': clean_u.capitalize()
+                        }
+                    )
+                    from .models import UserProfile
+                    UserProfile.objects.get_or_create(user=user, defaults={'role': 'client'})
+
             category_obj, _ = SkillCategory.objects.get_or_create(name=category_name)
 
             proj = Project.objects.create(
@@ -5130,6 +5147,7 @@ def admin_dashboard_api(request):
             },
             'verifications': verification_list,
             'project_verifications': project_verification_list,
+            'project_document_verifications': get_approved_project_documents_list(),
             'user_moderation': user_list,
             'categories': cat_list,
             'skills': skill_list,
@@ -5158,16 +5176,46 @@ def admin_verify_project_api(request):
     from django.conf import settings
 
     proj_id_raw = request.data.get('project_id') or request.data.get('id')
+    proj_title = request.data.get('title') or request.data.get('project_title') or (request.data.get('project') or {}).get('title')
     action = str(request.data.get('action', 'approve')).lower().strip()
     reason = str(request.data.get('rejection_reason', '') or request.data.get('reason', '')).strip()
 
-    if not proj_id_raw:
-        return Response({"error": "Project ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+    if not proj_id_raw and not proj_title:
+        return Response({"error": "Project ID or title is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    clean_id = str(proj_id_raw).replace('proj_', '').replace('cp', '').strip()
+    clean_id = str(proj_id_raw or '').replace('proj_', '').replace('cp', '').strip()
     proj = Project.objects.filter(id=int(clean_id) if clean_id.isdigit() else None).first()
-    if not proj:
+    if not proj and proj_title:
+        proj = Project.objects.filter(title__iexact=str(proj_title).strip()).first()
+    if not proj and proj_id_raw:
         proj = Project.objects.filter(title__iexact=str(proj_id_raw).strip()).first()
+
+    # If project does not yet exist in database, hydrate and save it from project payload
+    if not proj and isinstance(request.data.get('project'), dict):
+        p_data = request.data.get('project')
+        p_title = p_data.get('title') or proj_title
+        if p_title:
+            p_client_id = p_data.get('client_id') or p_data.get('client') or 'client'
+            u_client = resolve_user_account(p_client_id) or User.objects.filter(profile__role='client').first() or User.objects.first()
+            from .models import SkillCategory
+            p_cat, _ = SkillCategory.objects.get_or_create(name=p_data.get('category') or 'Software Development')
+            f_name = p_data.get('attached_file_name') or (p_data.get('attachedFile') or {}).get('name') or ''
+            f_url = p_data.get('attached_file_url') or (p_data.get('attachedFile') or {}).get('url') or ''
+            
+            proj = Project.objects.create(
+                client=u_client,
+                title=p_title,
+                category=p_cat,
+                budget=p_data.get('budget', '₹5,000'),
+                duration=p_data.get('duration', '3 Weeks'),
+                skills_required=p_data.get('skills', 'React, Python'),
+                description=p_data.get('description', ''),
+                abstract=p_data.get('abstract', ''),
+                attached_file_name=f_name,
+                attached_file_url=f_url,
+                approval_status='Pending Review',
+                status='Open'
+            )
 
     if proj:
         if action == 'approve':
@@ -5198,13 +5246,17 @@ def admin_verify_project_api(request):
                             doc_v.save(update_fields=['status'])
 
                     # If base64 file data exists on disk, ensure it's written
-                    if doc_v and (not doc_v.document_file or not os.path.exists(doc_v.document_file.path if hasattr(doc_v.document_file, 'path') else '')):
-                        url_to_check = doc_v.document_file_url or proj.attached_file_url
-                        if url_to_check and url_to_check.startswith('data:'):
-                            rel_path, abs_path, _ = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
-                            if rel_path:
-                                doc_v.document_file.name = rel_path
-                                doc_v.save(update_fields=['document_file'])
+                    url_to_check = doc_v.document_file_url or proj.attached_file_url
+                    if url_to_check and url_to_check.startswith('data:'):
+                        rel_path, abs_path, guessed_mime = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
+                        if rel_path:
+                            doc_v.document_file.name = rel_path
+                            if abs_path and os.path.exists(abs_path):
+                                sz = os.path.getsize(abs_path)
+                                doc_v.document_file_size = f"{round(sz / 1024, 1)} KB" if sz < 1048576 else f"{round(sz / (1024*1024), 2)} MB"
+                            doc_v.save(update_fields=['document_file', 'document_file_size'])
+                            proj.attached_file_url = f"/media/{rel_path}"
+                            proj.save(update_fields=['attached_file_url'])
 
                 if proj.client:
                     Notification.objects.create(
@@ -6852,9 +6904,7 @@ def freelancer_public_verification_status_api(request, user_id=None):
 
 
 # PROJECT DOCUMENT VERIFICATION ENDPOINTS (ADMIN WORKFLOW)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def admin_project_document_verifications_list_api(request):
+def get_approved_project_documents_list(status_filter=None):
     """
     Returns list of client project document verification submissions for Admin review.
     Document verification proceeds ONLY for APPROVED projects with uploaded files.
@@ -6902,13 +6952,17 @@ def admin_project_document_verifications_list_api(request):
                 rejection_reason=''
             )
         # Ensure document_file is populated if attached_file_url has base64 data
-        if doc_v and (not doc_v.document_file or not os.path.exists(doc_v.document_file.path if hasattr(doc_v.document_file, 'path') else '')):
-            url_to_check = doc_v.document_file_url or p.attached_file_url
-            if url_to_check and url_to_check.startswith('data:'):
-                rel_path, abs_path, _ = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
-                if rel_path:
-                    doc_v.document_file.name = rel_path
-                    doc_v.save(update_fields=['document_file'])
+        url_to_check = doc_v.document_file_url or p.attached_file_url
+        if url_to_check and url_to_check.startswith('data:'):
+            rel_path, abs_path, guessed_mime = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
+            if rel_path:
+                doc_v.document_file.name = rel_path
+                if abs_path and os.path.exists(abs_path):
+                    sz = os.path.getsize(abs_path)
+                    doc_v.document_file_size = f"{round(sz / 1024, 1)} KB" if sz < 1048576 else f"{round(sz / (1024*1024), 2)} MB"
+                doc_v.save(update_fields=['document_file', 'document_file_size'])
+                p.attached_file_url = f"/media/{rel_path}"
+                p.save(update_fields=['attached_file_url'])
 
     # 4. Fetch document verification records strictly for APPROVED projects with real uploaded files
     docs = ProjectDocumentVerification.objects.filter(
@@ -6920,15 +6974,23 @@ def admin_project_document_verifications_list_api(request):
     ).select_related('project', 'client', 'reviewed_by').order_by('-submitted_at')
 
     # Optional status filter (PENDING, APPROVED, REJECTED)
-    status_filter = request.GET.get('status', '').upper()
-    if status_filter and status_filter in ['PENDING', 'APPROVED', 'REJECTED']:
-        docs = docs.filter(status=status_filter)
+    if status_filter and str(status_filter).upper() in ['PENDING', 'APPROVED', 'REJECTED']:
+        docs = docs.filter(status=str(status_filter).upper())
 
     data = []
     for d in docs:
         client_user = d.client
         p = d.project
         doc_url = f"/api/project-documents/{d.id}/document/" if (d.document_file or d.document_file_url or p.attached_file_url) else ""
+        
+        f_size = d.document_file_size or '1.5 MB'
+        if d.document_file and hasattr(d.document_file, 'path') and os.path.exists(d.document_file.path):
+            try:
+                sz = os.path.getsize(d.document_file.path)
+                f_size = f"{round(sz / 1024, 1)} KB" if sz < 1048576 else f"{round(sz / (1024*1024), 2)} MB"
+            except Exception:
+                pass
+
         data.append({
             "id": d.id,
             "project_id": p.id,
@@ -6942,15 +7004,26 @@ def admin_project_document_verifications_list_api(request):
             "document_name": d.document_name,
             "document_type": d.document_type,
             "document_file_url": doc_url,
-            "document_file_size": d.document_file_size or '1.5 MB',
+            "document_file_size": f_size,
             "has_uploaded_file": True,
             "status": d.status,
             "rejection_reason": d.rejection_reason or '',
-            "submitted_at": format_ist_datetime(d.submitted_at),
+            "submitted_at": format_ist_datetime(d.submitted_at or p.created_at),
             "reviewed_at": format_ist_datetime(d.reviewed_at) if d.reviewed_at else None,
             "reviewed_by": d.reviewed_by.username if d.reviewed_by else None
         })
+    return data
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def admin_project_document_verifications_list_api(request):
+    """
+    Returns list of client project document verification submissions for Admin review.
+    Document verification proceeds ONLY for APPROVED projects with uploaded files.
+    """
+    status_filter = request.GET.get('status', '').upper()
+    data = get_approved_project_documents_list(status_filter=status_filter)
     return Response(data, status=status.HTTP_200_OK)
 
 

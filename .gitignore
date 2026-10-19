@@ -19,3 +19,5 @@ backend/db.sqlite3
 # Misc
 .DS_Store
 *.log
+backend/media/
+scratch/
