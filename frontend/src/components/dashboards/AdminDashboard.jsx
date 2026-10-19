@@ -753,6 +753,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
         setProjectVerifications(prev => prev.filter(p => (p.project_id || p.id) !== projId && p.id !== projId && p.title !== projObj.title));
         setToast({ message: `Project '${projObj.title}' approved & published to Freelancer Marketplace!`, type: 'success' });
         fetchAdminData();
+        fetchProjectDocVerifications();
         window.dispatchEvent(new Event('freematch_shared_event'));
         window.dispatchEvent(new Event('freematch_notification_event'));
         window.dispatchEvent(new Event('storage'));
@@ -800,7 +801,9 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                         approval_status: 'Rejected',
                         approvalStatus: 'Rejected',
                         rejection_reason: feedbackReason,
-                        rejectionReason: feedbackReason
+                        rejectionReason: feedbackReason,
+                        attached_file_name: '',
+                        attached_file_url: ''
                       };
                     }
                     return item;
@@ -814,11 +817,21 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
           }
         } catch (e) {}
 
+        // Remove from pending project verifications queue
         setProjectVerifications(prev => prev.filter(p => (p.project_id || p.id) !== projId && p.id !== projId && p.title !== rejectingProject.title));
+        
+        // Immediately remove document verification record for this rejected project
+        setProjectDocVerifications(prev => prev.filter(d => {
+          const docProjId = d.project_id || (d.project ? d.project.id : null);
+          const cleanProjId = String(projId).replace('proj_', '');
+          return String(docProjId) !== String(cleanProjId) && d.project_title !== rejectingProject.title;
+        }));
+
         setToast({ message: `Project '${rejectingProject.title}' rejected. Client has been notified.`, type: 'info' });
         setRejectingProject(null);
         setRejectionReasonInput('');
         fetchAdminData();
+        fetchProjectDocVerifications();
         window.dispatchEvent(new Event('freematch_shared_event'));
         window.dispatchEvent(new Event('freematch_notification_event'));
         window.dispatchEvent(new Event('storage'));

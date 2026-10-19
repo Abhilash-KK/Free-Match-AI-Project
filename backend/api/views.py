@@ -5149,8 +5149,14 @@ def admin_dashboard_api(request):
 def admin_verify_project_api(request):
     """
     Approve or reject a client's posted project in the verification queue.
+    When a project is approved, its document verification record is kept/created as PENDING.
+    When a project is rejected, its document verification record and file are safely removed immediately.
     """
-    from .models import Project, Notification
+    from .models import Project, Notification, ProjectDocumentVerification
+    from django.db import transaction
+    import os
+    from django.conf import settings
+
     proj_id_raw = request.data.get('project_id') or request.data.get('id')
     action = str(request.data.get('action', 'approve')).lower().strip()
     reason = str(request.data.get('rejection_reason', '') or request.data.get('reason', '')).strip()
@@ -5165,38 +5171,117 @@ def admin_verify_project_api(request):
 
     if proj:
         if action == 'approve':
-            proj.approval_status = 'Approved'
-            proj.rejection_reason = ''
-            proj.save()
+            with transaction.atomic():
+                proj.approval_status = 'Approved'
+                proj.rejection_reason = ''
+                if proj.status == 'Pending Review' or not proj.status:
+                    proj.status = 'Open'
+                proj.save()
 
-            if proj.client:
-                Notification.objects.create(
-                    user=proj.client,
-                    notification_type='project',
-                    title='Project Approved!',
-                    message=f"Your project '{proj.title}' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.",
-                    project_id=f"proj_{proj.id}",
-                    project_name=proj.title,
-                    source_id=f"proj_{proj.id}"
-                )
-            return Response({"message": f"Project '{proj.title}' approved successfully!", "approval_status": "Approved", "project_id": f"proj_{proj.id}"}, status=status.HTTP_200_OK)
+                # If the project has an uploaded file/document, ensure a ProjectDocumentVerification record exists and is PENDING (if not already reviewed)
+                has_file = bool(proj.attached_file_name or proj.attached_file_url)
+                if has_file:
+                    doc_v = ProjectDocumentVerification.objects.filter(project=proj).first()
+                    if not doc_v:
+                        doc_v = ProjectDocumentVerification.objects.create(
+                            project=proj,
+                            client=proj.client,
+                            document_name=proj.attached_file_name or f"Project_Document_{proj.id}.pdf",
+                            document_file_url=proj.attached_file_url or '',
+                            document_type='Project Requirement Spec',
+                            status='PENDING',
+                            rejection_reason=''
+                        )
+                    else:
+                        if (doc_v.status or '').upper() not in ['APPROVED', 'REJECTED']:
+                            doc_v.status = 'PENDING'
+                            doc_v.save(update_fields=['status'])
+
+                    # If base64 file data exists on disk, ensure it's written
+                    if doc_v and (not doc_v.document_file or not os.path.exists(doc_v.document_file.path if hasattr(doc_v.document_file, 'path') else '')):
+                        url_to_check = doc_v.document_file_url or proj.attached_file_url
+                        if url_to_check and url_to_check.startswith('data:'):
+                            rel_path, abs_path, _ = save_base64_data_url_to_file(url_to_check, doc_v.document_name, 'project_documents')
+                            if rel_path:
+                                doc_v.document_file.name = rel_path
+                                doc_v.save(update_fields=['document_file'])
+
+                if proj.client:
+                    Notification.objects.create(
+                        user=proj.client,
+                        notification_type='project',
+                        title='Project Approved!',
+                        message=f"Your project '{proj.title}' has been verified & approved by admin. It is now live for freelancers in Browse Jobs.",
+                        project_id=f"proj_{proj.id}",
+                        project_name=proj.title,
+                        source_id=f"proj_{proj.id}"
+                    )
+
+            pending_proj_count = Project.objects.filter(approval_status='Pending Review').count()
+            pending_doc_count = ProjectDocumentVerification.objects.filter(project__approval_status__iexact='Approved', status='PENDING').count()
+
+            return Response({
+                "message": f"Project '{proj.title}' approved successfully!",
+                "approval_status": "Approved",
+                "project_id": f"proj_{proj.id}",
+                "pending_projects_count": pending_proj_count,
+                "pending_documents_count": pending_doc_count
+            }, status=status.HTTP_200_OK)
 
         elif action == 'reject':
-            proj.approval_status = 'Rejected'
-            proj.rejection_reason = reason if reason else 'Does not meet platform project quality & safety guidelines.'
-            proj.save()
+            with transaction.atomic():
+                proj.approval_status = 'Rejected'
+                proj.rejection_reason = reason if reason else 'Does not meet platform project quality & safety guidelines.'
 
-            if proj.client:
-                Notification.objects.create(
-                    user=proj.client,
-                    notification_type='project',
-                    title='Project Review Update - Action Required',
-                    message=f"Your project '{proj.title}' was reviewed and rejected. Reason: {proj.rejection_reason}",
-                    project_id=f"proj_{proj.id}",
-                    project_name=proj.title,
-                    source_id=f"proj_{proj.id}"
-                )
-            return Response({"message": f"Project '{proj.title}' rejected.", "approval_status": "Rejected", "rejection_reason": proj.rejection_reason, "project_id": f"proj_{proj.id}"}, status=status.HTTP_200_OK)
+                # Remove its document from the pending Project Document Verification queue immediately
+                # Safely delete the associated project document verification record and uploaded file
+                doc_verifs = ProjectDocumentVerification.objects.filter(project=proj)
+                for doc_v in doc_verifs:
+                    if doc_v.document_file and hasattr(doc_v.document_file, 'path'):
+                        try:
+                            if os.path.isfile(doc_v.document_file.path):
+                                os.remove(doc_v.document_file.path)
+                        except Exception:
+                            pass
+                    doc_v.delete()
+
+                # Safely delete uploaded file from media disk if attached to project
+                if proj.attached_file_url and proj.attached_file_url.startswith('/media/'):
+                    try:
+                        rel = proj.attached_file_url.replace('/media/', '').lstrip('/')
+                        full_disk_path = os.path.join(settings.MEDIA_ROOT, rel)
+                        if os.path.isfile(full_disk_path):
+                            os.remove(full_disk_path)
+                    except Exception:
+                        pass
+
+                # Clear attached file fields so it never re-enters document verification
+                proj.attached_file_name = ''
+                proj.attached_file_url = ''
+                proj.save(update_fields=['approval_status', 'rejection_reason', 'attached_file_name', 'attached_file_url'])
+
+                if proj.client:
+                    Notification.objects.create(
+                        user=proj.client,
+                        notification_type='project',
+                        title='Project Review Update - Action Required',
+                        message=f"Your project '{proj.title}' was reviewed and rejected. Reason: {proj.rejection_reason}",
+                        project_id=f"proj_{proj.id}",
+                        project_name=proj.title,
+                        source_id=f"proj_{proj.id}"
+                    )
+
+            pending_proj_count = Project.objects.filter(approval_status='Pending Review').count()
+            pending_doc_count = ProjectDocumentVerification.objects.filter(project__approval_status__iexact='Approved', status='PENDING').count()
+
+            return Response({
+                "message": f"Project '{proj.title}' rejected.",
+                "approval_status": "Rejected",
+                "rejection_reason": proj.rejection_reason,
+                "project_id": f"proj_{proj.id}",
+                "pending_projects_count": pending_proj_count,
+                "pending_documents_count": pending_doc_count
+            }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid action. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
     else:
@@ -6772,23 +6857,39 @@ def freelancer_public_verification_status_api(request, user_id=None):
 def admin_project_document_verifications_list_api(request):
     """
     Returns list of client project document verification submissions for Admin review.
-    Query ONLY actual client-uploaded document files (strictly excludes plain text abstracts or projects without files).
+    Document verification proceeds ONLY for APPROVED projects with uploaded files.
+    Rejected projects and non-approved projects are strictly excluded.
     """
     from .models import Project, ProjectDocumentVerification
+    import os
+    from django.db.models import Q
 
-    # Clean up legacy dummy abstract entries that do not represent physical file uploads
+    # 1. Clean up any lingering document verification records for rejected projects
+    rejected_docs = ProjectDocumentVerification.objects.filter(project__approval_status__iexact='Rejected')
+    for rd in rejected_docs:
+        if rd.document_file and hasattr(rd.document_file, 'path'):
+            try:
+                if os.path.isfile(rd.document_file.path):
+                    os.remove(rd.document_file.path)
+            except Exception:
+                pass
+        rd.delete()
+
+    # 2. Clean up legacy dummy abstract entries that do not represent physical file uploads
     ProjectDocumentVerification.objects.filter(
         (Q(document_file='') | Q(document_file__isnull=True)) &
         (Q(document_file_url='') | Q(document_file_url__isnull=True)) &
         (Q(project__attached_file_name='') | Q(project__attached_file_name__isnull=True))
     ).delete()
 
-    # Auto-sync ONLY existing projects that have actual uploaded files (e.g. attached_file_name or attached_file_url)
-    projects_with_files = Project.objects.filter(
+    # 3. Auto-sync ONLY APPROVED projects that have actual uploaded files (e.g. attached_file_name or attached_file_url)
+    approved_projects_with_files = Project.objects.filter(
+        approval_status__iexact='Approved'
+    ).filter(
         (Q(attached_file_name__isnull=False) & ~Q(attached_file_name='')) |
         (Q(attached_file_url__isnull=False) & ~Q(attached_file_url=''))
     )
-    for p in projects_with_files:
+    for p in approved_projects_with_files:
         doc_v = ProjectDocumentVerification.objects.filter(project=p).first()
         if not doc_v:
             doc_v = ProjectDocumentVerification.objects.create(
@@ -6809,8 +6910,10 @@ def admin_project_document_verifications_list_api(request):
                     doc_v.document_file.name = rel_path
                     doc_v.save(update_fields=['document_file'])
 
-    # Fetch document verification records for real uploaded files
+    # 4. Fetch document verification records strictly for APPROVED projects with real uploaded files
     docs = ProjectDocumentVerification.objects.filter(
+        project__approval_status__iexact='Approved'
+    ).filter(
         (Q(document_file__isnull=False) & ~Q(document_file='')) |
         (Q(document_file_url__isnull=False) & ~Q(document_file_url='')) |
         (Q(project__attached_file_name__isnull=False) & ~Q(project__attached_file_name=''))
@@ -6825,7 +6928,7 @@ def admin_project_document_verifications_list_api(request):
     for d in docs:
         client_user = d.client
         p = d.project
-        doc_url = f"http://localhost:8000/api/project-documents/{d.id}/document/" if (d.document_file or d.document_file_url or p.attached_file_url) else ""
+        doc_url = f"/api/project-documents/{d.id}/document/" if (d.document_file or d.document_file_url or p.attached_file_url) else ""
         data.append({
             "id": d.id,
             "project_id": p.id,
@@ -6833,9 +6936,9 @@ def admin_project_document_verifications_list_api(request):
             "project_category": p.category.name if p.category else 'General',
             "project_budget": p.budget,
             "project_approval_status": p.approval_status,
-            "client_id": client_user.id,
-            "client_name": client_user.get_full_name() or client_user.username,
-            "client_email": client_user.email,
+            "client_id": client_user.id if client_user else None,
+            "client_name": (client_user.get_full_name() or client_user.username) if client_user else 'Client',
+            "client_email": client_user.email if client_user else '',
             "document_name": d.document_name,
             "document_type": d.document_type,
             "document_file_url": doc_url,
