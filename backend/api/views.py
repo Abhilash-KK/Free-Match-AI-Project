@@ -204,7 +204,7 @@ def health_check(request):
         "framework": "Django 6.0",
         "database": "PostgreSQL",
         "projects_in_db": Project.objects.count(),
-        "build_version": "2026-10-18-v3-contract-completion"
+        "build_version": "2026-10-19-v4-pdf-invoices"
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
