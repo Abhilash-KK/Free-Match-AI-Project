@@ -49,7 +49,9 @@ import {
   Home,
   FolderKanban,
   XCircle,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 
 const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
@@ -84,6 +86,9 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     verification_rejection_reason: '',
     resume_name: ''
   });
+
+  // Dedicated Project Document / PDF Preview Modal State
+  const [projectDocPreviewModal, setProjectDocPreviewModal] = useState(null);
 
   // Proposal Form State
   const [coverLetter, setCoverLetter] = useState('');
@@ -822,6 +827,97 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userSession]);
+
+  const handleOpenProjectDocPreview = (job) => {
+    if (!job) return;
+    const attached = job.attachedFile || (job.attached_file_name || job.attached_file_url ? {
+      name: job.attached_file_name,
+      url: job.attached_file_url
+    } : null);
+
+    if (!attached || (!attached.url && !attached.name && !job.attached_file_url && !job.attached_file_name)) {
+      setToast({ message: 'No project technical document is attached to this posting.', type: 'error' });
+      return;
+    }
+
+    const fileName = attached.name || job.attached_file_name || 'Project_Specification.pdf';
+    const isImage = Boolean(attached.isImage || /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName));
+    const cleanProjId = String(job.project_id || job.id || '').replace('proj_', '').trim();
+
+    // Construct full URLs that work in dev and on deployed Vercel + Render
+    let rawUrl = attached.url || job.attached_file_url || '';
+    let previewUrl = '';
+    let downloadUrl = '';
+
+    if (rawUrl && (rawUrl.startsWith('data:image/') || rawUrl.startsWith('data:application/pdf') || rawUrl.startsWith('data:'))) {
+      previewUrl = rawUrl;
+      downloadUrl = rawUrl;
+    } else if (cleanProjId && cleanProjId.length > 0 && !isNaN(Number(cleanProjId))) {
+      previewUrl = `${BACKEND_URL}/api/projects/${cleanProjId}/document/`;
+      downloadUrl = `${BACKEND_URL}/api/projects/${cleanProjId}/document/?download=true`;
+    } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      previewUrl = rawUrl;
+      downloadUrl = rawUrl.includes('?') ? `${rawUrl}&download=true` : `${rawUrl}?download=true`;
+    } else if (rawUrl.startsWith('/api/')) {
+      previewUrl = `${BACKEND_URL}${rawUrl}`;
+      downloadUrl = `${BACKEND_URL}${rawUrl}${rawUrl.includes('?') ? '&' : '?'}download=true`;
+    } else if (rawUrl.startsWith('/media/')) {
+      previewUrl = `${BACKEND_URL}${rawUrl}`;
+      downloadUrl = `${BACKEND_URL}${rawUrl}`;
+    } else {
+      previewUrl = `${BACKEND_URL}/api/projects/0/document/?filename=${encodeURIComponent(fileName)}`;
+      downloadUrl = `${BACKEND_URL}/api/projects/0/document/?filename=${encodeURIComponent(fileName)}&download=true`;
+    }
+
+    setProjectDocPreviewModal({
+      projectTitle: job.title || 'Project Specification',
+      clientName: job.client || job.client_name || 'Client',
+      fileName: fileName,
+      fileSize: attached.size || 'PDF Document',
+      url: previewUrl,
+      downloadUrl: downloadUrl,
+      isImage: isImage,
+      loading: true,
+      error: null
+    });
+  };
+
+  const handleDownloadAttachedDoc = async (docModal) => {
+    if (!docModal) return;
+    const dlUrl = docModal.downloadUrl || docModal.url;
+    const fileName = docModal.fileName || 'Project_Document.pdf';
+
+    try {
+      if (dlUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setToast({ message: `Downloaded ${fileName}`, type: 'success' });
+        return;
+      }
+
+      const res = await fetch(dlUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        setToast({ message: `Downloaded ${fileName}`, type: 'success' });
+      } else {
+        window.open(dlUrl, '_blank');
+      }
+    } catch (e) {
+      window.open(dlUrl, '_blank');
+    }
+  };
 
   const handleDownloadContractPDF = (contract) => {
     const cId = contract.contractId || contract.id || 'CTR-9024';
@@ -2108,7 +2204,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                           </div>
                         </div>
                         <button
-                          onClick={() => openDocumentViewer(job.attachedFile)}
+                          onClick={() => handleOpenProjectDocPreview(job)}
                           className="px-3.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs cursor-pointer flex items-center space-x-1 transition-all"
                         >
                           {job.attachedFile.isImage ? <Search className="w-3.5 h-3.5 mr-1" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
@@ -2136,7 +2232,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                       <div className="flex items-center space-x-2.5 shrink-0 self-end sm:self-auto">
                         {job.attachedFile && (job.attachedFile.url || job.attachedFile.name) && (
                           <button
-                            onClick={() => openDocumentViewer(job.attachedFile)}
+                            onClick={() => handleOpenProjectDocPreview(job)}
                             className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300/80 rounded-xl text-xs font-extrabold shadow-2xs cursor-pointer flex items-center space-x-1.5 transition-all"
                             title={`Open ${job.attachedFile.name || 'Project Document'}`}
                           >
@@ -3593,6 +3689,132 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
                 <button
                   onClick={() => setSelectedContractDetail(null)}
                   className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DEDICATED PROJECT DOCUMENT PREVIEW MODAL */}
+        {projectDocPreviewModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+            <div className="w-full max-w-5xl h-[92vh] max-h-[920px] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+              {/* Header */}
+              <div className="px-5 py-4 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-200 flex items-center justify-center shrink-0">
+                    {projectDocPreviewModal.isImage ? <ImageIcon className="w-5 h-5 text-blue-600" /> : <FileText className="w-5 h-5 text-blue-600" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-extrabold text-sm sm:text-base text-slate-900 truncate max-w-xs sm:max-w-md">
+                        {projectDocPreviewModal.fileName}
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                        {projectDocPreviewModal.isImage ? 'Architecture Diagram' : 'Project Specification PDF'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium truncate">
+                      Project: <span className="text-slate-800 font-bold">{projectDocPreviewModal.projectTitle}</span> • Client: <span className="text-slate-700 font-semibold">{projectDocPreviewModal.clientName}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Header Action Buttons */}
+                <div className="flex items-center space-x-2 shrink-0">
+                  <button
+                    onClick={() => handleDownloadAttachedDoc(projectDocPreviewModal)}
+                    className="px-3.5 py-2 bg-[#2563eb] hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer"
+                    title="Download document to device"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Document</span>
+                  </button>
+
+                  <a
+                    href={projectDocPreviewModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer border border-slate-200"
+                    title="Open in new browser tab"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+
+                  <button
+                    onClick={() => setProjectDocPreviewModal(null)}
+                    className="p-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-500 rounded-xl transition-colors cursor-pointer border border-slate-200"
+                    title="Close preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Document Viewer Frame */}
+              <div className="flex-1 w-full bg-slate-900 relative overflow-hidden flex flex-col items-center justify-center">
+                {projectDocPreviewModal.loading && (
+                  <div className="absolute inset-0 z-10 bg-slate-900 flex flex-col items-center justify-center text-white space-y-3 pointer-events-none">
+                    <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
+                    <p className="text-xs font-bold text-slate-300">Loading document preview from secure storage...</p>
+                  </div>
+                )}
+
+                {projectDocPreviewModal.error ? (
+                  <div className="p-8 text-center text-white max-w-md space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
+                      <AlertTriangle className="w-6 h-6 text-rose-400" />
+                    </div>
+                    <h4 className="font-bold text-base text-slate-100">Unable to preview document</h4>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      {projectDocPreviewModal.error}
+                    </p>
+                    <div className="pt-2 flex items-center justify-center space-x-3">
+                      <button
+                        onClick={() => handleDownloadAttachedDoc(projectDocPreviewModal)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                      >
+                        Try Direct Download
+                      </button>
+                      <button
+                        onClick={() => setProjectDocPreviewModal(null)}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                ) : projectDocPreviewModal.isImage ? (
+                  <div className="w-full h-full p-4 flex items-center justify-center overflow-auto">
+                    <img
+                      src={projectDocPreviewModal.url}
+                      alt={projectDocPreviewModal.fileName}
+                      className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
+                      onLoad={() => setProjectDocPreviewModal(prev => prev ? ({ ...prev, loading: false }) : null)}
+                      onError={() => setProjectDocPreviewModal(prev => prev ? ({ ...prev, loading: false, error: 'Failed to load image preview.' }) : null)}
+                    />
+                  </div>
+                ) : (
+                  <iframe
+                    src={projectDocPreviewModal.url}
+                    title={projectDocPreviewModal.fileName}
+                    className="w-full h-full border-none"
+                    onLoad={() => setProjectDocPreviewModal(prev => prev ? ({ ...prev, loading: false }) : null)}
+                    onError={() => setProjectDocPreviewModal(prev => prev ? ({ ...prev, loading: false, error: 'Failed to render PDF preview in browser. Use the Download Document button above.' }) : null)}
+                  />
+                )}
+              </div>
+
+              {/* Footer status bar */}
+              <div className="px-5 py-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 font-medium shrink-0">
+                <span className="truncate">
+                  FreeMatch AI Secure Document Stream • {projectDocPreviewModal.fileName}
+                </span>
+                <button
+                  onClick={() => setProjectDocPreviewModal(null)}
+                  className="font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
                 >
                   Close
                 </button>

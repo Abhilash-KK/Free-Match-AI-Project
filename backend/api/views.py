@@ -801,10 +801,12 @@ def projects_api(request):
                     "description": p.description,
                     "abstract": p.abstract,
                     "attached_file_name": p.attached_file_name,
-                    "attached_file_url": p.attached_file_url,
+                    "attached_file_url": f"/api/projects/{p.id}/document/" if (p.attached_file_name or p.attached_file_url) else "",
                     "attachedFile": {
                         "name": p.attached_file_name or 'Project Document.pdf',
-                        "url": p.attached_file_url,
+                        "url": f"/api/projects/{p.id}/document/",
+                        "downloadUrl": f"/api/projects/{p.id}/document/?download=true",
+                        "download_url": f"/api/projects/{p.id}/document/?download=true",
                         "size": "PDF Document",
                         "type": "application/pdf" if (p.attached_file_name or '').lower().endswith('.pdf') else "Document",
                         "isImage": (p.attached_file_name or '').lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
@@ -7115,74 +7117,139 @@ def admin_delete_project_document_verification_api(request, pk=None):
     return Response({"message": "Project document verification deleted successfully."}, status=status.HTTP_200_OK)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'OPTIONS'])
 @permission_classes([AllowAny])
-def serve_project_document_file_api(request, pk=None):
+def serve_project_document_file_api(request, pk=None, project_id=None):
     """
     Serve uploaded project document file with Blob preview / download headers.
+    Supports resolution by Project ID, ProjectDocumentVerification ID, title, or filename.
+    Enforces authorization: approved projects are viewable by marketplace freelancers;
+    unapproved projects are restricted to staff, project owner, or bidding freelancers.
     """
-    from .models import ProjectDocumentVerification
-    import os, mimetypes
+    from .models import Project, ProjectDocumentVerification
+    import os, mimetypes, re, shutil
     from django.conf import settings
     from django.http import HttpResponse
 
-    v_id = pk or request.GET.get('id')
-    doc = ProjectDocumentVerification.objects.filter(id=v_id).first()
-    if not doc:
-        return Response({"error": "Document file not found."}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'OPTIONS':
+        res = HttpResponse()
+        res['Access-Control-Allow-Origin'] = '*'
+        res['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        res['Access-Control-Allow-Headers'] = '*'
+        return res
+
+    target_id = project_id or pk or request.GET.get('project_id') or request.GET.get('id') or request.GET.get('pk')
+    proj = None
+    doc = None
+
+    if target_id:
+        clean_id = str(target_id).replace('proj_', '').strip()
+        if clean_id.isdigit():
+            # Check if clean_id is a Project ID
+            proj = Project.objects.filter(id=int(clean_id)).first()
+            if not proj:
+                # Check if clean_id is a ProjectDocumentVerification ID
+                doc = ProjectDocumentVerification.objects.filter(id=int(clean_id)).first()
+                if doc:
+                    proj = doc.project
+        if not proj:
+            # Check by Project Document Verification title or Project title
+            doc = ProjectDocumentVerification.objects.filter(project__title__iexact=str(target_id)).first()
+            if doc:
+                proj = doc.project
+            else:
+                proj = Project.objects.filter(title__iexact=str(target_id)).first()
+
+    if not proj:
+        # Check query parameters
+        p_title = request.GET.get('title') or request.GET.get('project_title')
+        if p_title:
+            proj = Project.objects.filter(title__iexact=p_title).first()
+        if not proj:
+            fname = request.GET.get('filename') or request.GET.get('name')
+            if fname:
+                proj = Project.objects.filter(Q(attached_file_name__iexact=fname) | Q(attached_file_name__icontains=fname)).first()
+                if not proj:
+                    doc = ProjectDocumentVerification.objects.filter(Q(document_name__iexact=fname) | Q(document_name__icontains=fname)).first()
+                    if doc:
+                        proj = doc.project
+
+    if proj and not doc:
+        doc = ProjectDocumentVerification.objects.filter(project=proj).first()
+
+    # Step 1: Authorization check
+    if proj:
+        is_approved = (proj.approval_status or '').strip().lower() == 'approved'
+        if not is_approved:
+            user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+            user_param = request.GET.get('user_id') or request.GET.get('username')
+            if not user and user_param:
+                user = resolve_user_account(user_param)
+            
+            is_staff = user and (user.is_staff or user.is_superuser or (hasattr(user, 'profile') and user.profile.role in ['admin', 'super admin']))
+            is_owner = user and proj.client and (user.id == proj.client.id or user.username.lower() == proj.client.username.lower())
+            is_bidder = user and (
+                (hasattr(proj, 'proposals') and proj.proposals.filter(freelancer=user).exists()) or
+                (hasattr(proj, 'contracts') and proj.contracts.filter(freelancer=user).exists())
+            )
+            if not (is_staff or is_owner or is_bidder):
+                return Response(
+                    {"error": "Unauthorized. Project specification document is only accessible for approved projects."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
     is_download = request.GET.get('download', '').lower() == 'true'
     target_file_path = None
     mime_override = None
 
-    # Step 1: Check doc.document_file
-    if doc.document_file and hasattr(doc.document_file, 'path') and doc.document_file.name:
+    # Step 2: Check doc.document_file
+    if doc and doc.document_file and hasattr(doc.document_file, 'path') and doc.document_file.name:
         try:
             if os.path.exists(doc.document_file.path):
                 target_file_path = doc.document_file.path
         except Exception:
             pass
 
-    # Step 2: Check base64 Data URL in document_file_url or project attached_file_url
+    # Step 3: Check base64 Data URL
     if not target_file_path:
-        url_candidates = [doc.document_file_url, getattr(doc.project, 'attached_file_url', '')]
+        url_candidates = [
+            getattr(doc, 'document_file_url', ''),
+            getattr(proj, 'attached_file_url', '') if proj else ''
+        ]
         for url in url_candidates:
             if url and isinstance(url, str) and url.startswith('data:'):
+                f_name = (doc.document_name if doc else None) or (proj.attached_file_name if proj else None) or 'Project_Document.pdf'
                 rel_path, abs_path, guessed_mime = save_base64_data_url_to_file(
-                    url,
-                    doc.document_name or getattr(doc.project, 'attached_file_name', ''),
-                    'project_documents'
+                    url, f_name, 'project_documents'
                 )
                 if abs_path and os.path.exists(abs_path):
                     target_file_path = abs_path
                     mime_override = guessed_mime
-                    try:
-                        doc.document_file.name = rel_path
-                        doc.save(update_fields=['document_file'])
-                    except Exception:
-                        pass
+                    if doc:
+                        try:
+                            doc.document_file.name = rel_path
+                            doc.save(update_fields=['document_file'])
+                        except Exception:
+                            pass
                     break
 
-    # Step 3: If target_file_path is missing, search MEDIA_ROOT for stored file variants
+    # Step 4: Search MEDIA_ROOT
+    names_to_check = [
+        getattr(doc, 'document_name', ''),
+        getattr(proj, 'attached_file_name', '') if proj else '',
+        request.GET.get('filename', '')
+    ]
     if not target_file_path:
         media_root = str(settings.MEDIA_ROOT)
         candidates = []
-
-        # Check URLs
-        for url in [doc.document_file_url, getattr(doc.project, 'attached_file_url', '')]:
+        for url in [getattr(doc, 'document_file_url', ''), getattr(proj, 'attached_file_url', '') if proj else '']:
             if url and '/media/' in url:
                 rel_path = url.split('/media/')[-1].strip('/')
                 candidates.append(os.path.join(media_root, rel_path))
 
-        # Check filenames
-        names_to_check = [
-            doc.document_name,
-            getattr(doc.project, 'attached_file_name', '')
-        ]
         for name in names_to_check:
             if name:
                 clean_name = os.path.basename(name)
-                import re
                 base_no_ext, ext = os.path.splitext(clean_name)
                 re_clean_name = re.sub(r'[\s()]+', '_', clean_name)
                 re_clean_empty = re.sub(r'[\s()]+', '', clean_name)
@@ -7204,32 +7271,61 @@ def serve_project_document_file_api(request, pk=None):
         for cand in candidates:
             if cand and os.path.exists(cand) and os.path.isfile(cand):
                 target_file_path = cand
-                try:
-                    rel_name = os.path.relpath(cand, media_root).replace('\\', '/')
-                    doc.document_file.name = rel_name
-                    doc.save(update_fields=['document_file'])
-                except Exception:
-                    pass
+                if doc:
+                    try:
+                        rel_name = os.path.relpath(cand, media_root).replace('\\', '/')
+                        doc.document_file.name = rel_name
+                        doc.save(update_fields=['document_file'])
+                    except Exception:
+                        pass
                 break
 
-    # Step 4: Stream physical file if found
+    # Step 5: Local development fallback - check user's Downloads or local paths
+    if not target_file_path:
+        user_dl = os.path.join(os.path.expanduser('~'), 'Downloads')
+        for name in names_to_check:
+            if name:
+                clean_name = os.path.basename(name)
+                dl_cand = os.path.join(user_dl, clean_name)
+                if os.path.exists(dl_cand) and os.path.isfile(dl_cand):
+                    target_dir = os.path.join(settings.MEDIA_ROOT, 'project_documents')
+                    os.makedirs(target_dir, exist_ok=True)
+                    cached_path = os.path.join(target_dir, clean_name)
+                    try:
+                        shutil.copyfile(dl_cand, cached_path)
+                        target_file_path = cached_path
+                        if doc:
+                            doc.document_file.name = f"project_documents/{clean_name}"
+                            doc.save(update_fields=['document_file'])
+                    except Exception:
+                        target_file_path = dl_cand
+                    break
+
+    # Step 6: Return physical file with proper headers
     if target_file_path and os.path.exists(target_file_path):
         content_type = mime_override
         if not content_type:
             content_type, _ = mimetypes.guess_type(target_file_path)
-        content_type = content_type or (
-            'application/pdf' if (doc.document_name or target_file_path).lower().endswith('.pdf') else 'application/octet-stream'
-        )
-        orig_filename = doc.document_name or getattr(doc.project, 'attached_file_name', '') or os.path.basename(target_file_path)
+        orig_filename = (doc.document_name if doc else None) or (proj.attached_file_name if proj else None) or os.path.basename(target_file_path) or 'Project_Document.pdf'
+        if orig_filename.lower().endswith('.pdf'):
+            content_type = 'application/pdf'
+        elif not content_type:
+            content_type = 'application/octet-stream'
 
         with open(target_file_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type=content_type)
             disp = 'attachment' if is_download else 'inline'
             response['Content-Disposition'] = f'{disp}; filename="{orig_filename}"'
             response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+            response['Access-Control-Allow-Headers'] = '*'
+            response['X-Frame-Options'] = 'ALLOWALL'
+            response['Content-Security-Policy'] = "frame-ancestors *;"
             return response
 
-    return Response({"error": "No physical document file attached."}, status=status.HTTP_404_NOT_FOUND)
+    return Response({
+        "error": "Document file not found in storage. The client may not have attached a physical PDF or the file was removed."
+    }, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['GET', 'POST'])

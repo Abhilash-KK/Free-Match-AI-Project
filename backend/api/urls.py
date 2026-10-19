@@ -10,6 +10,7 @@ urlpatterns = [
     path('reviews/submit/', views.submit_review, name='submit_review'),
     path('contact/submit/', views.submit_contact, name='submit_contact'),
     path('projects/', views.projects_api, name='projects_api'),
+    path('projects/<str:project_id>/document/', views.serve_project_document_file_api, name='serve_project_document_file_by_project_api'),
     path('projects/<str:pk>/', views.project_detail_api, name='project_detail_api'),
     path('saved-freelancers/', views.saved_freelancers_api, name='saved_freelancers_api'),
     path('hire-freelancer/', views.hire_freelancer_api, name='hire_freelancer_api'),
@@ -73,7 +74,7 @@ urlpatterns = [
     path('admin/project-document-verifications/<int:pk>/approve/', views.admin_approve_project_document_verification_api, name='admin_approve_project_document_verification_api'),
     path('admin/project-document-verifications/<int:pk>/reject/', views.admin_reject_project_document_verification_api, name='admin_reject_project_document_verification_api'),
     path('admin/project-document-verifications/<int:pk>/delete/', views.admin_delete_project_document_verification_api, name='admin_delete_project_document_verification_api'),
-    path('project-documents/<int:pk>/document/', views.serve_project_document_file_api, name='serve_project_document_file_api'),
+    path('project-documents/<str:pk>/document/', views.serve_project_document_file_api, name='serve_project_document_file_api'),
 
     # GLOBAL SEARCH ROUTE
     path('search/', views.global_search_api, name='global_search_api'),
