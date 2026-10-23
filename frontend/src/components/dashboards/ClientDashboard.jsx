@@ -6776,7 +6776,7 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                             m.status === 'Completed' || m.status === 'Paid' || m.is_paid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-50 text-amber-800 border border-amber-200'
                           }`}>
-                            {m.status || (m.is_paid ? 'Paid & Released' : 'In Progress')}
+                            {m.status || (m.is_paid ? 'Paid & Released' : 'Pending')}
                           </span>
                         </div>
                       </div>

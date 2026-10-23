@@ -1700,7 +1700,7 @@ def ensure_contract_milestones(contract_obj, project_obj=None):
                 description=f"Phase {idx + 1} deliverable for {proj_name}",
                 amount=amt_str,
                 due_date=f"Phase {idx + 1}",
-                status="In Progress" if idx == 0 else "Pending"
+                status="Pending"
             )
     else:
         ContractMilestone.objects.create(
@@ -1710,7 +1710,7 @@ def ensure_contract_milestones(contract_obj, project_obj=None):
             description="Initial repository setup, architecture review, and milestone lock.",
             amount=agreed_amt_str,
             due_date="1 Week",
-            status="In Progress"
+            status="Pending"
         )
 
 def sync_contract_milestones_to_sprint_tasks(contract_obj):
@@ -1762,6 +1762,15 @@ def sync_contract_milestones_to_sprint_tasks(contract_obj):
             st.milestone_number = cm.milestone_number
             st.title = cm.title
             st.budget = cm.amount
+            if task_status == 'To Do' and st.status in ('In Progress', 'Under Review'):
+                if st.status == 'In Progress':
+                    cm.status = 'In Progress'
+                    cm.save(update_fields=['status'])
+                elif st.status == 'Under Review':
+                    cm.status = 'Submitted for Review'
+                    cm.save(update_fields=['status'])
+                task_status = st.status
+
             st.status = task_status
             st.is_locked = is_locked
             if fl_user:
@@ -3306,6 +3315,10 @@ def sprint_tasks_api(request, pk=None):
                     if (st.milestone.status or '').lower() not in ['paid', 'approved']:
                         st.milestone.status = 'Completed'
                         st.milestone.save()
+                elif clean_status in ['to do', 'to_do', 'pending']:
+                    if (st.milestone.status or '').lower() not in ['paid', 'approved']:
+                        st.milestone.status = 'Pending'
+                        st.milestone.save()
 
             if st.project:
                 proj = st.project
@@ -4527,16 +4540,14 @@ def update_milestone_status_api(request, pk):
                 if contract:
                     next_m = contract.milestones.filter(milestone_number=m.milestone_number + 1).first()
                     if next_m:
-                        if (next_m.status or '').strip().lower() in ['pending', 'locked']:
-                            next_m.status = 'In Progress'
+                        if (next_m.status or '').strip().lower() in ['locked']:
+                            next_m.status = 'Pending'
                             next_m.save()
                         st_next = SprintTask.objects.filter(milestone=next_m).first()
                         if not st_next and contract.project:
                             st_next = SprintTask.objects.filter(project=contract.project, title__iexact=next_m.title).first()
                         if st_next:
                             st_next.is_locked = False
-                            if st_next.status == 'To Do':
-                                st_next.status = 'In Progress'
                             st_next.save()
 
                         # Notifications for Phase payment completion & next phase unlock

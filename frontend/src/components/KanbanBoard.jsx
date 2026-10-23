@@ -347,7 +347,7 @@ const KanbanBoard = ({ role = 'client', currentUserName = 'Alex Mercer', initial
       }
     } catch (e) {}
 
-    let fetchUrl = `/api/sprint-tasks/`;
+    let fetchUrl = `${BACKEND_URL}/api/sprint-tasks/`;
     if (role === 'freelancer') {
       fetchUrl += `?freelancer=${encodeURIComponent(currentUserId || currentUserName)}`;
     } else if (role === 'client') {

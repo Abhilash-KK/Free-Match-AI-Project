@@ -2526,7 +2526,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                                       m.is_paid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
                                     }`}>
-                                      {m.is_paid ? 'Paid' : (m.status || 'In Progress')}
+                                      {m.is_paid ? 'Paid' : (m.status || 'Pending')}
                                     </span>
                                   </div>
                                 ))
@@ -3257,7 +3257,7 @@ const AdminDashboard = ({ userSession, onSignOut }) => {
                           <div>
                             <span className="text-slate-400 font-bold uppercase text-[9px] block">Status</span>
                             <span className={`font-extrabold ${m.status === 'Completed' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                              {m.status || 'In Progress'}
+                              {m.status || 'Pending'}
                             </span>
                           </div>
 

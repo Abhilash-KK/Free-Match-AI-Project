@@ -568,7 +568,7 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
             duration: c.duration || '3 Weeks',
             startDate: c.startDate || 'Sep 8, 2026',
             deadline: c.deadline || c.endDate || 'Sep 29, 2026',
-            status: c.status || 'In Progress',
+            status: c.status || 'Active',
             approvalStatus: c.approvalStatus || c.approval_status || 'Approved',
             rejectionReason: c.rejectionReason || c.rejection_reason || '',
             milestones: c.milestones || []
