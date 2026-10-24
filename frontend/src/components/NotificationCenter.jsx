@@ -29,8 +29,6 @@ import {
   FileText,
   MoreVertical,
   Check,
-  Home,
-  ChevronRight
 } from 'lucide-react';
 
 const NotificationCenter = ({ userSession, onNavigateTab, onNavigateHome }) => {
@@ -143,26 +141,6 @@ const NotificationCenter = ({ userSession, onNavigateTab, onNavigateHome }) => {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto w-full">
-      {/* BREADCRUMB */}
-      <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof onNavigateHome === 'function') onNavigateHome();
-            if (typeof onNavigateTab === 'function') onNavigateTab('workspace');
-          }}
-          className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-        >
-          <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span>Home</span>
-        </button>
-        <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-        <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-          Notifications
-        </span>
-      </div>
 
       {/* PAGE HEADER ROW WITH BANNER CARD */}
       <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative overflow-hidden">

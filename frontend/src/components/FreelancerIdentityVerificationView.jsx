@@ -11,8 +11,6 @@ import {
   RefreshCw,
   Eye,
   Lock,
-  ChevronRight,
-  Home
 } from 'lucide-react';
 
 const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
@@ -143,19 +141,8 @@ const FreelancerIdentityVerificationView = ({
   return (
     <div className={`p-4 sm:p-6 md:p-8 max-w-5xl mx-auto space-y-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
       
-      {/* BREADCRUMB & HEADER */}
+      {/* HEADER */}
       <div className="space-y-2">
-        <nav className="flex items-center space-x-2 text-xs font-semibold text-slate-500">
-          <button onClick={onNavigateHome} className="hover:text-blue-600 flex items-center space-x-1 cursor-pointer">
-            <Home className="w-3.5 h-3.5" />
-            <span>Dashboard</span>
-          </button>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-slate-700 dark:text-slate-300 font-bold">Account</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-blue-600 font-bold">Identity Verification</span>
-        </nav>
-
         <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center space-x-3">

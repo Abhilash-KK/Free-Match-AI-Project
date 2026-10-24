@@ -13,8 +13,6 @@ import {
   FileText,
   ShieldCheck,
   X,
-  Home,
-  ChevronRight
 } from 'lucide-react';
 import { calculateFreelancerFinancials } from '../utils/freelancerFinancials';
 import { formatISTTimestamp, formatISTDate } from '../utils/dateUtils';
@@ -101,25 +99,6 @@ export default function FreelancerEarningsView({
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
       
-      {/* BREADCRUMB NAVIGATION */}
-      <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof onNavigateHome === 'function') onNavigateHome();
-          }}
-          className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-        >
-          <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span>Home</span>
-        </button>
-        <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-        <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-          Earnings & Wallet
-        </span>
-      </div>
 
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

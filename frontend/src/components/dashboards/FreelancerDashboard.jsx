@@ -45,8 +45,6 @@ import {
   Eye,
   MoreVertical,
   Filter,
-  ChevronRight,
-  Home,
   FolderKanban,
   XCircle,
   AlertTriangle,
@@ -1830,27 +1828,9 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* TAB: MY PROJECTS PAGE */}
         {activeTab === 'my_projects' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full animate-fadeIn">
-            {/* Breadcrumb & Header */}
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1">
-                <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setActiveTab('workspace');
-                    }}
-                    className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-                  >
-                    <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Home</span>
-                  </button>
-                  <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-                    My Projects
-                  </span>
-                </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100 flex items-center justify-center text-xl shrink-0 shadow-2xs">
                     <FolderKanban className="w-6 h-6 text-blue-600" />
@@ -2115,27 +2095,9 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {activeTab === 'jobs' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto w-full">
             
-            {/* Header Title Section with Breadcrumb & Right Illustration Banner */}
+            {/* Header Title Section with Right Illustration Banner */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1">
-                <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setActiveTab('workspace');
-                    }}
-                    className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-                  >
-                    <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Home</span>
-                  </button>
-                  <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-                    Marketplace Jobs Feed
-                  </span>
-                </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2563eb] border border-blue-100/90 flex items-center justify-center text-xl shrink-0 shadow-2xs">
                     💼
@@ -2272,25 +2234,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
           return (
             <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-              {/* Breadcrumb Navigation */}
-              <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setActiveTab('workspace');
-                  }}
-                  className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-                >
-                  <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>Home</span>
-                </button>
-                <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-                  My Submitted Bids
-                </span>
-              </div>
 
               {/* Header Banner Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-50/80 via-indigo-50/30 to-white p-6 rounded-3xl border border-blue-100/80 shadow-xs">
@@ -2980,25 +2923,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
 
           return (
             <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-              {/* BREADCRUMB NAVIGATION */}
-              <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setActiveTab('workspace');
-                  }}
-                  className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-                >
-                  <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>Home</span>
-                </button>
-                <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-                  My Contracts & Agreements
-                </span>
-              </div>
 
               {/* HEADER AREA */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -3240,25 +3164,6 @@ const FreelancerDashboard = ({ userSession, reviews = [], onSignOut }) => {
         {/* TAB: MESSAGES CHAT WORKSPACE */}
         {activeTab === 'messages' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-4">
-            {/* BREADCRUMB NAVIGATION */}
-            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveTab('workspace');
-                }}
-                className="flex items-center space-x-1.5 text-slate-600 hover:text-blue-600 cursor-pointer transition-colors"
-              >
-                <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>Home</span>
-              </button>
-              <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
-              <span className="text-blue-600 font-bold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/80">
-                Messages & Communication
-              </span>
-            </div>
 
             <MessagingCenter
               userSession={userSession}

@@ -38,7 +38,6 @@ import {
   CheckCircle2,
   LogOut,
   ChevronDown,
-  ChevronRight,
   Layers,
   Wallet,
   Clock,
@@ -3417,12 +3416,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
             {/* Header Title Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-1">
-                <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 mb-1">
-                  <span>🏠</span>
-                  <span>Projects</span>
-                  <span>›</span>
-                  <span className="text-slate-900 font-extrabold">My Projects</span>
-                </div>
                 <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   My Posted Projects ({clientProjects.length})
                 </h2>
@@ -3903,12 +3896,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
               return (
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="space-y-1">
-                    <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 mb-1">
-                      <span>«</span>
-                      <span>Home</span>
-                      <span>›</span>
-                      <span className="text-slate-900 font-extrabold">Project Applications</span>
-                    </div>
                     <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                       Project Applications ({proposals.length})
                     </h2>
@@ -4208,12 +4195,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 5: HIRED FREELANCERS ROSTER */}
         {activeTab === 'freelancers' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
-              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
-              <span className="text-slate-800 font-bold">Hired Freelancers</span>
-            </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -4420,12 +4401,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 6: CONTRACTS AGREEMENT HUB */}
         {activeTab === 'contracts' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
-              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
-              <span className="text-slate-800 font-bold">Contracts</span>
-            </div>
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
@@ -4607,12 +4582,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB: SAVED FREELANCERS ROSTER */}
         {activeTab === 'saved-freelancers' && (
           <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center text-xs font-semibold text-slate-500 mb-1">
-              <span className="hover:text-slate-700 cursor-pointer" onClick={() => setActiveTab('overview')}>🏠 Home</span>
-              <ChevronRight className="w-3.5 h-3.5 mx-1 text-slate-400" />
-              <span className="text-slate-800 font-bold">Saved Freelancers</span>
-            </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -4756,14 +4725,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 9: PAYMENTS & ESCROW HUB */}
         {activeTab === 'payments' && (
           <div className="p-6 sm:p-8 space-y-6">
-            {/* BREADCRUMB */}
-            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-              <span className="cursor-pointer hover:text-slate-700 flex items-center gap-1">
-                <span>🏠</span> Home
-              </span>
-              <span>/</span>
-              <span className="text-slate-900 font-bold">Payments & Escrow</span>
-            </div>
 
             {/* PAGE HEADER ROW WITH BANNER CARD */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -5127,14 +5088,6 @@ const ClientDashboard = ({ userSession, onSignOut }) => {
         {/* TAB 10: REVIEWS & PERFORMANCE FEEDBACK */}
         {activeTab === 'reviews' && (
           <div className="p-6 sm:p-8 space-y-6">
-            {/* BREADCRUMB */}
-            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-500 mb-1">
-              <span className="cursor-pointer hover:text-slate-700 flex items-center gap-1">
-                <span>🏠</span> Home
-              </span>
-              <span>/</span>
-              <span className="text-slate-900 font-bold">Reviews</span>
-            </div>
 
             {/* PAGE HEADER ROW WITH BANNER DECORATION */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
