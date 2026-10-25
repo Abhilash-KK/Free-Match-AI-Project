@@ -143,6 +143,15 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
+# Tuned password hashers for cloud container performance and security
+PASSWORD_HASHERS = [
+    'api.hashers.OptimizedPBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+]
+
 # File upload & body size settings (support up to 15MB for resume & portfolio attachments)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 15728640  # 15 MB

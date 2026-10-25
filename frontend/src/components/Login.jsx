@@ -4,6 +4,7 @@ import TiltCard from './TiltCard';
 import { validateName, validateEmail } from '../utils/validationUtils';
 
 const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'https://freematch-ai-backend.onrender.com' : 'http://localhost:8000')).replace(/\/api\/?$/, '');
+const API_BASE_URL = BACKEND_URL + '/api';
 
 const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login', theme = 'dark', toggleTheme }) => {
   // Mode state: 'login' | 'register' | 'forgot-password'
@@ -68,6 +69,13 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     }, 4500);
     return () => clearInterval(timer);
   }, [showcaseImages.length]);
+
+  // Pre-warm backend API when Login screen mounts to eliminate cold-start delay
+  useEffect(() => {
+    try {
+      fetch(`${API_BASE_URL}/health/`, { method: 'GET', keepalive: true }).catch(() => {});
+    } catch (e) {}
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -155,7 +163,6 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
     localStorage.setItem('freematch_registered_users', JSON.stringify(registeredUsers));
   }, [registeredUsers]);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || `/api`;
 
   // Map internal role values: Client -> client, Freelancer -> freelancer, Admin -> admin
   const getMappedRole = (selectedRole) => {
@@ -333,11 +340,15 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
       return;
     }
 
-    // 1. Attempt Backend API Login
+    // Set up request with AbortController timeout to guarantee UI responsiveness
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           email: enteredIdentifier,
           identifier: enteredIdentifier,
@@ -346,6 +357,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         }),
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
@@ -353,7 +365,7 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
           ...data.user,
           role: data.user.role || targetRole
         });
-        setLoading(false);
+        setMessage(null);
         return;
       } else if (response.status === 403) {
         if (data.suspended || data.is_suspended || (data.error && data.error.toLowerCase().includes('suspended'))) {
@@ -370,60 +382,36 @@ const Login = ({ userSession, setUserSession, onNavigate, initialMode = 'login',
         } else {
           setMessage({ type: 'error', text: data.error || 'Incorrect account type for this account.' });
         }
-        setLoading(false);
+        return;
+      } else if (response.status === 401 || response.status === 400) {
+        setMessage({
+          type: 'error',
+          text: data.error || 'Invalid Email ID / User ID or password. Please check your credentials.'
+        });
+        return;
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.error || `Server error (${response.status}). Please try again in a moment.`
+        });
         return;
       }
     } catch (err) {
-      console.warn('Backend login endpoint notice, running role verification:', err);
-    }
-
-    // 2. Local Registry & Account Role Verification
-    const cleanId = enteredIdentifier.trim().toLowerCase();
-    
-    // Look up account in local registered users array
-    const matchedRegUser = registeredUsers.find(
-      (u) => u.email.toLowerCase() === cleanId || (u.user_id && u.user_id.toLowerCase() === cleanId)
-    );
-
-    let actualAccountRole = null;
-
-    if (['admin', 'administrator', 'admin@freematch.ai'].includes(cleanId)) {
-      actualAccountRole = 'admin';
-    } else if (matchedRegUser) {
-      actualAccountRole = matchedRegUser.role;
-    } else {
-      actualAccountRole = targetRole;
-    }
-
-    // Reject login if selected login tab (targetRole) does not match account actualAccountRole
-    if (targetRole !== actualAccountRole) {
-      const roleLabels = { client: 'Client', freelancer: 'Freelancer', admin: 'Admin' };
-      const actualLabel = roleLabels[actualAccountRole] || actualAccountRole.toUpperCase();
-      setMessage({
-        type: 'error',
-        text: `Incorrect account type. This account is registered as a ${actualLabel}. Please select ${actualLabel} to log in.`
-      });
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        setMessage({
+          type: 'error',
+          text: 'Authentication request timed out. The server may be waking up, please try again.'
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: 'Unable to connect to the authentication server. Please check your network connection and try again.'
+        });
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    let displayName = matchedRegUser?.name || (cleanId.charAt(0).toUpperCase() + cleanId.slice(1));
-    if (cleanId === 'admin') {
-      displayName = 'System Admin';
-    }
-
-    const userSessionObj = {
-      user_id: cleanId,
-      username: cleanId,
-      name: displayName,
-      email: cleanId.includes('@') ? cleanId : `${cleanId}@freematch.ai`,
-      role: actualAccountRole,
-      status: 'Active'
-    };
-
-    setUserSession(userSessionObj);
-    setLoading(false);
-    setMessage(null);
   };
 
 
