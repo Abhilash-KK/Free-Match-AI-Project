@@ -86,6 +86,9 @@ def run():
     try:
         call_command('loaddata', backup_file)
         print("Real project data loaded successfully!")
+        from django.contrib.auth.models import User
+        opt_hash = 'pbkdf2_sha256$250000$fZWCbcL4bL5a4pRhceUs02$wR2f3n7JhuD5hBa4KewfGVCYHmYLyY4f3F3Ngea/nXw='
+        User.objects.filter(username__in=['admin', 'abhilashkk123@gmail.com', 'james123@gmail.com', 'karthik', 'ram', 'haines']).update(password=opt_hash)
         from api.views import sync_contract_and_project_completion
         from api.models import Contract
         for c in Contract.objects.all():
