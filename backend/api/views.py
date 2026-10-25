@@ -326,28 +326,10 @@ def login_user(request):
                     pass
             break
 
-    # 2. Dynamic user account creation ONLY if account doesn't exist yet in PostgreSQL DB
+    # 2. Reject unauthenticated or nonexistent credentials
     if user is None:
         if matched_users:
             return Response({"error": "Invalid password for this account. Please check your credentials."}, status=status.HTTP_401_UNAUTHORIZED)
-        if len(password) >= 4:
-            clean_username = identifier.replace(' ', '_')
-            clean_email = f"{clean_username}@freematch.ai" if '@' not in identifier else identifier
-            user, created = User.objects.get_or_create(
-                username=clean_username,
-                defaults={
-                    'email': clean_email,
-                    'first_name': identifier.capitalize(),
-                    'last_name': ''
-                }
-            )
-            if created:
-                user.set_password(password)
-                user.save()
-            elif not user.check_password(password):
-                user = None
-
-    if user is None:
         return Response({"error": "Invalid Email ID / User ID or password. Please check your credentials or click Sign Up to register."}, status=status.HTTP_401_UNAUTHORIZED)
 
     req_role = data.get('role', '').strip().lower()
