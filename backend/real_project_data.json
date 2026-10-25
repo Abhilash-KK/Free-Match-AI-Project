@@ -3,7 +3,7 @@
     "model": "auth.user",
     "pk": 10,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256/GY3SyYmQYQ6h0avv4sn0oBPPQuT/Uh4wSGAPo=",
       "last_login": "2026-09-30T13:09:54.367Z",
       "is_superuser": true,
       "username": "admin",
@@ -21,7 +21,7 @@
     "model": "auth.user",
     "pk": 55,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256=",
       "last_login": "2026-09-30T05:47:48.396Z",
       "is_superuser": false,
       "username": "abhilashkk123@gmail.com",
@@ -39,7 +39,7 @@
     "model": "auth.user",
     "pk": 56,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256+yjG8oCukoFisorFIuwDZILlQSGnHsAc=",
       "last_login": null,
       "is_superuser": false,
       "username": "james123@gmail.com",
@@ -57,7 +57,7 @@
     "model": "auth.user",
     "pk": 228,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256=",
       "last_login": null,
       "is_superuser": false,
       "username": "karthik",
@@ -75,7 +75,7 @@
     "model": "auth.user",
     "pk": 229,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256/8qRnoor0kc2fiM=",
       "last_login": null,
       "is_superuser": false,
       "username": "ram",
@@ -93,7 +93,7 @@
     "model": "auth.user",
     "pk": 231,
     "fields": {
-      "password": "pbkdf2_sha256/nXw=",
+      "password": "pbkdf2_sha256=",
       "last_login": null,
       "is_superuser": false,
       "username": "haines",

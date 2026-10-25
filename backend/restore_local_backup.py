@@ -87,8 +87,16 @@ def run():
         call_command('loaddata', backup_file)
         print("Real project data loaded successfully!")
         from django.contrib.auth.models import User
-        opt_hash = 'pbkdf2_sha256$250000$fZWCbcL4bL5a4pRhceUs02$wR2f3n7JhuD5hBa4KewfGVCYHmYLyY4f3F3Ngea/nXw='
-        User.objects.filter(username__in=['admin', 'abhilashkk123@gmail.com', 'james123@gmail.com', 'karthik', 'ram', 'haines']).update(password=opt_hash)
+        user_hashes = {
+            'admin': 'pbkdf2_sha256$250000$h8YUppe7OM69NBeafdNoVx$ZOteq/GY3SyYmQYQ6h0avv4sn0oBPPQuT/Uh4wSGAPo=',
+            'abhilashkk123@gmail.com': 'pbkdf2_sha256$250000$o7PLLzXfEoLUvPcC6LhMN9$ZcSQyTES7JXF0CN8Ycg1KcOmsrIiWVr8FOeOd89yqrs=',
+            'james123@gmail.com': 'pbkdf2_sha256$250000$xO26wMLI6ASeKJsBq8VGEp$oTHZEMUssF6+yjG8oCukoFisorFIuwDZILlQSGnHsAc=',
+            'karthik': 'pbkdf2_sha256$250000$XsiJVYMIxleDQByydjxw1L$4GBLRtwE0kV6gHOuWR8IpDSNmpcXdhMePqQjWAahZ6c=',
+            'ram': 'pbkdf2_sha256$250000$OKHGR6XlZACKl7ldM8gDVE$jDPdO9TgZACnT5zp691vKGEfYxPp/8qRnoor0kc2fiM=',
+            'haines': 'pbkdf2_sha256$250000$mHzIdOi9PmaiJEBDUR4I7z$1f1YEU0uOaS0TcqtAxaT5c5gD0438q9VKHLQHffxmig='
+        }
+        for uname, h in user_hashes.items():
+            User.objects.filter(username=uname).update(password=h)
         from api.views import sync_contract_and_project_completion
         from api.models import Contract
         for c in Contract.objects.all():
